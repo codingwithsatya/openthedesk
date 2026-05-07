@@ -5,6 +5,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
 from context import fetch_live_context
+import base64
+from fastapi import UploadFile, File
+from typing import Optional
 
 load_dotenv()
 
@@ -121,6 +124,74 @@ async def chat(request: ChatRequest):
         "reply": reply,
         "session_id": request.session_id,
         "turns": len(history) // 2
+    }
+
+
+@app.post("/analyze-chart")
+async def analyze_chart(
+    file: UploadFile = File(...),
+    context: str = "TRADE IDEA",
+    session_id: str = "default"
+):
+    """Analyze a chart screenshot using Claude Vision."""
+    global LIVE_CONTEXT
+
+    # Read and encode image
+    image_data = await file.read()
+    base64_image = base64.standard_b64encode(image_data).decode("utf-8")
+
+    # Detect media type
+    media_type = file.content_type or "image/png"
+
+    # Get or create session history
+    if session_id not in sessions:
+        sessions[session_id] = []
+
+    history = sessions[session_id]
+
+    # Build vision message
+    user_message = {
+        "role": "user",
+        "content": [
+            {
+                "type": "image",
+                "source": {
+                    "type": "base64",
+                    "media_type": media_type,
+                    "data": base64_image
+                }
+            },
+            {
+                "type": "text",
+                "text": f"{context}\n\nAnalyze this chart. Read the ribbon color first, then ATR levels, then Phase Oscillator, then setup structure — always in that order per your instructions."
+            }
+        ]
+    }
+
+    history.append(user_message)
+
+    response = client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=[{
+            "type": "text",
+            "text": build_system_prompt(LIVE_CONTEXT),
+            "cache_control": {"type": "ephemeral"}
+        }],
+        messages=history
+    )
+
+    reply = response.content[0].text
+
+    # Store simplified version in history
+    history[-1] = {"role": "user",
+                   "content": f"[Chart image uploaded] {context}"}
+    history.append({"role": "assistant", "content": reply})
+
+    return {
+        "reply": reply,
+        "session_id": session_id,
+        "type": "chart_analysis"
     }
 
 

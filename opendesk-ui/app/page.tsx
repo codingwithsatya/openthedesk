@@ -356,6 +356,14 @@ export default function Home() {
         }
         .send-btn:hover:not(:disabled) { background: #1e40af; transform: translateY(-1px); }
         .send-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+        .chart-btn {
+          width: 44px; height: 44px; border-radius: 10px;
+          background: #f0fdf4; border: 1px solid #bbf7d0;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 20px; cursor: pointer; flex-shrink: 0;
+          transition: all 0.15s;
+        }
+        .chart-btn:hover { background: #dcfce7; transform: translateY(-1px); }
       `}</style>
 
       <div className="layout">
@@ -461,8 +469,62 @@ export default function Home() {
           </div>
 
           {/* Input */}
+          {/* Input */}
           <div className="input-area">
             <div className="input-row">
+              <label
+                htmlFor="chart-upload"
+                className="chart-btn"
+                title="Upload chart for analysis"
+              >
+                📊
+                <input
+                  id="chart-upload"
+                  type="file"
+                  accept="image/*"
+                  style={{ display: "none" }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file || loading) return;
+                    e.target.value = "";
+                    const context = input.trim() || "PTR-FAST";
+                    setMessages((prev) => [
+                      ...prev,
+                      {
+                        role: "user",
+                        content: `[Chart: ${file.name}] ${context}`,
+                      },
+                    ]);
+                    setInput("");
+                    setLoading(true);
+                    try {
+                      const form = new FormData();
+                      form.append("file", file);
+                      form.append("context", context);
+                      form.append("session_id", SESSION_ID);
+                      const res = await fetch(`${API}/analyze-chart`, {
+                        method: "POST",
+                        body: form,
+                      });
+                      const data = await res.json();
+                      setMessages((prev) => [
+                        ...prev,
+                        { role: "assistant", content: data.reply },
+                      ]);
+                    } catch {
+                      setMessages((prev) => [
+                        ...prev,
+                        {
+                          role: "assistant",
+                          content: "⚠️ Chart analysis failed.",
+                        },
+                      ]);
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                />
+              </label>
               <textarea
                 ref={textareaRef}
                 className="input-box"
@@ -474,7 +536,7 @@ export default function Home() {
                     sendMessage(input);
                   }
                 }}
-                placeholder="Message the desk... (Enter to send, Shift+Enter for new line)"
+                placeholder="Message the desk... or type PTR-FAST then click 📊 to analyze a chart"
                 disabled={loading}
                 rows={1}
               />
