@@ -162,7 +162,28 @@ async def analyze_chart(
             },
             {
                 "type": "text",
-                "text": f"{context}\n\nAnalyze this chart. Read ribbon color first, then ATR levels, then Phase Oscillator, then setup structure — always in that order."
+                "text": f"""{context}
+
+Analyze this Saty Mahajan system chart carefully.
+
+CRITICAL — Ribbon color reading rules:
+The ribbon has TWO components — read them separately:
+1. The CLOUD/BANDS (the filled area behind candles) — this is the ribbon color
+2. The CANDLE color — gray/white candles can appear INSIDE a green ribbon during compression
+
+Green/teal/blue cloud = GREEN ribbon = calls eligible
+Red/orange cloud = RED ribbon = puts eligible  
+White/thin/nearly invisible cloud = WHITE ribbon = chop, no trade
+
+Do NOT confuse gray compression candles with red ribbon.
+The cloud color behind the candles determines the ribbon state.
+
+Then analyze in order:
+1. Ribbon cloud color (not candle color)
+2. ATR levels from chart overlay
+3. Internals panel — TRIN, VOLD, ADD, TICK, VIX, PCC
+4. Phase Oscillator state
+5. Setup structure and final verdict"""
             }
         ]
     }
