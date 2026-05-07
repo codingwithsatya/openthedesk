@@ -8,6 +8,8 @@ from context import fetch_live_context
 import base64
 from fastapi import UploadFile, File
 from typing import Optional
+from fastapi.responses import StreamingResponse as FastAPIStreaming
+import json
 
 load_dotenv()
 
@@ -133,23 +135,20 @@ async def analyze_chart(
     context: str = "TRADE IDEA",
     session_id: str = "default"
 ):
-    """Analyze a chart screenshot using Claude Vision."""
     global LIVE_CONTEXT
 
-    # Read and encode image
     image_data = await file.read()
     base64_image = base64.standard_b64encode(image_data).decode("utf-8")
+    media_type = file.content_type or "image/jpeg"
 
-    # Detect media type
-    media_type = file.content_type or "image/png"
-
-    # Get or create session history
     if session_id not in sessions:
         sessions[session_id] = []
-
     history = sessions[session_id]
 
-    # Build vision message
+    # Smart model routing
+    model = "claude-haiku-4-5-20251001" if context in [
+        "PTR-FAST", "PTR-FULL", "GRADE"] else "claude-sonnet-4-6"
+
     user_message = {
         "role": "user",
         "content": [
@@ -163,36 +162,34 @@ async def analyze_chart(
             },
             {
                 "type": "text",
-                "text": f"{context}\n\nAnalyze this chart. Read the ribbon color first, then ATR levels, then Phase Oscillator, then setup structure — always in that order per your instructions."
+                "text": f"{context}\n\nAnalyze this chart. Read ribbon color first, then ATR levels, then Phase Oscillator, then setup structure — always in that order."
             }
         ]
     }
 
     history.append(user_message)
 
-    response = client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=[{
-            "type": "text",
-            "text": build_system_prompt(LIVE_CONTEXT),
-            "cache_control": {"type": "ephemeral"}
-        }],
-        messages=history
-    )
+    def stream():
+        full_reply = ""
+        with client.messages.stream(
+            model=model,
+            max_tokens=2048,
+            system=[{
+                "type": "text",
+                "text": build_system_prompt(LIVE_CONTEXT),
+                "cache_control": {"type": "ephemeral"}
+            }],
+            messages=history
+        ) as stream:
+            for text in stream.text_stream:
+                full_reply += text
+                yield text
 
-    reply = response.content[0].text
+        # Store in history after streaming completes
+        history[-1] = {"role": "user", "content": f"[Chart] {context}"}
+        history.append({"role": "assistant", "content": full_reply})
 
-    # Store simplified version in history
-    history[-1] = {"role": "user",
-                   "content": f"[Chart image uploaded] {context}"}
-    history.append({"role": "assistant", "content": reply})
-
-    return {
-        "reply": reply,
-        "session_id": session_id,
-        "type": "chart_analysis"
-    }
+    return FastAPIStreaming(stream(), media_type="text/plain")
 
 
 @app.post("/refresh-context")

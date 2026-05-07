@@ -183,6 +183,26 @@ export default function Home() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
+  // Compress image before sending
+  const compressImage = (file: File): Promise<Blob> => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const maxWidth = 1280;
+        const scale = Math.min(1, maxWidth / img.width);
+        canvas.width = img.width * scale;
+        canvas.height = img.height * scale;
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        canvas.toBlob((blob) => resolve(blob!), "image/jpeg", 0.85);
+        URL.revokeObjectURL(url);
+      };
+      img.src = url;
+    });
+  };
+
   return (
     <>
       <style>{`
@@ -499,18 +519,36 @@ export default function Home() {
                     setLoading(true);
                     try {
                       const form = new FormData();
-                      form.append("file", file);
+                      const compressed = await compressImage(file);
+                      form.append("file", compressed, "chart.jpg");
                       form.append("context", context);
                       form.append("session_id", SESSION_ID);
                       const res = await fetch(`${API}/analyze-chart`, {
                         method: "POST",
                         body: form,
                       });
-                      const data = await res.json();
+
+                      // Stream the response
+                      const reader = res.body!.getReader();
+                      const decoder = new TextDecoder();
+                      let reply = "";
+
+                      // Add empty assistant message first
                       setMessages((prev) => [
                         ...prev,
-                        { role: "assistant", content: data.reply },
+                        { role: "assistant", content: "" },
                       ]);
+
+                      while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        reply += decoder.decode(value);
+                        // Update last message in real time
+                        setMessages((prev) => [
+                          ...prev.slice(0, -1),
+                          { role: "assistant", content: reply },
+                        ]);
+                      }
                     } catch {
                       setMessages((prev) => [
                         ...prev,
