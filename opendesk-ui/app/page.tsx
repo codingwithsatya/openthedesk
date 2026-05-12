@@ -303,8 +303,8 @@ export default function Home() {
         
         .layout { 
           display: grid; 
-          grid-template-columns: 220px auto 1fr; 
-          grid-template-rows: 56px 1fr; 
+          grid-template-columns: 220px 200px 1fr; 
+          grid-template-rows: 64px 1fr; 
           height: 100vh; 
         }
 
@@ -313,8 +313,9 @@ export default function Home() {
           grid-column: 1 / -1;
           display: flex; align-items: center; justify-content: space-between;
           padding: 0 20px;
-          background: white;
-          border-bottom: 1px solid #e2e8f0;
+          height: 64px;
+          background: #0d1320;
+          border-bottom: 1px solid #1e3a5f;
         }
         .header-left { display: flex; align-items: center; gap: 12px; }
         .logo-wrap { display: flex; align-items: center; gap: 8px; }
@@ -333,7 +334,7 @@ export default function Home() {
           text-transform: uppercase; transition: all 0.3s;
         }
         .status-badge.open { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
-        .status-badge.closed { background: #f8fafc; color: #94a3b8; border: 1px solid #e2e8f0; }
+        .status-badge.closed { background: rgba(255,255,255,0.05); color: #64748b; border: 1px solid #1e3a5f; }
         .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
         .status-dot.pulse { animation: pulse 2s infinite; }
         @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
@@ -341,9 +342,9 @@ export default function Home() {
         .hbtn {
           padding: 6px 14px; border-radius: 7px; font-size: 12px; font-weight: 500;
           font-family: 'Inter', sans-serif; cursor: pointer; transition: all 0.15s;
-          border: 1px solid #e2e8f0; background: white; color: #64748b;
+          border: 1px solid #1e3a5f; background: transparent; color: #94a3b8;
         }
-        .hbtn:hover { background: #f8fafc; color: #0f172a; border-color: #cbd5e1; }
+        .hbtn:hover { background: #1e3a5f; color: white; border-color: #2d5a8e; }
         .hbtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         /* Sidebar */
@@ -488,8 +489,11 @@ export default function Home() {
         <header className="header">
           <div className="header-left">
             <div className="logo-wrap">
-              <div className="logo-icon">OD</div>
-              <span className="logo-text">OpenTheDesk</span>
+              <img
+                src="/logo.png"
+                alt="OpenTheDesk"
+                style={{ height: "52px", width: "auto", objectFit: "contain" }}
+              />
             </div>
             <div className="divider-v" />
             <div className={`status-badge ${deskOpen ? "open" : "closed"}`}>
