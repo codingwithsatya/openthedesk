@@ -10,6 +10,7 @@ from fastapi import UploadFile, File
 from typing import Optional
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 import json
+from market_data import get_market_summary
 
 load_dotenv()
 
@@ -164,26 +165,26 @@ async def analyze_chart(
                 "type": "text",
                 "text": f"""{context}
 
-Analyze this Saty Mahajan system chart carefully.
+                    Analyze this Saty Mahajan system chart carefully.
 
-CRITICAL — Ribbon color reading rules:
-The ribbon has TWO components — read them separately:
-1. The CLOUD/BANDS (the filled area behind candles) — this is the ribbon color
-2. The CANDLE color — gray/white candles can appear INSIDE a green ribbon during compression
+                    CRITICAL — Ribbon color reading rules:
+                    The ribbon has TWO components — read them separately:
+                    1. The CLOUD/BANDS (the filled area behind candles) — this is the ribbon color
+                    2. The CANDLE color — gray/white candles can appear INSIDE a green ribbon during compression
 
-Green/teal/blue cloud = GREEN ribbon = calls eligible
-Red/orange cloud = RED ribbon = puts eligible  
-White/thin/nearly invisible cloud = WHITE ribbon = chop, no trade
+                    Green/teal/blue cloud = GREEN ribbon = calls eligible
+                    Red/orange cloud = RED ribbon = puts eligible  
+                    White/thin/nearly invisible cloud = WHITE ribbon = chop, no trade
 
-Do NOT confuse gray compression candles with red ribbon.
-The cloud color behind the candles determines the ribbon state.
+                    Do NOT confuse gray compression candles with red ribbon.
+                    The cloud color behind the candles determines the ribbon state.
 
-Then analyze in order:
-1. Ribbon cloud color (not candle color)
-2. ATR levels from chart overlay
-3. Internals panel — TRIN, VOLD, ADD, TICK, VIX, PCC
-4. Phase Oscillator state
-5. Setup structure and final verdict"""
+                    Then analyze in order:
+                    1. Ribbon cloud color (not candle color)
+                    2. ATR levels from chart overlay
+                    3. Internals panel — TRIN, VOLD, ADD, TICK, VIX, PCC
+                    4. Phase Oscillator state
+                    5. Setup structure and final verdict"""
             }
         ]
     }
@@ -210,6 +211,76 @@ Then analyze in order:
         history[-1] = {"role": "user", "content": f"[Chart] {context}"}
         history.append({"role": "assistant", "content": full_reply})
 
+    return FastAPIStreaming(stream(), media_type="text/plain")
+
+
+@app.get("/market-data")
+async def market_data():
+    """Get live SPX + VIX + ATR levels."""
+    return get_market_summary()
+
+
+@app.post("/premarket")
+async def premarket(request: ChatRequest):
+    """Run PREMARKET with live market data injected."""
+    global LIVE_CONTEXT
+
+    # Fetch live data
+    market = get_market_summary()
+
+    # Build market context string
+    spx = market.get("spx", {})
+    vix = market.get("vix", {})
+    levels = market.get("atr_levels", {})
+
+    market_context = f"""
+LIVE MARKET DATA (auto-fetched):
+SPX Close: {spx.get('close')} | PDC: {spx.get('pdc')} | PDH: {spx.get('pdh')} | PDL: {spx.get('pdl')}
+VIX: {vix.get('vix')} | VIX High: {vix.get('vix_high')} | VIX Low: {vix.get('vix_low')}
+
+ATR LEVELS (PDC {levels.get('PDC')} | ATR ~{levels.get('ATR')}):
++61.8% GG Complete: {levels.get('gg_complete_call')}
++38.2% GG Open:     {levels.get('gg_open_call')}
++23.6% Call Trigger:{levels.get('call_trigger')}
+PDC Pivot:          {levels.get('PDC')}
+-23.6% Put Trigger: {levels.get('put_trigger')}
+-38.2% GG Open Put: {levels.get('gg_open_put')}
+-61.8% GG Complete: {levels.get('gg_complete_put')}
+Full ATR Put:       {levels.get('full_atr_put')}
+
+Note: ATR approximated from prior day range. Verify with Saty ATR indicator.
+"""
+
+    # Add to session history
+    session_id = request.session_id
+    if session_id not in sessions:
+        sessions[session_id] = []
+
+    history = sessions[session_id]
+    history.append({
+        "role": "user",
+        "content": f"PREMARKET\n\n{market_context}\n\nRun the full 5-step pre-market plan for today."
+    })
+
+    # Stream response
+    def stream():
+        full_reply = ""
+        with client.messages.stream(
+            model="claude-sonnet-4-6",
+            max_tokens=2048,
+            system=[{
+                "type": "text",
+                "text": build_system_prompt(LIVE_CONTEXT),
+                "cache_control": {"type": "ephemeral"}
+            }],
+            messages=history
+        ) as s:
+            for text in s.text_stream:
+                full_reply += text
+                yield text
+        history.append({"role": "assistant", "content": full_reply})
+
+    from fastapi.responses import StreamingResponse as FastAPIStreaming
     return FastAPIStreaming(stream(), media_type="text/plain")
 
 

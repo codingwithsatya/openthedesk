@@ -123,15 +123,75 @@ export default function Home() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // const sendMessage = async (text: string) => {
+  //   if (!text.trim() || loading) return;
+  //   const msg = text.trim();
+  //   setInput("");
+  //   if (textareaRef.current) textareaRef.current.style.height = "44px";
+  //   setMessages((prev) => [...prev, { role: "user", content: msg }]);
+  //   setLoading(true);
+
+  //   try {
+  //     const res = await fetch(`${API}/chat`, {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
+  //     });
+  //     const data = await res.json();
+  //     setMessages((prev) => [
+  //       ...prev,
+  //       { role: "assistant", content: data.reply },
+  //     ]);
+  //     if (msg === "Open the Desk") setDeskOpen(true);
+  //   } catch {
+  //     setMessages((prev) => [
+  //       ...prev,
+  //       {
+  //         role: "assistant",
+  //         content: "⚠️ Could not reach the desk. Is the backend running?",
+  //       },
+  //     ]);
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
     const msg = text.trim();
     setInput("");
-    if (textareaRef.current) textareaRef.current.style.height = "44px";
     setMessages((prev) => [...prev, { role: "user", content: msg }]);
     setLoading(true);
 
     try {
+      // Special handling for PREMARKET — uses dedicated endpoint
+      if (msg === "PREMARKET") {
+        const res = await fetch(`${API}/premarket`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: "PREMARKET",
+            session_id: SESSION_ID,
+          }),
+        });
+
+        const reader = res.body!.getReader();
+        const decoder = new TextDecoder();
+        let reply = "";
+        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          reply += decoder.decode(value);
+          setMessages((prev) => [
+            ...prev.slice(0, -1),
+            { role: "assistant", content: reply },
+          ]);
+        }
+        return;
+      }
+
+      // Default chat
       const res = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -148,7 +208,7 @@ export default function Home() {
         ...prev,
         {
           role: "assistant",
-          content: "⚠️ Could not reach the desk. Is the backend running?",
+          content: "⚠️ Could not reach the desk.",
         },
       ]);
     } finally {
