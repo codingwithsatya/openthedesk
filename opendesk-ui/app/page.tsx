@@ -110,6 +110,29 @@ interface Message {
   content: string;
 }
 
+interface MarketData {
+  spx: {
+    close: number;
+    pdc: number;
+    pdh: number;
+    pdl: number;
+    today: string;
+  };
+  vix: { vix: number };
+  atr_levels: {
+    PDC: number;
+    ATR: number;
+    call_trigger: number;
+    gg_open_call: number;
+    gg_complete_call: number;
+    full_atr_call: number;
+    put_trigger: number;
+    gg_open_put: number;
+    gg_complete_put: number;
+    full_atr_put: number;
+  };
+}
+
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
@@ -118,6 +141,7 @@ export default function Home() {
   const [refreshing, setRefreshing] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [marketData, setMarketData] = useState<MarketData | null>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -263,6 +287,13 @@ export default function Home() {
     });
   };
 
+  useEffect(() => {
+    fetch(`${API}/market-data`)
+      .then((r) => r.json())
+      .then(setMarketData)
+      .catch(() => {});
+  }, []);
+
   return (
     <>
       <style>{`
@@ -270,7 +301,12 @@ export default function Home() {
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #f8fafc; color: #0f172a; height: 100vh; overflow: hidden; }
         
-        .layout { display: grid; grid-template-columns: 220px 1fr; grid-template-rows: 56px 1fr; height: 100vh; }
+        .layout { 
+          display: grid; 
+          grid-template-columns: 220px auto 1fr; 
+          grid-template-rows: 56px 1fr; 
+          height: 100vh; 
+        }
 
         /* Header */
         .header {
@@ -444,6 +480,7 @@ export default function Home() {
           transition: all 0.15s;
         }
         .chart-btn:hover { background: #dcfce7; transform: translateY(-1px); }
+        
       `}</style>
 
       <div className="layout">
@@ -496,6 +533,175 @@ export default function Home() {
             ))}
           </div>
         </aside>
+
+        {/* Levels panel */}
+        {marketData && (
+          <div
+            style={{
+              width: "200px",
+              borderRight: "1px solid #e2e8f0",
+              background: "white",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div
+              style={{
+                padding: "14px 16px 10px",
+                fontSize: "10px",
+                fontWeight: 600,
+                color: "#94a3b8",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                borderBottom: "1px solid #f1f5f9",
+              }}
+            >
+              Today's Levels
+            </div>
+
+            <div
+              style={{
+                padding: "12px",
+                display: "flex",
+                flexDirection: "column",
+                gap: "4px",
+                overflowY: "auto",
+              }}
+            >
+              {/* SPX + VIX header */}
+              <div
+                style={{
+                  background: "#f8fafc",
+                  borderRadius: "8px",
+                  padding: "8px 10px",
+                  marginBottom: "8px",
+                }}
+              >
+                <div style={{ fontSize: "11px", color: "#64748b" }}>
+                  SPX Close
+                </div>
+                <div
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#0f172a",
+                  }}
+                >
+                  {marketData.spx.close.toFixed(2)}
+                </div>
+                <div
+                  style={{
+                    fontSize: "11px",
+                    color: "#64748b",
+                    marginTop: "4px",
+                  }}
+                >
+                  VIX {marketData.vix.vix}
+                </div>
+              </div>
+
+              {/* ATR Levels */}
+              {[
+                {
+                  label: "GG Complete ↑",
+                  value: marketData.atr_levels.gg_complete_call,
+                  color: "#15803d",
+                  bg: "#f0fdf4",
+                },
+                {
+                  label: "GG Open ↑",
+                  value: marketData.atr_levels.gg_open_call,
+                  color: "#16a34a",
+                  bg: "#f0fdf4",
+                },
+                {
+                  label: "Call Trigger",
+                  value: marketData.atr_levels.call_trigger,
+                  color: "#22c55e",
+                  bg: "#f0fdf4",
+                },
+                {
+                  label: "── PDC ──",
+                  value: marketData.atr_levels.PDC,
+                  color: "#0f172a",
+                  bg: "#f1f5f9",
+                  bold: true,
+                },
+                {
+                  label: "Put Trigger",
+                  value: marketData.atr_levels.put_trigger,
+                  color: "#dc2626",
+                  bg: "#fef2f2",
+                },
+                {
+                  label: "GG Open ↓",
+                  value: marketData.atr_levels.gg_open_put,
+                  color: "#b91c1c",
+                  bg: "#fef2f2",
+                },
+                {
+                  label: "GG Complete ↓",
+                  value: marketData.atr_levels.gg_complete_put,
+                  color: "#991b1b",
+                  bg: "#fef2f2",
+                },
+                {
+                  label: "Full ATR ↓",
+                  value: marketData.atr_levels.full_atr_put,
+                  color: "#7f1d1d",
+                  bg: "#fff1f2",
+                },
+              ].map((level, i) => (
+                <div
+                  key={i}
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    padding: "5px 8px",
+                    borderRadius: "6px",
+                    background: level.bg,
+                  }}
+                >
+                  <span
+                    style={{
+                      fontSize: "10px",
+                      color: level.color,
+                      fontWeight: level.bold ? 700 : 500,
+                    }}
+                  >
+                    {level.label}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: 700,
+                      color: level.color,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    {level.value.toFixed(0)}
+                  </span>
+                </div>
+              ))}
+
+              {/* ATR value */}
+              <div
+                style={{
+                  marginTop: "8px",
+                  padding: "6px 8px",
+                  background: "#f8fafc",
+                  borderRadius: "6px",
+                }}
+              >
+                <span style={{ fontSize: "10px", color: "#94a3b8" }}>
+                  ATR ~{marketData.atr_levels.ATR.toFixed(1)} pts
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Chat */}
         <div className="chat">
