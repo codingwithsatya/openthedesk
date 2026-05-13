@@ -625,7 +625,7 @@ export default function Home() {
                         marginBottom: "5px",
                       }}
                     >
-                      Saty ATR {atrApplied ? "✓" : "— enter from indicator"}
+                      Saty ATR {atrApplied ? "✓ override" : "(auto-calculated)"}
                     </div>
                     <div style={{ display: "flex", gap: "5px" }}>
                       <input
@@ -635,7 +635,7 @@ export default function Home() {
                           setSatyAtr(e.target.value);
                           setAtrApplied(false);
                         }}
-                        placeholder="e.g. 74.79"
+                        placeholder={`auto: ${marketData?.atr_levels?.ATR?.toFixed(2) ?? "…"}`}
                         style={{
                           flex: 1,
                           padding: "5px 7px",
@@ -650,8 +650,8 @@ export default function Home() {
                       />
                       <button
                         onClick={() => {
-                          const val = parseFloat(satyAtr);
-                          if (!isNaN(val) && val > 0) fetchMarketData(val);
+                          const val = Number.parseFloat(satyAtr);
+                          if (!Number.isNaN(val) && val > 0) fetchMarketData(val);
                         }}
                         style={{
                           padding: "5px 8px",
@@ -667,6 +667,29 @@ export default function Home() {
                       >
                         Apply
                       </button>
+                      {atrApplied && (
+                        <button
+                          onClick={() => {
+                            setSatyAtr("");
+                            setAtrApplied(false);
+                            satyAtrRef.current = "";
+                            fetchMarketData(undefined);
+                          }}
+                          title="Reset to auto-calculated ATR"
+                          style={{
+                            padding: "5px 7px",
+                            borderRadius: "5px",
+                            border: "1px solid #fcd34d",
+                            background: "white",
+                            color: "#92400e",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            lineHeight: 1,
+                          }}
+                        >
+                          ↺
+                        </button>
+                      )}
                     </div>
                   </div>
 
