@@ -478,6 +478,21 @@ export default function Home() {
           font-size: 20px; cursor: pointer; flex-shrink: 0; transition: all 0.15s;
         }
         .chart-btn:hover { background: #dcfce7; transform: translateY(-1px); }
+
+        @keyframes shimmer {
+          0%   { background-position: -400px 0; }
+          100% { background-position:  400px 0; }
+        }
+        .skel {
+          border-radius: 5px; height: 10px;
+          background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+          background-size: 400px 100%;
+          animation: shimmer 1.4s ease-in-out infinite;
+        }
+        .skel-block {
+          border-radius: 8px; padding: 8px 10px; margin-bottom: 4px;
+          background: #f8fafc;
+        }
       `}</style>
 
       <div className="layout">
@@ -534,9 +549,8 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* ── LEVELS PANEL ── */}
-        {marketData &&
-          (() => {
+        {/* ── LEVELS PANEL ── always rendered to prevent layout shift */}
+        {(() => {
             const { bestCall, bestPut, allCalls, allPuts } = getBestOptions();
 
             return (
@@ -574,6 +588,40 @@ export default function Home() {
                     gap: "4px",
                   }}
                 >
+                  {!marketData ? (
+                    /* ── SKELETON ── */
+                    <>
+                      {/* SPX block */}
+                      <div className="skel-block" style={{ marginBottom: "4px" }}>
+                        <div className="skel" style={{ width: "28px", marginBottom: "6px" }} />
+                        <div className="skel" style={{ width: "80px", height: "16px", marginBottom: "6px" }} />
+                        <div className="skel" style={{ width: "110px" }} />
+                      </div>
+                      {/* ATR input block */}
+                      <div className="skel-block" style={{ background: "#fffbeb", border: "1px solid #fde68a", marginBottom: "4px" }}>
+                        <div className="skel" style={{ width: "100px", marginBottom: "8px" }} />
+                        <div className="skel" style={{ width: "100%", height: "26px" }} />
+                      </div>
+                      {/* 11 level bars — green gradient top, PDC center, red gradient bottom */}
+                      {[80, 70, 60, 90, 75, 95, 72, 65, 55, 80, 68].map((w, i) => (
+                        <div
+                          key={i}
+                          style={{
+                            display: "flex", justifyContent: "space-between", alignItems: "center",
+                            padding: "5px 8px", borderRadius: "6px",
+                            background: i < 5 ? "#f0fdf4" : i === 5 ? "#f1f5f9" : "#fef2f2",
+                          }}
+                        >
+                          <div className="skel" style={{ width: `${w * 0.45}%` }} />
+                          <div className="skel" style={{ width: "38px" }} />
+                        </div>
+                      ))}
+                      {/* ATR value footer */}
+                      <div className="skel" style={{ width: "70px", marginTop: "2px" }} />
+                    </>
+                  ) : (
+                  /* ── REAL DATA ── */
+                  <>
                   {/* SPX + VIX */}
                   <div
                     style={{
@@ -1035,6 +1083,8 @@ export default function Home() {
                         refreshes 60s
                       </div>
                     </>
+                  )}
+                  </>
                   )}
                 </div>
               </div>
