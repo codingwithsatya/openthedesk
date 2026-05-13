@@ -702,7 +702,7 @@
         <h1>AI engineer learning notes</h1>
         <p>Updated after each session — your running reference</p>
       </div>
-      <span class="badge">Month 4 — Production AI Apps</span>
+      <span class="badge">Month 4 — Week 13 ✓</span>
     </div>
 
     <div class="view-tabs">
@@ -717,17 +717,17 @@
         <div class="stat-card">
           <div class="stat-label">Weeks complete</div>
           <div class="stat-val">12 / 12</div>
-          <div class="stat-sub">Month 3 ✓ · Month 4 next</div>
+          <div class="stat-sub">Month 4 · Week 13 active</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Milestones hit</div>
-          <div class="stat-val">80</div>
+          <div class="stat-val">88</div>
           <div class="stat-sub">Theory + code + deploy</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Projects shipped</div>
           <div class="stat-val">3</div>
-          <div class="stat-sub">Chatbot · Code Reviewer · RAG</div>
+          <div class="stat-sub">Chatbot · Code Reviewer · OpenTheDesk</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Live URLs</div>
@@ -778,6 +778,7 @@
         <button class="tab" onclick="showWeek('w10', this)">Week 10 ✓</button>
         <button class="tab" onclick="showWeek('w11', this)">Week 11 ✓</button>
         <button class="tab" onclick="showWeek('w12', this)">Week 12 ✓</button>
+        <button class="tab" onclick="showWeek('w13', this)">Week 13 ✓</button>
       </div>
 
       <!-- WEEK 1 -->
@@ -2595,6 +2596,249 @@
     </div>
   </div>
 
+  <!-- WEEK 13 -->
+  <div id="w13" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:100%"></div>
+      </div>
+      <div class="progress-label">Week 13 complete — Tradier live options + auto ATR + full codebase cleanup 🎉</div>
+    </div>
+    <div class="divider"></div>
+    <div class="live-url">
+      <div class="live-dot"></div>
+      <div>
+        <div class="live-label">OpenTheDesk — Frontend live</div>
+        <div class="live-url-text">https://openthedesk.vercel.app</div>
+      </div>
+    </div>
+    <div class="live-url">
+      <div class="live-dot"></div>
+      <div>
+        <div class="live-label">OpenTheDesk — Backend live</div>
+        <div class="live-url-text">https://openthedesk-production.up.railway.app</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Core concepts</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Tradier API — production approved</div>
+            <div class="concept-sub">api.tradier.com production key. Token stored in .env + Railway env vars. Never
+              expires until regenerated. Gives live SPX quote, VIX, SPXW 0DTE options chain with greeks.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Single data source architecture</div>
+            <div class="concept-sub">Removed yfinance entirely. Tradier handles everything: SPX spot (last), PDC
+              (prevclose field), VIX, options chain. market_data.py and tradier.py both use Tradier. Cleaner, one API
+              key, no dependency mix.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Saty ATR calculation — exact formula</div>
+            <div class="concept-sub">ATR is NOT PDH-PDL (71.03 today). It's a smoothed value from Saty's custom
+              indicator. Back-calculated: upper trigger - PDC / 0.236 = ATR. Today: (7418.62 - 7400.97) / 0.236 = 74.79.
+              Must enter manually each morning until formula confirmed.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">11 Saty ATR levels (not 8)</div>
+            <div class="concept-sub">Added missing 50% level on both sides. Full set: Full ATR ↑, GG Complete ↑, 50% ↑,
+              GG Open ↑, Call Trigger, PDC, Put Trigger, GG Open ↓, 50% ↓, GG Complete ↓, Full ATR ↓. All shown to 2dp
+              precision.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">ATR-based strike targeting (not delta)</div>
+            <div class="concept-sub">Tradier greeks unreliable intraday for SPX index options — delta=1.0 across most
+              strikes. Per Saty system: target 0.5 ATR OTM instead. best_strike() finds closest real-priced strike to
+              that target. Delta shown when available.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Options chain — after hours limitation</div>
+            <div class="concept-sub">After market close, OTM options go to near-zero mid, greeks go stale. Chain only
+              useful 9:35–4pm ET. Real test tomorrow morning — chain should show proper pricing and greeks across all
+              strikes.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Auto-calculate Saty ATR — ATR-10 Simple</div>
+            <div class="concept-sub">Tested 6 periods × 4 methods (Wilder, EMA, Simple, H-L) against known value 74.79.
+              Winner: ATR-10 Simple = 74.23 (diff 0.56). Formula: TR = max(H-L, |H-prevClose|, |L-prevClose|). Average
+              last 10 TRs. Auto-runs from Tradier history on every /market-data call. Manual override always wins if
+              typed.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Claude Code — full codebase review workflow</div>
+            <div class="concept-sub">Run: cd repo && claude. Give it a detailed prompt listing every file + every issue
+              to fix. It reads the whole repo, shows a findings table first, waits for approval, then fixes everything.
+              Critical bug found: ATR was not passing to get_0dte_snapshot() — options were always using approx ATR.
+              Also fixed TypeScript interfaces, mutable default args, duplicate imports, dead code.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Files built / updated</div>
+      <div class="cards">
+        <div class="card">
+          <h3>tradier.py</h3>
+          <p>Full Tradier integration. SPX quote, SPXW expirations, 0DTE chain (3% wide), ATR-based strike targeting,
+            budget filter $2–6, best_call/best_put returned directly.</p>
+        </div>
+        <div class="card">
+          <h3>market_data.py</h3>
+          <p>Rewritten — Tradier only, yfinance removed. get_spx_data() uses prevclose for PDC. atr_override param. All
+            11 Saty levels. 2dp precision throughout.</p>
+        </div>
+        <div class="card">
+          <h3>main.py</h3>
+          <p>/market-data accepts ?atr= query param. /premarket injects live options context. ChatRequest model has atr
+            field. Both endpoints pass ATR through to market_data and tradier.</p>
+        </div>
+        <div class="card">
+          <h3>page.tsx</h3>
+          <p>Saty ATR input + Apply button. Auto-refresh 60s with ATR persistence via useRef. 11 levels at 2dp. Options
+            panel with best call/put cards. Fixed delta display (d= not δ).</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Code patterns</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Tradier SPX quote — correct symbol</div>
+            <div class="code-block">GET /v1/markets/quotes?symbols=SPX
+              # quote.prevclose = PDC ← key field
+              # quote.last = live spot price
+              # quote.high/low = today's range (approx ATR fallback)</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">ATR-based strike targeting</div>
+            <div class="code-block">call_target = round((spot + atr * 0.5) / 5) * 5
+              put_target = round((spot - atr * 0.5) / 5) * 5
+
+              def best_strike(options, target):
+              candidates = [o for o in options if o.get("mid") and o["mid"] > 0.5]
+              return min(candidates, key=lambda x: abs(x["strike"] - target))</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">ATR persistence across auto-refresh</div>
+            <div class="code-block">const satyAtrRef = useRef("");
+              // Keep ref in sync with state
+              useEffect(() => { satyAtrRef.current = satyAtr; }, [satyAtr]);
+              // Interval reads from ref, not stale state
+              setInterval(() => fetchMarketData(), 60_000);
+              // fetchMarketData reads satyAtrRef.current internally</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Tomorrow's live test checklist</div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Verify ATR-10 auto (74.23) vs TradingView Saty ATR — confirm match</div><span
+          class="milestone-tag tag-theory">verify</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Options chain shows real live pricing at market open 9:35 ET</div><span
+          class="milestone-tag tag-code">test</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">PREMARKET command receives live options + correct ATR levels</div><span
+          class="milestone-tag tag-code">test</span>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Session milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Tradier production API approved + token secured in .env + Railway</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">tradier.py — full options chain integration working</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">market_data.py rewritten — Tradier only, yfinance removed</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">11 Saty ATR levels with 2dp precision (added 50% level)</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">ATR-10 Simple auto-calculation from Tradier history — no manual input</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Manual override input retained — ↺ reset button to return to auto</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Auto-refresh every 60s with ATR persistence via useRef</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Claude Code full codebase cleanup — 13 bugs/issues fixed</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Folder restructure — legacy/, opendesk-ui → ui/</div><span
+          class="milestone-tag tag-git">git</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Production deployed + curl verified — atr_source: auto_atr10</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
   </div>
 
   <!-- 6-MONTH ROADMAP -->
@@ -2728,10 +2972,10 @@
         <div class="month-sub">Weeks 13–16 · Jun 2026</div>
       </div>
       <div class="weeks-grid">
-        <div class="week-card current">
-          <div class="wk-label">Week 13 — next</div>
-          <div class="wk-title">Auth with Clerk + user sessions</div>
-          <div class="wk-tags"><span class="rtag rtag-amber">theory</span><span class="rtag rtag-green">code</span>
+        <div class="week-card done">
+          <div class="wk-label">Week 13 ✓</div>
+          <div class="wk-title">Tradier live options + auto ATR + Claude Code cleanup</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
           </div>
         </div>
         <div class="week-card">
@@ -2925,9 +3169,9 @@
         <div class="ms-when">Week 12 ✓</div>
       </div>
       <div class="ms-row">
-        <div class="ms-dot future"></div>
-        <div class="ms-text">Month 4 — Auth, billing, observability</div>
-        <div class="ms-when">Week 13</div>
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Tradier live options + auto ATR-10 + Claude Code cleanup deployed</div>
+        <div class="ms-when">Week 13 ✓</div>
       </div>
       <div class="ms-row">
         <div class="ms-dot future"></div>
