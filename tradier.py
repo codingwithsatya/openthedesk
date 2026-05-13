@@ -197,15 +197,42 @@ def filter_by_premium(chain: dict, min_prem: float = 2.0, max_prem: float = 5.0)
     }
 
 
+def filter_by_delta(chain: dict, min_delta: float = 0.20, max_delta: float = 0.45) -> dict:
+    """
+    Filter to strikes with delta in the directional entry range.
+    Calls:  delta between +0.20 and +0.45
+    Puts:   delta between -0.45 and -0.20 (stored as negative)
+    Saty system: 0.20–0.40 delta = ideal entry zone for 0DTE.
+    """
+    if "error" in chain:
+        return chain
+
+    def call_ok(opt):
+        d = opt.get("delta")
+        return d is not None and min_delta <= d <= max_delta
+
+    def put_ok(opt):
+        d = opt.get("delta")
+        return d is not None and -max_delta <= d <= -min_delta
+
+    return {
+        **chain,
+        "calls": [c for c in chain["calls"] if call_ok(c)],
+        "puts":  [p for p in chain["puts"] if put_ok(p)],
+    }
+
+
 # ─────────────────────────────────────────────
 # MAIN ENTRY POINT — FULL 0DTE SNAPSHOT
 # ─────────────────────────────────────────────
 
-def get_0dte_snapshot() -> dict:
+def get_0dte_snapshot(atr: float = None) -> dict:
     """
     Full 0DTE options snapshot for OpenTheDesk.
-    Returns: spot price, expiry, filtered chain (premium in budget), ATR context.
-    Call this from market_data.py or directly from endpoints.
+    Strategy per Saty system: target strikes ~0.5 ATR OTM, delta 0.25-0.40.
+    Since Tradier greeks are unreliable for index options intraday,
+    we select strikes by distance from spot using ATR when available,
+    otherwise fall back to strikes within $2-6 premium range.
     """
     # 1. Get spot price
     quote = get_spx_quote()
@@ -221,19 +248,70 @@ def get_0dte_snapshot() -> dict:
     if not expiry:
         return {"error": "No SPXW expiry found for today"}
 
-    # 3. Pull full chain near spot
-    chain = get_0dte_chain(expiry, spot, width_pct=0.02)
+    # 3. Pull wide chain — 3% to get full range of strikes
+    chain = get_0dte_chain(expiry, spot, width_pct=0.03)
     if "error" in chain:
         return {"error": f"Chain pull failed: {chain['error']}"}
 
-    # 4. Filter to $3–4 premium budget (with slight buffer)
-    budgeted = filter_by_premium(chain, min_prem=2.0, max_prem=5.0)
+    all_calls = chain["calls"]
+    all_puts = chain["puts"]
+
+    # 4. Saty target strikes — 0.5 ATR OTM (round to nearest 5)
+    # Per system: "0.5 ATR is preferred" for scalps/day trades
+    if atr:
+        call_target = round((spot + atr * 0.5) / 5) * 5
+        put_target = round((spot - atr * 0.5) / 5) * 5
+        # Also compute trigger and GG open for reference
+        call_trigger = round((spot + atr * 0.236) / 5) * 5
+        put_trigger = round((spot - atr * 0.236) / 5) * 5
+    else:
+        # No ATR — use ATM ± 30pts as fallback
+        call_target = round((spot + 30) / 5) * 5
+        put_target = round((spot - 30) / 5) * 5
+        call_trigger = round((spot + 15) / 5) * 5
+        put_trigger = round((spot - 15) / 5) * 5
+
+    # 5. Find best call — strike closest to call_target with a real mid price
+    def best_strike(options, target):
+        candidates = [o for o in options if o.get("mid") and o["mid"] > 0.5]
+        if not candidates:
+            return None
+        return min(candidates, key=lambda x: abs(x["strike"] - target))
+
+    best_call = best_strike(all_calls, call_target)
+    best_put = best_strike(all_puts,  put_target)
+
+    # 6. Budget filter — $2–6 range (Phase 2: max $3-4, slight buffer)
+    def in_budget(opt):
+        mid = opt.get("mid") or 0
+        return 1.5 <= mid <= 6.0
+
+    budget_calls = [c for c in all_calls if in_budget(c)]
+    budget_puts = [p for p in all_puts if in_budget(p)]
+
+    # 7. Flag if best strike is within budget
+    call_in_budget = best_call and in_budget(best_call)
+    put_in_budget = best_put and in_budget(best_put)
 
     return {
         "spot": spot,
         "expiry": expiry,
         "source": "tradier",
-        "chain": budgeted,
+        "atr": atr,
+        "targets": {
+            "call_target": call_target,    # 0.5 ATR OTM call strike
+            "put_target":  put_target,     # 0.5 ATR OTM put strike
+            "call_trigger": call_trigger,  # 0.236 ATR call trigger
+            "put_trigger":  put_trigger,   # 0.236 ATR put trigger
+        },
+        "best_call": best_call,            # closest strike to 0.5 ATR target
+        "best_put":  best_put,
+        "call_in_budget": call_in_budget,
+        "put_in_budget":  put_in_budget,
+        "chain": {
+            "calls": budget_calls,
+            "puts":  budget_puts,
+        },
         "quote": quote
     }
 
@@ -257,9 +335,9 @@ def format_options_context(snapshot: dict) -> str:
 
     lines = [
         f"LIVE 0DTE OPTIONS (SPXW {expiry} | SPX @ {spot})",
-        f"Premium budget filter: $2.00–$5.00 mid | Strikes within 2% of spot",
+        f"Filters: premium $2–5 mid | delta 0.20–0.45 | strikes within 3% of spot",
         "",
-        "CALLS IN BUDGET:"
+        "CALLS IN RANGE (delta 0.20–0.45, premium $2–5):"
     ]
 
     if calls:
@@ -269,9 +347,10 @@ def format_options_context(snapshot: dict) -> str:
                 f"δ={c['delta']}  IV={c['iv']}  vol={c['volume']}  OI={c['open_interest']}"
             )
     else:
-        lines.append("  None in $2–5 range")
+        lines.append(
+            "  None matching filters — check spot vs strikes or widen range")
 
-    lines += ["", "PUTS IN BUDGET:"]
+    lines += ["", "PUTS IN RANGE (delta -0.20 to -0.45, premium $2–5):"]
 
     if puts:
         for p in puts:
@@ -280,7 +359,8 @@ def format_options_context(snapshot: dict) -> str:
                 f"δ={p['delta']}  IV={p['iv']}  vol={p['volume']}  OI={p['open_interest']}"
             )
     else:
-        lines.append("  None in $2–5 range")
+        lines.append(
+            "  None matching filters — check spot vs strikes or widen range")
 
     return "\n".join(lines)
 
@@ -296,27 +376,34 @@ if __name__ == "__main__":
 
     print("1. SPX Quote:")
     quote = get_spx_quote()
-    print(json.dumps(quote, indent=2))
+    spot = quote.get("last") or quote.get("close")
+    print(f"   Spot: {spot}")
 
-    print("\n2. Raw SPXW expirations response:")
-    raw_exp = _get("/markets/options/expirations", {
-        "symbol": "SPX",
-        "includeAllRoots": "true",
-        "strikes": "false"
-    })
-    print(json.dumps(raw_exp, indent=2)[:800])
-
-    print("\n3. Today's SPXW expiry (parsed):")
+    print("\n2. Today's SPXW expiry:")
     expiry = get_today_expiry()
-    print(expiry)
+    print(f"   {expiry}")
 
-    if expiry and "error" not in quote:
-        spot = quote.get("last") or quote.get("close")
-        print(f"\n4. 0DTE chain near spot ({spot}):")
-        chain = get_0dte_chain(expiry, spot)
-        print(f"   Calls: {len(chain.get('calls', []))} strikes")
-        print(f"   Puts:  {len(chain.get('puts', []))} strikes")
+    if expiry and spot:
+        print(f"\n3. Snapshot with ATR=74.79:")
+        snapshot = get_0dte_snapshot(atr=74.79)
 
-        print("\n5. Full snapshot + premium filter:")
-        snapshot = get_0dte_snapshot()
-        print(format_options_context(snapshot))
+        targets = snapshot.get("targets", {})
+        print(f"   Spot:         {snapshot['spot']}")
+        print(f"   Call target:  {targets.get('call_target')}  (0.5 ATR OTM)")
+        print(f"   Put target:   {targets.get('put_target')}   (0.5 ATR OTM)")
+        print(f"   Call trigger: {targets.get('call_trigger')} (0.236 ATR)")
+        print(f"   Put trigger:  {targets.get('put_trigger')}  (0.236 ATR)")
+
+        bc = snapshot.get("best_call")
+        bp = snapshot.get("best_put")
+        print(
+            f"\n   Best Call: {bc['strike']}C  mid=${bc['mid']}  delta={bc['delta']}  in_budget={snapshot['call_in_budget']}" if bc else "\n   Best Call: None")
+        print(
+            f"   Best Put:  {bp['strike']}P  mid=${bp['mid']}  delta={bp['delta']}  in_budget={snapshot['put_in_budget']}" if bp else "   Best Put:  None")
+
+        print(f"\n   All budget calls ({len(snapshot['chain']['calls'])}):")
+        for c in snapshot["chain"]["calls"]:
+            print(f"     {c['strike']}C  mid=${c['mid']}  delta={c['delta']}")
+        print(f"\n   All budget puts ({len(snapshot['chain']['puts'])}):")
+        for p in snapshot["chain"]["puts"]:
+            print(f"     {p['strike']}P  mid=${p['mid']}  delta={p['delta']}")

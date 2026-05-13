@@ -110,9 +110,21 @@ interface Message {
   content: string;
 }
 
+interface OptionContract {
+  strike: number;
+  bid: number;
+  ask: number;
+  mid: number;
+  delta: number;
+  iv: number;
+  volume: number;
+  open_interest: number;
+}
+
 interface MarketData {
   spx: {
     close: number;
+    last?: number;
     pdc: number;
     pdh: number;
     pdl: number;
@@ -131,6 +143,18 @@ interface MarketData {
     gg_complete_put: number;
     full_atr_put: number;
   };
+  options?: {
+    spot: number;
+    expiry: string;
+    chain: {
+      calls: OptionContract[];
+      puts: OptionContract[];
+    };
+    chain_full?: {
+      calls: OptionContract[];
+      puts: OptionContract[];
+    };
+  };
 }
 
 export default function Home() {
@@ -142,43 +166,36 @@ export default function Home() {
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [marketData, setMarketData] = useState<MarketData | null>(null);
+  const [satyAtr, setSatyAtr] = useState<string>("");
+  const [atrApplied, setAtrApplied] = useState(false);
+
+  const satyAtrRef = useRef<string>("");
+
+  const fetchMarketData = (atrOverride?: number) => {
+    const atr =
+      atrOverride ??
+      (satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined);
+    const url =
+      atr && !isNaN(atr) && atr > 0
+        ? `${API}/market-data?atr=${atr}`
+        : `${API}/market-data`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        setMarketData(data);
+        if (atrOverride) setAtrApplied(true);
+      })
+      .catch(() => {});
+  };
+
+  // Keep ref in sync with state so interval can read it
+  useEffect(() => {
+    satyAtrRef.current = satyAtr;
+  }, [satyAtr]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
-
-  // const sendMessage = async (text: string) => {
-  //   if (!text.trim() || loading) return;
-  //   const msg = text.trim();
-  //   setInput("");
-  //   if (textareaRef.current) textareaRef.current.style.height = "44px";
-  //   setMessages((prev) => [...prev, { role: "user", content: msg }]);
-  //   setLoading(true);
-
-  //   try {
-  //     const res = await fetch(`${API}/chat`, {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
-  //     });
-  //     const data = await res.json();
-  //     setMessages((prev) => [
-  //       ...prev,
-  //       { role: "assistant", content: data.reply },
-  //     ]);
-  //     if (msg === "Open the Desk") setDeskOpen(true);
-  //   } catch {
-  //     setMessages((prev) => [
-  //       ...prev,
-  //       {
-  //         role: "assistant",
-  //         content: "⚠️ Could not reach the desk. Is the backend running?",
-  //       },
-  //     ]);
-  //   } finally {
-  //     setLoading(false);
-  //   }
-  // };
 
   const sendMessage = async (text: string) => {
     if (!text.trim() || loading) return;
@@ -188,7 +205,6 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Special handling for PREMARKET — uses dedicated endpoint
       if (msg === "PREMARKET") {
         const res = await fetch(`${API}/premarket`, {
           method: "POST",
@@ -198,7 +214,6 @@ export default function Home() {
             session_id: SESSION_ID,
           }),
         });
-
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let reply = "";
@@ -215,7 +230,6 @@ export default function Home() {
         return;
       }
 
-      // Default chat
       const res = await fetch(`${API}/chat`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -230,10 +244,7 @@ export default function Home() {
     } catch {
       setMessages((prev) => [
         ...prev,
-        {
-          role: "assistant",
-          content: "⚠️ Could not reach the desk.",
-        },
+        { role: "assistant", content: "⚠️ Could not reach the desk." },
       ]);
     } finally {
       setLoading(false);
@@ -267,7 +278,6 @@ export default function Home() {
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
-  // Compress image before sending
   const compressImage = (file: File): Promise<Blob> => {
     return new Promise((resolve) => {
       const img = new Image();
@@ -288,11 +298,27 @@ export default function Home() {
   };
 
   useEffect(() => {
-    fetch(`${API}/market-data`)
-      .then((r) => r.json())
-      .then(setMarketData)
-      .catch(() => {});
+    fetchMarketData();
+    // Auto-refresh every 60 seconds — preserves ATR override via ref
+    const interval = setInterval(() => fetchMarketData(), 60_000);
+    return () => clearInterval(interval);
   }, []);
+
+  const getBestOptions = () => {
+    const opts = marketData?.options as any;
+    if (!opts)
+      return { bestCall: null, bestPut: null, allCalls: [], allPuts: [] };
+
+    // New tradier.py returns best_call / best_put directly
+    const bestCall = opts.best_call ?? null;
+    const bestPut = opts.best_put ?? null;
+
+    // All budget strikes for count display
+    const allCalls = opts.chain?.calls ?? [];
+    const allPuts = opts.chain?.puts ?? [];
+
+    return { bestCall, bestPut, allCalls, allPuts };
+  };
 
   return (
     <>
@@ -308,30 +334,19 @@ export default function Home() {
           height: 100vh; 
         }
 
-        /* Header */
         .header {
           grid-column: 1 / -1;
           display: flex; align-items: center; justify-content: space-between;
-          padding: 0 20px;
-          height: 64px;
-          background: #0d1320;
-          border-bottom: 1px solid #1e3a5f;
+          padding: 0 20px; height: 64px;
+          background: #0d1320; border-bottom: 1px solid #1e3a5f;
         }
         .header-left { display: flex; align-items: center; gap: 12px; }
         .logo-wrap { display: flex; align-items: center; gap: 8px; }
-        .logo-icon {
-          width: 30px; height: 30px; border-radius: 8px;
-          background: linear-gradient(135deg, #16a34a, #15803d);
-          display: flex; align-items: center; justify-content: center;
-          font-size: 13px; font-weight: 700; color: white; letter-spacing: -0.5px;
-        }
-        .logo-text { font-size: 15px; font-weight: 600; color: #0f172a; letter-spacing: -0.3px; }
         .divider-v { width: 1px; height: 20px; background: #e2e8f0; }
         .status-badge {
           display: flex; align-items: center; gap: 5px;
           padding: 3px 10px; border-radius: 99px;
-          font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
-          text-transform: uppercase; transition: all 0.3s;
+          font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
         }
         .status-badge.open { background: #f0fdf4; color: #15803d; border: 1px solid #bbf7d0; }
         .status-badge.closed { background: rgba(255,255,255,0.05); color: #64748b; border: 1px solid #1e3a5f; }
@@ -347,17 +362,13 @@ export default function Home() {
         .hbtn:hover { background: #1e3a5f; color: white; border-color: #2d5a8e; }
         .hbtn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* Sidebar */
         .sidebar {
-          background: white;
-          border-right: 1px solid #e2e8f0;
-          display: flex; flex-direction: column;
-          overflow: hidden;
+          background: white; border-right: 1px solid #e2e8f0;
+          display: flex; flex-direction: column; overflow: hidden;
         }
         .sidebar-header {
-          padding: 14px 16px 10px;
-          font-size: 10px; font-weight: 600; color: #94a3b8;
-          text-transform: uppercase; letter-spacing: 0.08em;
+          padding: 14px 16px 10px; font-size: 10px; font-weight: 600;
+          color: #94a3b8; text-transform: uppercase; letter-spacing: 0.08em;
           border-bottom: 1px solid #f1f5f9;
         }
         .shortcut-list {
@@ -367,8 +378,7 @@ export default function Home() {
         .shortcut-list::-webkit-scrollbar { width: 3px; }
         .shortcut-list::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
         .shortcut-btn {
-          width: 100%; text-align: left;
-          padding: 7px 10px; border-radius: 7px; margin-bottom: 2px;
+          width: 100%; text-align: left; padding: 7px 10px; border-radius: 7px; margin-bottom: 2px;
           font-size: 12px; font-weight: 500; font-family: 'Inter', sans-serif;
           cursor: pointer; transition: all 0.12s; border: 1px solid transparent;
           display: flex; align-items: center; gap: 8px;
@@ -377,9 +387,7 @@ export default function Home() {
         .shortcut-btn:disabled { opacity: 0.4; cursor: not-allowed; }
         .shortcut-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
 
-        /* Chat */
         .chat { display: flex; flex-direction: column; overflow: hidden; background: #f8fafc; }
-
         .messages {
           flex: 1; overflow-y: auto; padding: 24px 28px;
           display: flex; flex-direction: column; gap: 16px;
@@ -388,7 +396,6 @@ export default function Home() {
         .messages::-webkit-scrollbar { width: 4px; }
         .messages::-webkit-scrollbar-thumb { background: #e2e8f0; border-radius: 99px; }
 
-        /* Empty state */
         .empty {
           flex: 1; display: flex; flex-direction: column;
           align-items: center; justify-content: center; gap: 20px; text-align: center;
@@ -405,15 +412,13 @@ export default function Home() {
           padding: 12px 28px; background: #16a34a; color: white;
           font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
           border: none; border-radius: 10px; cursor: pointer; transition: all 0.15s;
-          letter-spacing: 0.01em; margin-top: 4px;
+          margin-top: 4px;
         }
         .open-desk-btn:hover { background: #15803d; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(22,163,74,0.25); }
 
-        /* Message rows */
         .msg-row { display: flex; gap: 10px; max-width: 760px; width: 100%; }
         .msg-row.user { align-self: flex-end; flex-direction: row-reverse; }
         .msg-row.assistant { align-self: flex-start; }
-
         .msg-av {
           width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
           display: flex; align-items: center; justify-content: center;
@@ -421,23 +426,18 @@ export default function Home() {
         }
         .msg-av.user { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
         .msg-av.desk { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
-
         .msg-bubble {
           padding: 12px 16px; border-radius: 12px;
           font-size: 13px; line-height: 1.75; white-space: pre-wrap;
           font-family: 'JetBrains Mono', monospace; max-width: calc(100% - 40px);
         }
-        .msg-bubble.user {
-          background: #1d4ed8; color: white;
-          border-radius: 12px 12px 4px 12px;
-        }
+        .msg-bubble.user { background: #1d4ed8; color: white; border-radius: 12px 12px 4px 12px; }
         .msg-bubble.desk {
           background: white; color: #1e293b;
           border: 1px solid #e2e8f0; border-radius: 12px 12px 12px 4px;
           box-shadow: 0 1px 3px rgba(0,0,0,0.04);
         }
 
-        /* Typing */
         .typing {
           padding: 14px 16px; background: white; border: 1px solid #e2e8f0;
           border-radius: 12px 12px 12px 4px; display: flex; gap: 4px; align-items: center;
@@ -451,11 +451,7 @@ export default function Home() {
         .tdot:nth-child(3) { animation-delay: 0.4s; }
         @keyframes bounce { 0%,80%,100%{transform:scale(0.8);opacity:0.4} 40%{transform:scale(1.2);opacity:1} }
 
-        /* Input area */
-        .input-area {
-          padding: 12px 20px 16px; background: white;
-          border-top: 1px solid #e2e8f0;
-        }
+        .input-area { padding: 12px 20px 16px; background: white; border-top: 1px solid #e2e8f0; }
         .input-row { display: flex; gap: 8px; align-items: flex-end; }
         .input-box {
           flex: 1; padding: 10px 14px; border-radius: 10px; border: 1px solid #e2e8f0;
@@ -477,11 +473,9 @@ export default function Home() {
           width: 44px; height: 44px; border-radius: 10px;
           background: #f0fdf4; border: 1px solid #bbf7d0;
           display: flex; align-items: center; justify-content: center;
-          font-size: 20px; cursor: pointer; flex-shrink: 0;
-          transition: all 0.15s;
+          font-size: 20px; cursor: pointer; flex-shrink: 0; transition: all 0.15s;
         }
         .chart-btn:hover { background: #dcfce7; transform: translateY(-1px); }
-        
       `}</style>
 
       <div className="layout">
@@ -515,7 +509,7 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Sidebar */}
+        {/* Shortcuts Sidebar */}
         <aside className="sidebar">
           <div className="sidebar-header">Shortcuts</div>
           <div className="shortcut-list">
@@ -538,174 +532,476 @@ export default function Home() {
           </div>
         </aside>
 
-        {/* Levels panel */}
-        {marketData && (
-          <div
-            style={{
-              width: "200px",
-              borderRight: "1px solid #e2e8f0",
-              background: "white",
-              display: "flex",
-              flexDirection: "column",
-              overflow: "hidden",
-            }}
-          >
-            <div
-              style={{
-                padding: "14px 16px 10px",
-                fontSize: "10px",
-                fontWeight: 600,
-                color: "#94a3b8",
-                textTransform: "uppercase",
-                letterSpacing: "0.08em",
-                borderBottom: "1px solid #f1f5f9",
-              }}
-            >
-              Today's Levels
-            </div>
+        {/* ── LEVELS PANEL ── */}
+        {marketData &&
+          (() => {
+            const { bestCall, bestPut, allCalls, allPuts } = getBestOptions();
+            const spot =
+              marketData.options?.spot ??
+              marketData.spx.last ??
+              marketData.spx.close;
 
-            <div
-              style={{
-                padding: "12px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-                overflowY: "auto",
-              }}
-            >
-              {/* SPX + VIX header */}
+            return (
               <div
                 style={{
-                  background: "#f8fafc",
-                  borderRadius: "8px",
-                  padding: "8px 10px",
-                  marginBottom: "8px",
+                  width: "200px",
+                  borderRight: "1px solid #e2e8f0",
+                  background: "white",
+                  display: "flex",
+                  flexDirection: "column",
+                  overflow: "hidden",
                 }}
               >
-                <div style={{ fontSize: "11px", color: "#64748b" }}>
-                  SPX Close
-                </div>
                 <div
                   style={{
-                    fontSize: "16px",
-                    fontWeight: 700,
-                    color: "#0f172a",
+                    padding: "14px 16px 10px",
+                    fontSize: "10px",
+                    fontWeight: 600,
+                    color: "#94a3b8",
+                    textTransform: "uppercase",
+                    letterSpacing: "0.08em",
+                    borderBottom: "1px solid #f1f5f9",
                   }}
                 >
-                  {marketData.spx.close.toFixed(2)}
+                  Today&apos;s Levels
                 </div>
-                <div
-                  style={{
-                    fontSize: "11px",
-                    color: "#64748b",
-                    marginTop: "4px",
-                  }}
-                >
-                  VIX {marketData.vix.vix}
-                </div>
-              </div>
 
-              {/* ATR Levels */}
-              {[
-                {
-                  label: "GG Complete ↑",
-                  value: marketData.atr_levels.gg_complete_call,
-                  color: "#15803d",
-                  bg: "#f0fdf4",
-                },
-                {
-                  label: "GG Open ↑",
-                  value: marketData.atr_levels.gg_open_call,
-                  color: "#16a34a",
-                  bg: "#f0fdf4",
-                },
-                {
-                  label: "Call Trigger",
-                  value: marketData.atr_levels.call_trigger,
-                  color: "#22c55e",
-                  bg: "#f0fdf4",
-                },
-                {
-                  label: "── PDC ──",
-                  value: marketData.atr_levels.PDC,
-                  color: "#0f172a",
-                  bg: "#f1f5f9",
-                  bold: true,
-                },
-                {
-                  label: "Put Trigger",
-                  value: marketData.atr_levels.put_trigger,
-                  color: "#dc2626",
-                  bg: "#fef2f2",
-                },
-                {
-                  label: "GG Open ↓",
-                  value: marketData.atr_levels.gg_open_put,
-                  color: "#b91c1c",
-                  bg: "#fef2f2",
-                },
-                {
-                  label: "GG Complete ↓",
-                  value: marketData.atr_levels.gg_complete_put,
-                  color: "#991b1b",
-                  bg: "#fef2f2",
-                },
-                {
-                  label: "Full ATR ↓",
-                  value: marketData.atr_levels.full_atr_put,
-                  color: "#7f1d1d",
-                  bg: "#fff1f2",
-                },
-              ].map((level, i) => (
                 <div
-                  key={i}
                   style={{
+                    flex: 1,
+                    overflowY: "auto",
+                    padding: "12px",
                     display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    padding: "5px 8px",
-                    borderRadius: "6px",
-                    background: level.bg,
+                    flexDirection: "column",
+                    gap: "4px",
                   }}
                 >
-                  <span
+                  {/* SPX + VIX */}
+                  <div
                     style={{
-                      fontSize: "10px",
-                      color: level.color,
-                      fontWeight: level.bold ? 700 : 500,
+                      background: "#f8fafc",
+                      borderRadius: "8px",
+                      padding: "8px 10px",
+                      marginBottom: "4px",
                     }}
                   >
-                    {level.label}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 700,
-                      color: level.color,
-                      fontFamily: "monospace",
-                    }}
-                  >
-                    {level.value.toFixed(0)}
-                  </span>
-                </div>
-              ))}
+                    <div style={{ fontSize: "10px", color: "#64748b" }}>
+                      SPX
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "16px",
+                        fontWeight: 700,
+                        color: "#0f172a",
+                      }}
+                    >
+                      {(marketData.spx.last ?? marketData.spx.close).toFixed(2)}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#64748b",
+                        marginTop: "2px",
+                      }}
+                    >
+                      VIX {marketData.vix.vix} &nbsp;·&nbsp; PDC{" "}
+                      {marketData.atr_levels.PDC.toFixed(0)}
+                    </div>
+                  </div>
 
-              {/* ATR value */}
-              <div
-                style={{
-                  marginTop: "8px",
-                  padding: "6px 8px",
-                  background: "#f8fafc",
-                  borderRadius: "6px",
-                }}
-              >
-                <span style={{ fontSize: "10px", color: "#94a3b8" }}>
-                  ATR ~{marketData.atr_levels.ATR.toFixed(1)} pts
-                </span>
+                  {/* Saty ATR input */}
+                  <div
+                    style={{
+                      background: "#fffbeb",
+                      border: "1px solid #fde68a",
+                      borderRadius: "8px",
+                      padding: "8px 10px",
+                      marginBottom: "4px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: "10px",
+                        color: "#92400e",
+                        fontWeight: 600,
+                        marginBottom: "5px",
+                      }}
+                    >
+                      Saty ATR {atrApplied ? "✓" : "— enter from indicator"}
+                    </div>
+                    <div style={{ display: "flex", gap: "5px" }}>
+                      <input
+                        type="number"
+                        value={satyAtr}
+                        onChange={(e) => {
+                          setSatyAtr(e.target.value);
+                          setAtrApplied(false);
+                        }}
+                        placeholder="e.g. 74.79"
+                        style={{
+                          flex: 1,
+                          padding: "5px 7px",
+                          borderRadius: "5px",
+                          border: "1px solid #fcd34d",
+                          fontSize: "12px",
+                          fontFamily: "monospace",
+                          background: "white",
+                          outline: "none",
+                          width: "0",
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const val = parseFloat(satyAtr);
+                          if (!isNaN(val) && val > 0) fetchMarketData(val);
+                        }}
+                        style={{
+                          padding: "5px 8px",
+                          borderRadius: "5px",
+                          border: "none",
+                          background: "#d97706",
+                          color: "white",
+                          fontSize: "11px",
+                          fontWeight: 600,
+                          cursor: "pointer",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* ATR Levels */}
+                  {[
+                    {
+                      label: "GG Complete ↑",
+                      value: marketData.atr_levels.gg_complete_call,
+                      color: "#15803d",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "GG Open ↑",
+                      value: marketData.atr_levels.gg_open_call,
+                      color: "#16a34a",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "Call Trigger",
+                      value: marketData.atr_levels.call_trigger,
+                      color: "#22c55e",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "── PDC ──",
+                      value: marketData.atr_levels.PDC,
+                      color: "#0f172a",
+                      bg: "#f1f5f9",
+                      bold: true,
+                    },
+                    {
+                      label: "Put Trigger",
+                      value: marketData.atr_levels.put_trigger,
+                      color: "#dc2626",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "GG Open ↓",
+                      value: marketData.atr_levels.gg_open_put,
+                      color: "#b91c1c",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "GG Complete ↓",
+                      value: marketData.atr_levels.gg_complete_put,
+                      color: "#991b1b",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "Full ATR ↓",
+                      value: marketData.atr_levels.full_atr_put,
+                      color: "#7f1d1d",
+                      bg: "#fff1f2",
+                    },
+                  ].map((level, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "5px 8px",
+                        borderRadius: "6px",
+                        background: level.bg,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: level.color,
+                          fontWeight: level.bold ? 700 : 500,
+                        }}
+                      >
+                        {level.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: level.color,
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {level.value.toFixed(0)}
+                      </span>
+                    </div>
+                  ))}
+
+                  {/* ATR value */}
+                  <div
+                    style={{
+                      padding: "4px 8px",
+                      background: "#f8fafc",
+                      borderRadius: "6px",
+                      marginTop: "2px",
+                    }}
+                  >
+                    <span style={{ fontSize: "10px", color: "#94a3b8" }}>
+                      ATR ~{marketData.atr_levels.ATR.toFixed(1)} pts
+                    </span>
+                  </div>
+
+                  {/* ── LIVE OPTIONS ── */}
+                  {marketData.options && (
+                    <>
+                      <div
+                        style={{
+                          marginTop: "10px",
+                          marginBottom: "4px",
+                          fontSize: "10px",
+                          fontWeight: 600,
+                          color: "#94a3b8",
+                          textTransform: "uppercase",
+                          letterSpacing: "0.08em",
+                          borderTop: "1px solid #f1f5f9",
+                          paddingTop: "10px",
+                        }}
+                      >
+                        0DTE Options · {marketData.options.expiry}
+                      </div>
+
+                      {/* Best Call */}
+                      {bestCall ? (
+                        <div
+                          style={{
+                            background: "#f0fdf4",
+                            border: "1px solid #bbf7d0",
+                            borderRadius: "8px",
+                            padding: "8px 10px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#15803d",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {bestCall.strike}C
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 700,
+                                color: "#15803d",
+                              }}
+                            >
+                              ${bestCall.mid?.toFixed(2)}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "6px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "#16a34a",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              d={bestCall.delta?.toFixed(2) ?? "—"}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "#16a34a",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              IV{" "}
+                              {bestCall.iv
+                                ? (bestCall.iv * 100).toFixed(1) + "%"
+                                : "—"}
+                            </span>
+                            <span
+                              style={{ fontSize: "10px", color: "#94a3b8" }}
+                            >
+                              v {(bestCall.volume ?? 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              color: "#94a3b8",
+                              marginTop: "3px",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {bestCall.bid} / {bestCall.ask}
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            color: "#94a3b8",
+                            padding: "6px 8px",
+                            background: "#f8fafc",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          No calls near target
+                        </div>
+                      )}
+
+                      {/* Best Put */}
+                      {bestPut ? (
+                        <div
+                          style={{
+                            background: "#fef2f2",
+                            border: "1px solid #fecaca",
+                            borderRadius: "8px",
+                            padding: "8px 10px",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              justifyContent: "space-between",
+                              alignItems: "center",
+                              marginBottom: "4px",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                fontWeight: 700,
+                                color: "#b91c1c",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              {bestPut.strike}P
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "13px",
+                                fontWeight: 700,
+                                color: "#b91c1c",
+                              }}
+                            >
+                              ${bestPut.mid?.toFixed(2)}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              gap: "6px",
+                              flexWrap: "wrap",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "#b91c1c",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              d={bestPut.delta?.toFixed(2) ?? "—"}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "10px",
+                                color: "#b91c1c",
+                                fontFamily: "monospace",
+                              }}
+                            >
+                              IV{" "}
+                              {bestPut.iv
+                                ? (bestPut.iv * 100).toFixed(1) + "%"
+                                : "—"}
+                            </span>
+                            <span
+                              style={{ fontSize: "10px", color: "#94a3b8" }}
+                            >
+                              v {(bestPut.volume ?? 0).toLocaleString()}
+                            </span>
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "10px",
+                              color: "#94a3b8",
+                              marginTop: "3px",
+                              fontFamily: "monospace",
+                            }}
+                          >
+                            {bestPut.bid} / {bestPut.ask}
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          style={{
+                            fontSize: "10px",
+                            color: "#94a3b8",
+                            padding: "6px 8px",
+                            background: "#f8fafc",
+                            borderRadius: "6px",
+                          }}
+                        >
+                          No puts near target
+                        </div>
+                      )}
+
+                      {/* Count + refresh indicator */}
+                      <div
+                        style={{
+                          fontSize: "10px",
+                          color: "#94a3b8",
+                          textAlign: "center",
+                          marginTop: "2px",
+                        }}
+                      >
+                        {allCalls.length}C · {allPuts.length}P in budget ·
+                        refreshes 60s
+                      </div>
+                    </>
+                  )}
+                </div>
               </div>
-            </div>
-          </div>
-        )}
+            );
+          })()}
 
         {/* Chat */}
         <div className="chat">
@@ -718,8 +1014,7 @@ export default function Home() {
                   <div className="empty-sub">
                     Your trading context is loaded.
                     <br />
-                    Open the desk to begin TD
-                    {new Date().getDay() > 0 ? "" : " today"}.
+                    Open the desk to begin the session.
                   </div>
                 </div>
                 <button
@@ -759,7 +1054,6 @@ export default function Home() {
           </div>
 
           {/* Input */}
-          {/* Input */}
           <div className="input-area">
             <div className="input-row">
               <label
@@ -797,23 +1091,17 @@ export default function Home() {
                         method: "POST",
                         body: form,
                       });
-
-                      // Stream the response
                       const reader = res.body!.getReader();
                       const decoder = new TextDecoder();
                       let reply = "";
-
-                      // Add empty assistant message first
                       setMessages((prev) => [
                         ...prev,
                         { role: "assistant", content: "" },
                       ]);
-
                       while (true) {
                         const { done, value } = await reader.read();
                         if (done) break;
                         reply += decoder.decode(value);
-                        // Update last message in real time
                         setMessages((prev) => [
                           ...prev.slice(0, -1),
                           { role: "assistant", content: reply },

@@ -83,6 +83,7 @@ sessions: dict[str, list[dict]] = {}
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
+    atr: float = None
 
 
 class RefreshRequest(BaseModel):
@@ -216,15 +217,12 @@ async def analyze_chart(
 
 
 @app.get("/market-data")
-async def market_data():
+async def market_data(atr: float = None):
     """Get live SPX + VIX + ATR levels + 0DTE options chain."""
-    summary = get_market_summary()
-
-    # Add live options data from Tradier
+    summary = get_market_summary(atr_override=atr)
     snapshot = get_0dte_snapshot()
     summary["options"] = snapshot
     summary["options_context"] = format_options_context(snapshot)
-
     return summary
 
 
@@ -234,7 +232,8 @@ async def premarket(request: ChatRequest):
     global LIVE_CONTEXT
 
     # Fetch live data
-    market = get_market_summary()
+    atr_value = request.atr if hasattr(request, 'atr') else None
+    market = get_market_summary(atr_override=atr_value)
 
     # Build market context string
     spx = market.get("spx", {})

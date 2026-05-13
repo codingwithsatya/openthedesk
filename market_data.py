@@ -70,7 +70,7 @@ def calculate_atr_levels(pdc: float, atr: float) -> dict:
     }
 
 
-def get_market_summary() -> dict:
+def get_market_summary(atr_override: float = None) -> dict:
     """Full market summary — SPX + VIX + ATR levels."""
     spx = get_spx_price()
     vix = get_vix()
@@ -79,9 +79,12 @@ def get_market_summary() -> dict:
 
     if "pdc" in spx and "high" in spx and "low" in spx:
         pdc = spx["pdc"]
-        atr = round(spx["high"] - spx["low"], 2)
+        # Use Saty ATR if provided, else approximate from prior day range
+        atr = atr_override if atr_override else round(
+            spx["high"] - spx["low"], 2)
         result["atr_levels"] = calculate_atr_levels(pdc, atr)
-        result["note"] = "ATR approximated from prior day range. Use Saty ATR indicator for exact value."
+        result["atr_source"] = "saty_indicator" if atr_override else "approx_hl"
+        result["note"] = "ATR from Saty indicator." if atr_override else "ATR approximated from prior day range. Use Saty ATR indicator for exact value."
 
     return result
 
