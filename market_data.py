@@ -86,65 +86,99 @@ def calculate_atr_levels(pdc: float, atr: float) -> dict:
     }
 
 
-def get_saty_atr(period: int = 10) -> float | None:
+def _fetch_history(interval: str, lookback_days: int) -> list[dict] | None:
     """
-    Auto-calculate Saty ATR-10 Simple from Tradier daily history.
-    Formula: simple average of the last 10 True Ranges.
-    TR = max(high-low, |high-prev_close|, |low-prev_close|)
-    Returns None on any fetch or parse failure so caller can fall back gracefully.
+    Shared Tradier history fetcher used by both ATR functions.
+    Returns a list of OHLC bars or None on failure.
     """
     end = str(date.today())
-    start = str(date.today() - timedelta(days=30))  # ~30 calendar days → 20+ trading days
-
+    start = str(date.today() - timedelta(days=lookback_days))
     try:
         response = requests.get(
             f"{BASE_URL}/markets/history",
             headers=HEADERS,
-            params={"symbol": "SPX", "interval": "daily", "start": start, "end": end},
+            params={"symbol": "SPX", "interval": interval, "start": start, "end": end},
             timeout=10
         )
         response.raise_for_status()
-        days = response.json().get("history", {}).get("day", [])
-        if isinstance(days, dict):
-            days = [days]
-        if len(days) < period + 1:
-            return None
-
-        trs = [
-            max(
-                days[i]["high"] - days[i]["low"],
-                abs(days[i]["high"] - days[i - 1]["close"]),
-                abs(days[i]["low"]  - days[i - 1]["close"]),
-            )
-            for i in range(1, len(days))
-        ]
-        return round(sum(trs[-period:]) / period, 2)
-
+        bars = response.json().get("history", {}).get("day", [])
+        if isinstance(bars, dict):
+            bars = [bars]
+        return bars if bars else None
     except Exception:
         return None
 
 
-def get_market_summary(atr_override: float = None) -> dict:
+def _wilder_atr(bars: list[dict], period: int = 14) -> float | None:
+    """
+    ATR-14 Wilder smoothing — matches ta.atr(14) in Pine Script exactly.
+    TR = max(high-low, |high-prev_close|, |low-prev_close|)
+    Seed: simple average of first `period` TRs.
+    Smooth: atr = (prev_atr * (period-1) + current_tr) / period
+    Returns None if not enough bars.
+    """
+    if not bars or len(bars) < period + 1:
+        return None
+
+    trs = [
+        max(
+            bars[i]["high"] - bars[i]["low"],
+            abs(bars[i]["high"] - bars[i - 1]["close"]),
+            abs(bars[i]["low"]  - bars[i - 1]["close"]),
+        )
+        for i in range(1, len(bars))
+    ]
+
+    # Seed with simple average of first `period` TRs
+    atr = sum(trs[:period]) / period
+    # Wilder smoothing for the remainder
+    for tr in trs[period:]:
+        atr = (atr * (period - 1) + tr) / period
+
+    return round(atr, 2)
+
+
+def get_saty_atr() -> float | None:
+    """
+    ATR-14 Wilder on daily bars — matches Saty Pine Script ta.atr(14), Day mode.
+    Fetches 60 calendar days (~42 trading days) so Wilder has enough bars to converge.
+    Returns None on any failure so callers degrade gracefully.
+    """
+    bars = _fetch_history(interval="daily", lookback_days=60)
+    return _wilder_atr(bars, period=14)
+
+
+def get_saty_atr_multiday() -> float | None:
+    """
+    ATR-14 Wilder on weekly bars — matches Saty Pine Script ta.atr(14), Multiday mode.
+    Fetches ~280 calendar days (~40 weekly bars) for Wilder convergence.
+    Returns None on any failure so callers degrade gracefully.
+    """
+    bars = _fetch_history(interval="weekly", lookback_days=280)
+    return _wilder_atr(bars, period=14)
+
+
+def get_market_summary(atr_override: float = None, trading_mode: str = "day") -> dict:
     """Full market summary — SPX + VIX + ATR levels. Single source: Tradier."""
     spx = get_spx_data()
     vix = get_vix_data()
 
-    result = {"spx": spx, "vix": vix}
+    result = {"spx": spx, "vix": vix, "trading_mode": trading_mode}
 
     pdc = spx.get("pdc")
     if pdc:
         if atr_override:
-            # Manual entry always wins
+            # Manual entry always wins regardless of mode
             atr = atr_override
             atr_source = "saty_indicator"
             note = "ATR from Saty indicator — exact levels."
         else:
-            # Auto-calculate ATR-10 Simple from Tradier history
-            auto_atr = get_saty_atr()
+            # Auto-calculate using the correct ATR for the selected mode
+            auto_atr = get_saty_atr_multiday() if trading_mode == "multiday" else get_saty_atr()
             if auto_atr:
                 atr = auto_atr
-                atr_source = "auto_atr10"
-                note = "ATR-10 Simple auto-calculated from Tradier history."
+                atr_source = "atr14_wilder_weekly" if trading_mode == "multiday" else "atr14_wilder"
+                note = f"ATR-14 Wilder ({'weekly' if trading_mode == 'multiday' else 'daily'} bars) — matches Saty Pine Script."
             else:
                 # Last-resort fallback: today's H-L range
                 high = spx.get("high", 0)
@@ -162,4 +196,9 @@ def get_market_summary(atr_override: float = None) -> dict:
 
 if __name__ == "__main__":
     import json
+    print("\n=== Day mode (ATR-14 Wilder daily) ===")
     print(json.dumps(get_market_summary(), indent=2))
+    print("\n=== Multiday mode (ATR-14 Wilder weekly) ===")
+    result = get_market_summary(trading_mode="multiday")
+    print(f"  atr_source: {result.get('atr_source')}")
+    print(f"  ATR:        {result.get('atr_levels', {}).get('ATR')}")

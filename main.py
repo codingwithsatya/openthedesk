@@ -215,9 +215,9 @@ async def analyze_chart(
 
 
 @app.get("/market-data")
-async def market_data(atr: float = None):
+async def market_data(atr: float = None, trading_mode: str = "day"):
     """Get live SPX + VIX + ATR levels + 0DTE options chain."""
-    summary = get_market_summary(atr_override=atr)
+    summary = get_market_summary(atr_override=atr, trading_mode=trading_mode)
     snapshot = get_0dte_snapshot(atr=atr)
     summary["options"] = snapshot
     summary["options_context"] = format_options_context(snapshot)
