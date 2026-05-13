@@ -51,16 +51,20 @@ def get_vix() -> dict:
 def calculate_atr_levels(pdc: float, atr: float) -> dict:
     """Calculate Saty ATR levels from PDC and ATR value."""
     return {
-        "PDC": round(pdc, 2),
-        "ATR": round(atr, 2),
+        "PDC":              round(pdc, 2),
+        "ATR":              round(atr, 2),
+        # Call side
         "call_trigger":     round(pdc + atr * 0.236, 2),
         "gg_open_call":     round(pdc + atr * 0.382, 2),
+        "gg_50_call":       round(pdc + atr * 0.500, 2),   # ← ADD THIS
         "gg_complete_call": round(pdc + atr * 0.618, 2),
-        "full_atr_call":    round(pdc + atr * 1.0,   2),
+        "full_atr_call":    round(pdc + atr * 1.000, 2),
+        # Put side
         "put_trigger":      round(pdc - atr * 0.236, 2),
         "gg_open_put":      round(pdc - atr * 0.382, 2),
+        "gg_50_put":        round(pdc - atr * 0.500, 2),   # ← ADD THIS
         "gg_complete_put":  round(pdc - atr * 0.618, 2),
-        "full_atr_put":     round(pdc - atr * 1.0,   2),
+        "full_atr_put":     round(pdc - atr * 1.000, 2),
         "probabilities": {
             "trigger_to_gg_open":     "80%",
             "gg_open_to_complete":    "69%",

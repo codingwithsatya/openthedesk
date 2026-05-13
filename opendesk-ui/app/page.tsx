@@ -136,10 +136,12 @@ interface MarketData {
     ATR: number;
     call_trigger: number;
     gg_open_call: number;
+    gg_50_call: number;
     gg_complete_call: number;
     full_atr_call: number;
     put_trigger: number;
     gg_open_put: number;
+    gg_50_put: number;
     gg_complete_put: number;
     full_atr_put: number;
   };
@@ -673,7 +675,7 @@ export default function Home() {
                   </div>
 
                   {/* ATR Levels */}
-                  {[
+                  {/* {[
                     {
                       label: "GG Complete ↑",
                       value: marketData.atr_levels.gg_complete_call,
@@ -752,11 +754,111 @@ export default function Home() {
                           fontFamily: "monospace",
                         }}
                       >
-                        {level.value.toFixed(0)}
+                        {level.value.toFixed(2)}
+                      </span>
+                    </div>
+                  ))} */}
+                  {[
+                    {
+                      label: "Full ATR ↑",
+                      value: marketData.atr_levels.full_atr_call,
+                      color: "#064e3b",
+                      bg: "#ecfdf5",
+                    },
+                    {
+                      label: "GG Complete ↑",
+                      value: marketData.atr_levels.gg_complete_call,
+                      color: "#15803d",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "50% ↑",
+                      value: marketData.atr_levels.gg_50_call,
+                      color: "#16a34a",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "GG Open ↑",
+                      value: marketData.atr_levels.gg_open_call,
+                      color: "#22c55e",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "Call Trigger",
+                      value: marketData.atr_levels.call_trigger,
+                      color: "#4ade80",
+                      bg: "#f0fdf4",
+                    },
+                    {
+                      label: "── PDC ──",
+                      value: marketData.atr_levels.PDC,
+                      color: "#0f172a",
+                      bg: "#f1f5f9",
+                      bold: true,
+                    },
+                    {
+                      label: "Put Trigger",
+                      value: marketData.atr_levels.put_trigger,
+                      color: "#f87171",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "GG Open ↓",
+                      value: marketData.atr_levels.gg_open_put,
+                      color: "#dc2626",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "50% ↓",
+                      value: marketData.atr_levels.gg_50_put,
+                      color: "#b91c1c",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "GG Complete ↓",
+                      value: marketData.atr_levels.gg_complete_put,
+                      color: "#991b1b",
+                      bg: "#fef2f2",
+                    },
+                    {
+                      label: "Full ATR ↓",
+                      value: marketData.atr_levels.full_atr_put,
+                      color: "#7f1d1d",
+                      bg: "#fff1f2",
+                    },
+                  ].map((level, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        padding: "5px 8px",
+                        borderRadius: "6px",
+                        background: level.bg,
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: "10px",
+                          color: level.color,
+                          fontWeight: level.bold ? 700 : 500,
+                        }}
+                      >
+                        {level.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: 700,
+                          color: level.color,
+                          fontFamily: "monospace",
+                        }}
+                      >
+                        {level.value.toFixed(2)}
                       </span>
                     </div>
                   ))}
-
                   {/* ATR value */}
                   <div
                     style={{
