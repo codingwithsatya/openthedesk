@@ -53,7 +53,7 @@ OpenTheDesk is your personal trading intelligence platform. Say **"Open the Desk
 | Backend           | Python, FastAPI, Uvicorn                       |
 | AI — Generation   | Claude API (claude-sonnet-4-6)                 |
 | AI — Quick checks | Claude Haiku (PTR-FAST, PTR-FULL, GRADE)       |
-| Market Data       | yfinance (SPX, VIX, ATR levels)                |
+| Market Data       | Tradier API (SPX, VIX, ATR levels, 0DTE chain) |
 | Knowledge Base    | Google Doc (live context, fetched fresh daily) |
 | Deployment        | Vercel (frontend) + Railway (backend)          |
 
@@ -117,14 +117,18 @@ openthedesk/
 │   ├── POST /refresh-context # Re-fetch Google Doc
 │   └── DELETE /session/{id}  # Clear conversation history
 ├── context.py           # Google Doc fetcher with retry
-├── market_data.py       # yfinance SPX/VIX + ATR calculator
+├── market_data.py       # Tradier SPX/VIX + ATR calculator
+├── tradier.py           # Tradier API — quotes, 0DTE chain, snapshot
 ├── requirements.txt
 ├── nixpacks.toml        # Railway deployment config
 ├── .env                 # API keys (not committed)
-└── opendesk-ui/
-    ├── app/
-    │   └── page.tsx     # Dashboard — shortcuts + levels panel + chat
-    └── vercel.json
+├── ui/                  # Next.js frontend
+│   ├── app/
+│   │   └── page.tsx     # Dashboard — shortcuts + levels panel + chat
+│   └── vercel.json
+└── legacy/              # Archived files (not in active use)
+    ├── agent.py         # Original CLI agent (pre-FastAPI)
+    └── index.html       # Prototype HTML UI
 ```
 
 ---
@@ -149,7 +153,7 @@ uvicorn main:app --reload
 **Frontend**
 
 ```bash
-cd opendesk-ui
+cd ui
 npm install
 npm run dev
 # Runs on http://localhost:3000
@@ -180,7 +184,7 @@ The doc is fetched fresh on every "Refresh Context" click — add a new rule ton
 
 **Frontend → Vercel**
 
-- Root Directory: `opendesk-ui`
+- Root Directory: `ui`
 - Env var: `NEXT_PUBLIC_API_URL` = Railway backend URL (not Sensitive)
 - Auto-deploys on every push to main
 

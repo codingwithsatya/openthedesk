@@ -1,0 +1,2967 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Engineer Learning Notes</title>
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg-primary: #ffffff;
+      --bg-secondary: #f7f6f3;
+      --bg-tertiary: #f0efe9;
+      --text-primary: #1a1a18;
+      --text-secondary: #5f5e5a;
+      --text-tertiary: #888780;
+      --border-light: rgba(0, 0, 0, 0.08);
+      --border-mid: rgba(0, 0, 0, 0.14);
+      --blue-bg: #e6f1fb;
+      --blue-text: #185fa5;
+      --green-bg: #eaf3de;
+      --green-text: #3b6d11;
+      --amber-bg: #faeeda;
+      --amber-text: #854f0b;
+      --red-bg: #fcebeb;
+      --red-text: #a32d2d;
+      --purple-bg: #eeedfe;
+      --purple-text: #3c3489;
+      --teal-bg: #e1f5ee;
+      --teal-text: #0f6e56;
+      --coral-bg: #faece7;
+      --coral-text: #712b13;
+      --success-dot: #1d9e75;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+      --font-mono: 'Courier New', monospace;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1c1c1a;
+        --bg-secondary: #242422;
+        --bg-tertiary: #2c2c2a;
+        --text-primary: #f0efe9;
+        --text-secondary: #b4b2a9;
+        --text-tertiary: #888780;
+        --border-light: rgba(255, 255, 255, 0.08);
+        --border-mid: rgba(255, 255, 255, 0.14);
+        --blue-bg: #0c447c;
+        --blue-text: #b5d4f4;
+        --green-bg: #27500a;
+        --green-text: #c0dd97;
+        --amber-bg: #633806;
+        --amber-text: #fac775;
+        --red-bg: #791f1f;
+        --red-text: #f7c1c1;
+        --purple-bg: #26215c;
+        --purple-text: #cecbf6;
+        --teal-bg: #04342c;
+        --teal-text: #9fe1cb;
+        --coral-bg: #4a1b0c;
+        --coral-text: #f5c4b3;
+        --success-dot: #5dcaa5;
+      }
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+    }
+
+    .page {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .header h1 {
+      font-size: 22px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .header p {
+      font-size: 13px;
+      color: var(--text-tertiary);
+    }
+
+    .badge {
+      font-size: 12px;
+      padding: 5px 12px;
+      border-radius: var(--radius-md);
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .view-tabs {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 1.75rem;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+
+    .view-tab {
+      font-size: 14px;
+      padding: 8px 20px;
+      border: none;
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      font-family: inherit;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: all 0.15s;
+    }
+
+    .view-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .view-tab.active {
+      color: var(--blue-text);
+      border-bottom-color: var(--blue-text);
+      font-weight: 500;
+    }
+
+    .view-content {
+      display: none;
+    }
+
+    .view-content.active {
+      display: block;
+    }
+
+    .week-tabs {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 1.5rem;
+      flex-wrap: wrap;
+    }
+
+    .tab {
+      font-size: 13px;
+      padding: 7px 16px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: var(--bg-primary);
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .tab:hover {
+      background: var(--bg-secondary);
+    }
+
+    .tab.active {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+      border-color: transparent;
+      font-weight: 500;
+    }
+
+    .week-content {
+      display: none;
+    }
+
+    .week-content.active {
+      display: block;
+    }
+
+    .section {
+      margin-bottom: 1.75rem;
+    }
+
+    .section-title {
+      font-size: 11px;
+      font-weight: 500;
+      color: var(--text-tertiary);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 0.875rem;
+    }
+
+    .divider {
+      height: 0.5px;
+      background: var(--border-light);
+      margin: 1.5rem 0;
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 10px;
+    }
+
+    .card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 1rem 1.25rem;
+    }
+
+    .card h3 {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 5px;
+    }
+
+    .card p {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .concept-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .concept {
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .concept-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border-mid);
+      flex-shrink: 0;
+      margin-top: 4px;
+    }
+
+    .concept-dot.done {
+      background: var(--success-dot);
+      border-color: var(--success-dot);
+    }
+
+    .concept-text {
+      font-size: 14px;
+      font-weight: 500;
+      line-height: 1.5;
+    }
+
+    .concept-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-top: 2px;
+      line-height: 1.6;
+    }
+
+    .code-block {
+      background: var(--bg-secondary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 0.75rem 1rem;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.8;
+      margin-top: 6px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .milestone-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 9px 0;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+
+    .milestone-row:last-child {
+      border-bottom: none;
+    }
+
+    .check {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      flex-shrink: 0;
+    }
+
+    .check.done {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .check.pending {
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      border: 0.5px solid var(--border-mid);
+    }
+
+    .milestone-label {
+      font-size: 13px;
+      flex: 1;
+      line-height: 1.5;
+    }
+
+    .milestone-tag {
+      font-size: 11px;
+      padding: 3px 9px;
+      border-radius: var(--radius-md);
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .tag-theory {
+      background: var(--amber-bg);
+      color: var(--amber-text);
+    }
+
+    .tag-code {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .tag-debug {
+      background: var(--red-bg);
+      color: var(--red-text);
+    }
+
+    .tag-git {
+      background: var(--purple-bg);
+      color: var(--purple-text);
+    }
+
+    .tag-deploy {
+      background: var(--teal-bg);
+      color: var(--teal-text);
+    }
+
+    .progress-bar-wrap {
+      background: var(--bg-secondary);
+      border-radius: 99px;
+      height: 5px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: var(--success-dot);
+      border-radius: 99px;
+      transition: width 0.4s ease;
+    }
+
+    .progress-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 4px;
+    }
+
+    .coming-soon {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-tertiary);
+      font-size: 14px;
+      border: 0.5px dashed var(--border-mid);
+      border-radius: var(--radius-lg);
+      line-height: 2;
+    }
+
+    .stat-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .stat-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 12px;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .stat-val {
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .stat-sub {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .live-url {
+      background: var(--green-bg);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .live-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success-dot);
+      flex-shrink: 0;
+    }
+
+    .live-label {
+      font-size: 11px;
+      color: var(--green-text);
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .live-url-text {
+      font-size: 12px;
+      color: var(--green-text);
+      font-family: var(--font-mono);
+    }
+
+    .salary-row {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 8px;
+      margin-bottom: 1.5rem;
+    }
+
+    .sal-card {
+      background: var(--bg-secondary);
+      border-radius: var(--radius-md);
+      padding: 12px;
+    }
+
+    .sal-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .sal-val {
+      font-size: 20px;
+      font-weight: 500;
+    }
+
+    .sal-sub {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 2px;
+    }
+
+    .month-row {
+      margin-bottom: 1.25rem;
+    }
+
+    .month-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .month-num {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    .m-done {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .m-active {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+    }
+
+    .m-future {
+      background: var(--bg-secondary);
+      color: var(--text-tertiary);
+      border: 0.5px solid var(--border-mid);
+    }
+
+    .month-title {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .month-sub {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-left: auto;
+    }
+
+    .weeks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-left: 38px;
+    }
+
+    .week-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+    }
+
+    .week-card.done {
+      border-left: 3px solid #1d9e75;
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    }
+
+    .week-card.current {
+      border-left: 3px solid #378add;
+      border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+    }
+
+    .wk-label {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .wk-title {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 6px;
+      line-height: 1.4;
+    }
+
+    .wk-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .rtag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: var(--radius-md);
+    }
+
+    .rtag-blue {
+      background: var(--blue-bg);
+      color: var(--blue-text);
+    }
+
+    .rtag-green {
+      background: var(--green-bg);
+      color: var(--green-text);
+    }
+
+    .rtag-amber {
+      background: var(--amber-bg);
+      color: var(--amber-text);
+    }
+
+    .rtag-purple {
+      background: var(--purple-bg);
+      color: var(--purple-text);
+    }
+
+    .rtag-teal {
+      background: var(--teal-bg);
+      color: var(--teal-text);
+    }
+
+    .rtag-coral {
+      background: var(--coral-bg);
+      color: var(--coral-text);
+    }
+
+    .projects-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 8px;
+    }
+
+    .proj-card {
+      background: var(--bg-primary);
+      border: 0.5px solid var(--border-light);
+      border-radius: var(--radius-lg);
+      padding: 12px 14px;
+    }
+
+    .proj-num {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-bottom: 4px;
+    }
+
+    .proj-name {
+      font-size: 13px;
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .proj-desc {
+      font-size: 12px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .proj-stack {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+
+    .ms-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 0.5px solid var(--border-light);
+    }
+
+    .ms-row:last-child {
+      border-bottom: none;
+    }
+
+    .ms-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .ms-dot.done {
+      background: var(--success-dot);
+    }
+
+    .ms-dot.future {
+      background: var(--bg-secondary);
+      border: 1.5px solid var(--border-mid);
+    }
+
+    .ms-text {
+      font-size: 13px;
+      flex: 1;
+    }
+
+    .ms-when {
+      font-size: 12px;
+      color: var(--text-tertiary);
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="page">
+
+    <div class="header">
+      <div>
+        <h1>AI engineer learning notes</h1>
+        <p>Updated after each session — your running reference</p>
+      </div>
+      <span class="badge">Month 4 — Production AI Apps</span>
+    </div>
+
+    <div class="view-tabs">
+      <button class="view-tab active" onclick="showView('notes', this)">Learning notes</button>
+      <button class="view-tab" onclick="showView('roadmap', this)">6-month roadmap</button>
+    </div>
+
+    <!-- LEARNING NOTES -->
+    <div id="notes" class="view-content active">
+
+      <div class="stat-row">
+        <div class="stat-card">
+          <div class="stat-label">Weeks complete</div>
+          <div class="stat-val">12 / 12</div>
+          <div class="stat-sub">Month 3 ✓ · Month 4 next</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Milestones hit</div>
+          <div class="stat-val">80</div>
+          <div class="stat-sub">Theory + code + deploy</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Projects shipped</div>
+          <div class="stat-val">3</div>
+          <div class="stat-sub">Chatbot · Code Reviewer · RAG</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Live URLs</div>
+          <div class="stat-val">6</div>
+          <div class="stat-sub">3x Vercel + 3x Railway</div>
+        </div>
+      </div>
+
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">Chatbot Frontend — live</div>
+          <div class="live-url-text">https://project-pv9qy.vercel.app</div>
+        </div>
+      </div>
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">Chatbot Backend — live</div>
+          <div class="live-url-text">https://ai-engineer-journey-production.up.railway.app</div>
+        </div>
+      </div>
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">Code Reviewer Frontend — live</div>
+          <div class="live-url-text">https://coding-assistant-kappa.vercel.app</div>
+        </div>
+      </div>
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">Code Reviewer Backend — live</div>
+          <div class="live-url-text">Railway — coding-assistant service</div>
+        </div>
+      </div>
+
+      <div class="week-tabs">
+        <button class="tab active" onclick="showWeek('w1', this)">Week 1 ✓</button>
+        <button class="tab" onclick="showWeek('w2', this)">Week 2 ✓</button>
+        <button class="tab" onclick="showWeek('w3', this)">Week 3 ✓</button>
+        <button class="tab" onclick="showWeek('w4', this)">Week 4 ✓</button>
+        <button class="tab" onclick="showWeek('w5', this)">Week 5 ✓</button>
+        <button class="tab" onclick="showWeek('w6', this)">Week 6 ✓</button>
+        <button class="tab" onclick="showWeek('w7', this)">Week 7 ✓</button>
+        <button class="tab" onclick="showWeek('w8', this)">Week 8 ✓</button>
+        <button class="tab" onclick="showWeek('w9', this)">Week 9 ✓</button>
+        <button class="tab" onclick="showWeek('w10', this)">Week 10 ✓</button>
+        <button class="tab" onclick="showWeek('w11', this)">Week 11 ✓</button>
+        <button class="tab" onclick="showWeek('w12', this)">Week 12 ✓</button>
+      </div>
+
+      <!-- WEEK 1 -->
+      <div id="w1" class="week-content active">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 1 complete — 8 / 8 milestones</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core LLM concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Tokens</div>
+                <div class="concept-sub">~¾ of a word. Unit of cost and context. Claude = 200K token window. You pay per
+                  input + output token.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Embeddings</div>
+                <div class="concept-sub">Meaning encoded as numbers (vectors). Similar meaning = similar vectors.
+                  Foundation of RAG in Month 2.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Temperature</div>
+                <div class="concept-sub">0 = deterministic. 0.5 = balanced. 1.0 = creative. Use low (0–0.3) for
+                  structured/JSON output.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Stateless API</div>
+                <div class="concept-sub">No memory between calls. You send full conversation history every single time.
+                  Managing this = key engineering challenge.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">System vs user prompt</div>
+                <div class="concept-sub">System = persistent rules (role, format, constraints). User = actual input. Put
+                  constraints in system prompt.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Prompt engineering patterns</div>
+          <div class="cards">
+            <div class="card">
+              <h3>Prompt structure</h3>
+              <p>Role + Context + Task + Format. Always define all four layers for reliable, consistent output.</p>
+            </div>
+            <div class="card">
+              <h3>Chain-of-thought</h3>
+              <p>Add "think step by step" before complex tasks. Dramatically improves accuracy on reasoning problems.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Few-shot learning</h3>
+              <p>Show 2–3 input/output examples. Model matches the pattern without needing long instructions.</p>
+            </div>
+            <div class="card">
+              <h3>Structured output</h3>
+              <p>"Respond with valid JSON only. No markdown. No backticks." Then use json.loads() to parse.</p>
+            </div>
+            <div class="card">
+              <h3>Edge case handling</h3>
+              <p>Always define what to return when data is missing. "If no phone number, return null." Else model
+                hallucinates.</p>
+            </div>
+            <div class="card">
+              <h3>Prompts are code</h3>
+              <p>Test on 50 inputs. Version control them. Handle errors. Treat prompts exactly like software functions.
+              </p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Basic API call</div>
+                <div class="code-block">client = anthropic.Anthropic()
+                  msg = client.messages.create(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  temperature=0.3,
+                  system="You are a helpful assistant.",
+                  messages=[{"role": "user", "content": "..."}]
+                  )
+                  print(msg.content[0].text)</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Secure key loading from .env</div>
+                <div class="code-block">from dotenv import load_dotenv
+                  load_dotenv()
+                  client = anthropic.Anthropic() # reads ANTHROPIC_API_KEY
+                  # Never hardcode or print your API key</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Token usage + cost tracking</div>
+                <div class="code-block">msg.usage.input_tokens # tokens you sent
+                  msg.usage.output_tokens # tokens in response
+                  # Sonnet: ~$0.000165 per 110 tokens
+                  # 10K calls/day ≈ $1.65/day</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Structured JSON output</div>
+                <div class="code-block">import json
+                  # System: "respond with JSON only, no markdown"
+                  raw = msg.content[0].text
+                  parsed = json.loads(raw)
+                  print(parsed["name"], parsed["score"])</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Python venv set up + Anthropic SDK installed</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">API key secured in .env + .gitignore</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">First Claude API call from Python</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Temperature experiment — 0.1 vs 1.0 live</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Structured JSON output parsed in Python</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Debugged 401 auth errors + env var precedence</div><span
+              class="milestone-tag tag-debug">debug</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">LLM concepts: tokens, embeddings, temperature, context</div><span
+              class="milestone-tag tag-theory">theory</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Prompt engineering: CoT, few-shot, structured output</div><span
+              class="milestone-tag tag-theory">theory</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 2 -->
+      <div id="w2" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 2 complete — 10 / 10 milestones</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Conversation memory</div>
+                <div class="concept-sub">Maintain a messages list yourself. Append user + assistant turns every call.
+                  The model has no memory — you do.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Streaming responses</div>
+                <div class="concept-sub">Use client.messages.stream() instead of create(). Yields text chunks in real
+                  time. Makes apps feel alive vs waiting for full response.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Token cost growth per turn</div>
+                <div class="concept-sub">Every turn re-sends full history. Turn 1 = 61 tokens. Turn 5 = 227 tokens. Cost
+                  grows linearly. Must trim in production.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Context window guard</div>
+                <div class="concept-sub">Keep only last N messages when history gets too long. Production apps summarize
+                  old turns instead of dropping them.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">FastAPI + CORS + StreamingResponse</div>
+                <div class="concept-sub">Expose AI logic as HTTP API. CORSMiddleware allows frontend to call it.
+                  StreamingResponse pipes Claude output token by token to browser.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Full stack AI architecture</div>
+                <div class="concept-sub">Next.js (Vercel) → FastAPI (Railway) → Claude API. Two servers, two
+                  deployments. Frontend sends full history each request.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Nixpacks + Railway deployment</div>
+                <div class="concept-sub">Railway auto-detects Python. Use nixpacks.toml to override start command. Set
+                  PORT via environment variables.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Vercel deployment</div>
+                <div class="concept-sub">Set Root Directory to subdirectory in Build settings. Add vercel.json with
+                  framework: nextjs. Auto-deploys on every git push.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Multi-turn chatbot loop</div>
+                <div class="code-block">conversation_history = []
+                  while True:
+                  user_input = input("You: ")
+                  conversation_history.append({"role": "user", "content": user_input})
+                  response = client.messages.create(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  system=SYSTEM_PROMPT,
+                  messages=conversation_history
+                  )
+                  reply = response.content[0].text
+                  conversation_history.append({"role": "assistant", "content": reply})
+                  print(f"Aria: {reply}")</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Streaming in Python</div>
+                <div class="code-block">with client.messages.stream(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  system=SYSTEM_PROMPT,
+                  messages=conversation_history
+                  ) as stream:
+                  for text in stream.text_stream:
+                  print(text, end="", flush=True)
+                  full_response += text</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">FastAPI streaming endpoint</div>
+                <div class="code-block">@app.post("/chat")
+                  def chat(request: ChatRequest):
+                  def stream_response():
+                  with client.messages.stream(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  system=SYSTEM_PROMPT,
+                  messages=[m.dict() for m in request.messages]
+                  ) as stream:
+                  for text in stream.text_stream:
+                  yield text
+                  return StreamingResponse(stream_response(), media_type="text/plain")</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Multi-turn chatbot with conversation memory</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Streaming responses in terminal</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Context window guard implemented</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI backend with /chat streaming endpoint</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Next.js chat UI built and connected to backend</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">ReactMarkdown rendering bold, bullets, headers</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Debugged CORS + Failed to fetch + submodule errors</div><span
+              class="milestone-tag tag-debug">debug</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Pushed full project to GitHub (codingwithsatya)</div><span
+              class="milestone-tag tag-git">git</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Backend deployed live on Railway</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Frontend deployed live on Vercel</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 3 -->
+      <div id="w3" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 3 complete — 8 / 8 milestones</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Persona + Constraint + Format trifecta</div>
+                <div class="concept-sub">The most reliable system prompt structure. Persona sets expertise, constraints
+                  define what the model won't do, format locks the output shape. All three together = consistent
+                  production output.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Structured output as a contract</div>
+                <div class="concept-sub">Say it 3 ways: "ONLY valid JSON. No prose. No markdown. No backticks." Give the
+                  exact schema. Define the null case explicitly ("if no issues, return []"). Missing any one of these
+                  causes KeyErrors in prod.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">XML tags for complex inputs</div>
+                <div class="concept-sub">Wrap user-submitted code in &lt;code&gt; tags. Prevents the model confusing
+                  instructions with content. Especially important when code contains prompt-like strings.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Temperature 0.1 for structured output</div>
+                <div class="concept-sub">Use near-zero temperature when parsing JSON. Creative temperature randomly
+                  changes schema shape. 0.1 gives near-deterministic output while avoiding the occasional freeze of 0.
+                </div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Prompts as functions — engineering mindset</div>
+                <div class="concept-sub">Function signature = input schema. Return type = JSON shape. Error handling =
+                  fallback instructions. Unit tests = 20–30 fixed inputs. Version control prompts in git like code.
+                </div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Global env var override pitfall</div>
+                <div class="concept-sub">load_dotenv() only sets a variable if it's NOT already in the environment. A
+                  stale global key in ~/.zshrc silently wins over .env. Fix: unset ANTHROPIC_API_KEY in terminal, or
+                  remove from shell config.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Production system prompt structure</div>
+                <div class="code-block">SYSTEM_PROMPT = """You are a senior software engineer specializing in code
+                  review.
+                  You never ask clarifying questions — always analyze whatever code is provided.
+
+                  You MUST respond with valid JSON only. No prose. No markdown. No backticks.
+
+                  Use exactly this schema:
+                  {
+                  "issues": [{"line": int|null, "severity": "low|medium|high", "description": str}],
+                  "suggestions": [str],
+                  "overall_score": int, // 1-10
+                  "summary": str
+                  }
+
+                  If there are no issues, return "issues": [].
+                  Never omit a key. If data is unavailable, use null."""</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">XML tags + structured user message</div>
+                <div class="code-block">messages=[{
+                  "role": "user",
+                  "content": f"Review this {request.language} code:\n\n&lt;code&gt;\n{request.code}\n&lt;/code&gt;"
+                  }]
+                  # XML tags prevent model confusing code content with instructions</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">FastAPI structured output endpoint</div>
+                <div class="code-block">@app.post("/analyze")
+                  async def analyze_code(request: AnalyzeRequest):
+                  message = client.messages.create(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  temperature=0.1, # near-deterministic for JSON
+                  system=SYSTEM_PROMPT,
+                  messages=[{"role": "user", "content": f"...&lt;code&gt;{request.code}&lt;/code&gt;"}]
+                  )
+                  raw = message.content[0].text
+                  result = json.loads(raw) # will raise if model breaks schema
+                  return result</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Severity color mapping in React</div>
+                <div class="code-block">const SEVERITY_STYLES = {
+                  high: "bg-red-50 border-red-200 text-red-800",
+                  medium: "bg-amber-50 border-amber-200 text-amber-800",
+                  low: "bg-blue-50 border-blue-200 text-blue-800",
+                  };
+                  // Score color
+                  const SCORE_COLOR = (score) => {
+                  if (score >= 8) return "text-green-600";
+                  if (score >= 5) return "text-amber-600";
+                  return "text-red-600";
+                  };</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Files built this week</div>
+          <div class="cards">
+            <div class="card">
+              <h3>main.py</h3>
+              <p>FastAPI backend. POST /analyze returns structured JSON. temperature=0.1, XML-wrapped input,
+                schema-enforced output.</p>
+            </div>
+            <div class="card">
+              <h3>ui/app/page.tsx</h3>
+              <p>Next.js UI. Two-column layout: code textarea + language selector left, score + severity cards +
+                suggestions right.</p>
+            </div>
+            <div class="card">
+              <h3>requirements.txt</h3>
+              <p>Minimal manual list: anthropic, fastapi, uvicorn, python-dotenv. Cleaner than pip freeze.</p>
+            </div>
+            <div class="card">
+              <h3>nixpacks.toml</h3>
+              <p>Railway deployment config. Overrides start command to use venv Python path.</p>
+            </div>
+            <div class="card">
+              <h3>ui/vercel.json</h3>
+              <p>Tells Vercel this is a Next.js project. Required when subdirectory Root Directory config alone isn't
+                enough.</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Prompt engineering: persona + constraint + format mastered</div><span
+              class="milestone-tag tag-theory">theory</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Structured output contract pattern understood</div><span
+              class="milestone-tag tag-theory">theory</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI /analyze endpoint with schema-enforced JSON output</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Next.js UI — severity color cards + score + suggestions</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Debugged global env var overriding .env (unset fix)</div><span
+              class="milestone-tag tag-debug">debug</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Debugged Vercel subdirectory + vercel.json fix</div><span
+              class="milestone-tag tag-debug">debug</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Backend deployed on Railway (coding-assistant)</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Frontend deployed live on Vercel — end to end working</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 5 -->
+      <div id="w5" class="week-content">
+        <div class="section">
+          <div class="section-title" style="display:none"></div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 5 complete — 8 / 8 milestones</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Supabase pgvector setup</div>
+                <div class="concept-sub">Enable vector extension. Create documents + chunks tables. Build match_chunks()
+                  SQL function with cosine distance operator &lt;=&gt;. user_id filter for data isolation.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Voyage AI embeddings</div>
+                <div class="concept-sub">voyage.embed(texts, model="voyage-3", input_type="document"). Returns 1024-dim
+                  vectors. input_type="query" for search queries. Batch up to 128 texts per call. Free tier = 3 RPM.
+                </div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">PDF text extraction</div>
+                <div class="concept-sub">PyPDF2.PdfReader. Extract page by page. Some PDFs have no text layer (scanned)
+                  — PyPDF2 returns empty. Text-only RAG works for 80% of real documents.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Chunking with overlap</div>
+                <div class="concept-sub">Split by word count (CHUNK_SIZE=400, CHUNK_OVERLAP=50). Overlap prevents key
+                  sentences being split across chunks. Skip chunks under 50 chars — they're noise.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Ingestion pipeline</div>
+                <div class="concept-sub">PDF → extract pages → chunk text → embed chunks (Voyage) → store in Supabase
+                  with doc_id, user_id, page_number, chunk_index. Insert in batches of 50.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Retrieval pipeline</div>
+                <div class="concept-sub">Embed query (Voyage, input_type="query") → supabase.rpc("match_chunks") → get
+                  top 5 chunks → build context string → Claude answers with citation constraint.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Confidence threshold</div>
+                <div class="concept-sub">match_threshold=0.3 in match_chunks(). If 0 chunks returned, respond "I don't
+                  have that information." Never let Claude answer from empty context — it hallucinates.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">File upload endpoint</div>
+                <div class="concept-sub">FastAPI UploadFile + python-multipart. Save to tempfile, ingest, delete. Return
+                  doc_id, pages, chunks count. /ask endpoint embeds question + retrieves + asks Claude.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Supabase vector search function</div>
+                <div class="code-block">-- SQL function in Supabase
+                  create or replace function match_chunks(
+                  query_embedding vector(1024),
+                  match_user_id text,
+                  match_count int default 5,
+                  match_threshold float default 0.5
+                  ) returns table (id uuid, content text, page_number int, similarity float)
+                  as $$
+                  select id, content, page_number,
+                  1 - (embedding &lt;=&gt; query_embedding) as similarity
+                  from chunks
+                  where user_id = match_user_id
+                  and 1 - (embedding &lt;=&gt; query_embedding) &gt; match_threshold
+                  order by embedding &lt;=&gt; query_embedding
+                  limit match_count;
+                  $$ language sql stable;</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Embed + retrieve pattern</div>
+                <div class="code-block">import time
+
+                  def retrieve_chunks(question: str) -> list[dict]:
+                  time.sleep(20) # respect 3 RPM free tier
+                  result = voyage.embed([question], model="voyage-3", input_type="query")
+                  query_vector = result.embeddings[0]
+                  response = supabase.rpc("match_chunks", {
+                  "query_embedding": query_vector,
+                  "match_user_id": USER_ID,
+                  "match_count": 5,
+                  "match_threshold": 0.3
+                  }).execute()
+                  return response.data</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">RAG prompt pattern</div>
+                <div class="code-block">context = "\n\n".join([
+                  f"[Excerpt {i+1} — Page {c['page_number']}]\n{c['content']}"
+                  for i, c in enumerate(chunks)
+                  ])
+                  message = client.messages.create(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  system="Answer ONLY from provided excerpts. Cite page numbers.",
+                  messages=[{"role": "user", "content":
+                  f"Excerpts:\n\n{context}\n\nQuestion: {question}"}]
+                  )</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Files built this week</div>
+          <div class="cards">
+            <div class="card">
+              <h3>ingest.py</h3>
+              <p>Full ingestion pipeline. PDF → extract → chunk → embed (Voyage) → store in Supabase pgvector with
+                metadata.</p>
+            </div>
+            <div class="card">
+              <h3>query.py</h3>
+              <p>Retrieval + Q&A. Embed question → search pgvector → build context → Claude answers with page citations.
+              </p>
+            </div>
+            <div class="card">
+              <h3>main.py</h3>
+              <p>FastAPI backend. POST /upload for PDF ingestion. POST /ask for Q&A. GET /health.</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Supabase project + pgvector extension enabled</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">documents + chunks schema + match_chunks() SQL function</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Voyage AI embeddings working (1024-dim vectors)</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">PDF ingestion pipeline — extract → chunk → embed → store</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Semantic retrieval working — pgvector returning relevant chunks</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Claude answering from document context with page citations</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Confidence threshold fallback — "I don't have that info" working</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI /upload + /ask endpoints + pushed to GitHub</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 6 -->
+      <!-- WEEK 6 -->
+      <div id="w6" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 6 complete — 7 / 7 milestones · Smart Document Analyzer shipped 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">Document Analyzer — Frontend live</div>
+            <div class="live-url-text">https://ai-document-analyzer-ten.vercel.app</div>
+          </div>
+        </div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">Document Analyzer — Backend live</div>
+            <div class="live-url-text">https://ai-document-analyzer-production-20f8.up.railway.app</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">File upload with FormData</div>
+                <div class="concept-sub">Use FormData to send files from Next.js to FastAPI. FastAPI receives with
+                  UploadFile. Save to tempfile, process, delete after. Never store raw files in memory.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Drag and drop file upload</div>
+                <div class="concept-sub">onDragOver + onDrop events on a div. preventDefault() stops browser from
+                  opening the file. Pass file to upload handler same as click upload.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Source citation UI</div>
+                <div class="concept-sub">Each assistant message carries a sources array with page number + similarity
+                  score. Render as pill badges below the answer. Lets users verify which chunk was used.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Supabase free tier pausing</div>
+                <div class="concept-sub">Supabase pauses projects after 1 week of inactivity on free tier. Unpause from
+                  dashboard. railway.internal URL is private network only — always use the public .up.railway.app URL.
+                </div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Full RAG stack deployed</div>
+                <div class="concept-sub">Next.js (Vercel) → FastAPI (Railway) → Voyage AI (embeddings) → Supabase
+                  pgvector (vector search) → Claude (answer generation). Five services working together in production.
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">What was built</div>
+          <div class="cards">
+            <div class="card">
+              <h3>PDF upload UI</h3>
+              <p>Drag and drop or click to upload. Shows document ready state with page + chunk count after ingestion.
+              </p>
+            </div>
+            <div class="card">
+              <h3>Chat interface</h3>
+              <p>User messages right in blue. Claude answers left in gray. Source citation pills with page + similarity
+                % below each answer.</p>
+            </div>
+            <div class="card">
+              <h3>FastAPI /upload</h3>
+              <p>Receives PDF, saves to tempfile, extracts text, chunks, embeds via Voyage AI, stores in Supabase,
+                returns doc metadata.</p>
+            </div>
+            <div class="card">
+              <h3>FastAPI /ask</h3>
+              <p>Embeds question, pgvector similarity search, builds context from top chunks, Claude answers with
+                citation constraint.</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Next.js UI — drag/drop upload + document info panel</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Chat interface with source citation pills</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI /upload endpoint with tempfile handling</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI /ask endpoint with pgvector retrieval + Claude</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Debugged Supabase pause + Railway internal vs public URL</div><span
+              class="milestone-tag tag-debug">debug</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Backend deployed on Railway with all env vars</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Frontend deployed live on Vercel — full RAG app working</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 4 -->
+      <div id="w4" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 4 complete — 7 / 7 milestones · Month 1 complete 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Prompt caching</div>
+                <div class="concept-sub">Add cache_control: ephemeral to your system prompt. Claude caches it after the
+                  first call. Subsequent calls cost 90% less on those tokens. One line change — biggest cost lever in
+                  production.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Batch processing</div>
+                <div class="concept-sub">Submit multiple inputs in one API call. Returns individual results + cross-file
+                  summary. The summary object (avg score, total issues, highest risk) is what dashboards and managers
+                  actually read.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Model routing by task complexity</div>
+                <div class="concept-sub">Haiku = 10x cheaper for simple classification. Sonnet = best cost/quality for
+                  reasoning. Opus = complex multi-step agents. Routing cheap tasks to Haiku cuts your bill 60–70% at
+                  scale.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Cost math at scale</div>
+                <div class="concept-sub">10K calls/day × 500 token system prompt = 5M input tokens/day on system prompt
+                  alone. With caching: ~500K tokens/day. That's the difference between $8/day and $0.80/day just on the
+                  system prompt.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Component decomposition in React</div>
+                <div class="concept-sub">Split SingleAnalyzer, BatchAnalyzer, and ResultCard into separate components.
+                  ResultCard is shared between both. Keeps the file readable and prevents duplicating the severity card
+                  + suggestions logic.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Prompt caching syntax</div>
+                <div class="code-block">message = client.messages.create(
+                  model="claude-sonnet-4-6",
+                  max_tokens=1024,
+                  temperature=0.1,
+                  system=[{
+                  "type": "text",
+                  "text": SYSTEM_PROMPT,
+                  "cache_control": {"type": "ephemeral"} # 90% cheaper on repeat calls
+                  }],
+                  messages=[...]
+                  )</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Batch endpoint with cross-file summary</div>
+                <div class="code-block">@app.post("/analyze-batch")
+                  async def analyze_batch(request: BatchRequest):
+                  results = []
+                  total_score = 0
+                  total_issues = 0
+                  for snippet in request.snippets:
+                  result = json.loads(client.messages.create(...).content[0].text)
+                  result["label"] = snippet.get("label", "untitled")
+                  results.append(result)
+                  total_score += result.get("overall_score", 0)
+                  total_issues += len(result.get("issues", []))
+                  return {
+                  "results": results,
+                  "summary": {
+                  "total_snippets": len(request.snippets),
+                  "total_issues": total_issues,
+                  "average_score": round(total_score / len(results), 1),
+                  "highest_risk": min(results, key=lambda x: x["overall_score"])["label"]
+                  }
+                  }</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Prompt caching added to /analyze endpoint</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Batch endpoint /analyze-batch with cross-file summary</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Batch UI — snippet cards, add/remove, Analyze All</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Summary cards — files analyzed, avg score, total issues, highest risk</div>
+            <span class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Single/Batch tab navigation with shared ResultCard component</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Cost optimization concepts: caching, batching, model routing</div><span
+              class="milestone-tag tag-theory">theory</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Deployed batch analyzer live on Vercel + Railway</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 7 -->
+      <div id="w7" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 7 complete — 6 / 6 milestones · Advanced RAG pipeline shipped 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Hybrid search — semantic + keyword combined</div>
+                <div class="concept-sub">Semantic search finds meaning. Keyword search (BM25) finds exact terms. Hybrid
+                  combines both with configurable weights (50/50 for OpenTheDesk). Fixes the PTR-FAST vs PTR-FULL
+                  confusion problem.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">BM25 keyword search</div>
+                <div class="concept-sub">Best Match 25 algorithm — counts word frequency weighted by document length.
+                  rank_bm25 library in Python. Tokenize corpus once, score all docs against query. Returns 0 for no
+                  match (expected for conceptual queries).</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Reciprocal Rank Fusion (RRF)</div>
+                <div class="concept-sub">Merges two ranked lists into one. Formula: score += 1/(60 + rank) for each
+                  list. Items ranked high in both lists bubble to top. k=60 constant prevents extreme ranks from
+                  dominating. No score normalization needed.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Reranking with Cohere</div>
+                <div class="concept-sub">After hybrid search returns 20 candidates, Cohere rerank-english-v3.0 reads
+                  query + each chunk together and scores true relevance. 0.99 = extremely confident. ~$1/1000 queries.
+                  Use top_n=5 from 20 candidates.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Confidence threshold</div>
+                <div class="concept-sub">Check rerank_score of top result. Below 0.1 = refuse to answer. Above 0.65 =
+                  answer confidently. Prevents confident wrong answers from irrelevant chunks. Critical for OpenTheDesk
+                  — wrong rule during live trade = bad trade.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Python-side hybrid search (free tier workaround)</div>
+                <div class="concept-sub">Supabase free tier blocks GIN indexes (memory limit 32MB). Solution: semantic
+                  search via pgvector, BM25 keyword search in Python over retrieved chunks, RRF merge in Python. Cleaner
+                  architecture anyway — more control.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Code patterns</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Full hybrid search pipeline</div>
+                <div class="code-block">def hybrid_search_pipeline(question, top_k=5):
+                  # 1. Embed question
+                  vector = voyage.embed([question], model="voyage-3", input_type="query")
+                  # 2. Semantic search — top 20 from pgvector
+                  semantic = semantic_search(vector, top_k=20)
+                  # 3. BM25 keyword search over same chunks
+                  keyword = keyword_search(question, semantic, top_k=20)
+                  # 4. RRF merge
+                  fused = reciprocal_rank_fusion(semantic, keyword)
+                  # 5. Rerank top candidates
+                  return rerank(question, fused[:20], top_n=top_k)</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">BM25 keyword search in Python</div>
+                <div class="code-block">from rank_bm25 import BM25Okapi
+
+                  def keyword_search(query, chunks, top_k=20):
+                  tokenized = [c["content"].lower().split() for c in chunks]
+                  bm25 = BM25Okapi(tokenized)
+                  scores = bm25.get_scores(query.lower().split())
+                  ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+                  return [chunks[i] for i, score in ranked[:top_k] if score > 0]</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Cohere reranking</div>
+                <div class="code-block">import cohere
+                  co = cohere.Client(api_key=os.environ["COHERE_API_KEY"])
+
+                  def rerank(query, chunks, top_n=5):
+                  docs = [c["content"] for c in chunks]
+                  response = co.rerank(
+                  model="rerank-english-v3.0",
+                  query=query, documents=docs, top_n=top_n
+                  )
+                  return [chunks[r.index] | {"rerank_score": r.relevance_score}
+                  for r in response.results]</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">BM25 keyword search implemented in Python</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">RRF merge function combining semantic + keyword results</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Cohere reranking integrated — 0.99 confidence on test query</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Confidence threshold added — refuses to answer below 0.1</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">UI updated — rerank_score shown as relevance % in source pills</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Advanced RAG deployed live — Railway + Vercel</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 8 -->
+      <div id="w8" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 8 complete — 6 / 6 milestones · Month 2 complete 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">Document Analyzer — Frontend live</div>
+            <div class="live-url-text">https://ai-document-analyzer-ten.vercel.app</div>
+          </div>
+        </div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">Document Analyzer — Backend live</div>
+            <div class="live-url-text">https://ai-document-analyzer-production-20f8.up.railway.app</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Multi-document architecture</div>
+                <div class="concept-sub">documents table tracks uploaded files. chunks table links to documents via
+                  document_id with ON DELETE CASCADE. Deleting a document auto-deletes all its chunks — no orphaned
+                  vectors.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Document-aware retrieval</div>
+                <div class="concept-sub">Pass document_id through the full pipeline. Filter semantic search results by
+                  document_id before BM25 + RRF + reranking. Lets user query specific documents without
+                  cross-contamination.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Document management UI patterns</div>
+                <div class="concept-sub">useEffect to fetch docs on load. Active doc highlighted with blue ring. Hover
+                  to reveal delete button (opacity-0 → group-hover:opacity-100). Auto-scroll to latest message with
+                  useRef + scrollIntoView.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">REST API design for resources</div>
+                <div class="concept-sub">GET /documents = list. POST /upload = create. DELETE /documents/{id} = delete.
+                  Standard REST pattern. FastAPI path parameters with {document_id} in route.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Files built / updated</div>
+          <div class="cards">
+            <div class="card">
+              <h3>main.py — new endpoints</h3>
+              <p>GET /documents lists all user docs. DELETE /documents/{id} removes doc + cascades chunks. /ask now
+                accepts document_id for scoped search.</p>
+            </div>
+            <div class="card">
+              <h3>ui/app/page.tsx — rebuilt</h3>
+              <p>Document list sidebar. Active doc highlight. Hover-to-delete. Chat header shows active doc name.
+                Auto-scroll on new messages. Upload button in header.</p>
+            </div>
+            <div class="card">
+              <h3>README.md</h3>
+              <p>Full project docs: features, tech stack, pipeline explanation, DB setup SQL, API reference, deployment
+                guide, live URLs.</p>
+            </div>
+            <div class="card">
+              <h3>ui/app/favicon.ico + layout.tsx</h3>
+              <p>Custom DA favicon (amber). Title: "Smart Document Analyzer". Description updated.</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">GET /documents + DELETE /documents/{id} endpoints</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Document-aware search — filter by document_id through full pipeline</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Multi-document UI — list, switch, delete with hover reveal</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">README with live URLs, API docs, DB setup, deployment guide</div><span
+              class="milestone-tag tag-git">git</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Favicon + title metadata updated</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Full app deployed — Month 2 complete</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 9 -->
+      <div id="w9" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:75%"></div>
+          </div>
+          <div class="progress-label">Week 9 complete — 4 / 4 milestones · OpenTheDesk v0.1 live 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">OpenTheDesk — Frontend live</div>
+            <div class="live-url-text">https://openthedesk.vercel.app</div>
+          </div>
+        </div>
+        <div class="live-url">
+          <div class="live-dot"></div>
+          <div>
+            <div class="live-label">OpenTheDesk — Backend live</div>
+            <div class="live-url-text">https://openthedesk-production.up.railway.app</div>
+          </div>
+        </div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Google Doc as live knowledge base</div>
+                <div class="concept-sub">Export Google Doc as plain text via /export?format=txt URL. No API key needed
+                  for public docs. Fetches 34K chars of trading context in ~1 second. Updated rules available next
+                  morning automatically — zero action required.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">System prompt as agent constitution</div>
+                <div class="concept-sub">Full trading system injected into system prompt with cache_control: ephemeral.
+                  34K char context cached after first call — 90% cheaper on subsequent messages. Claude reads all rules
+                  before every response.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Shortcut routing via natural language</div>
+                <div class="concept-sub">No explicit routing code needed at this stage — Claude detects "Open the Desk",
+                  "PTR-FAST", "EOD" etc from the system prompt definitions and responds in the correct format. LangGraph
+                  routing comes in Week 10.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">"Open the Desk" — what it returns</div>
+                <div class="concept-sub">TD number, account balance, gap to $2,000 and $3,000, Phase 2 hard rules,
+                  market context from last close, ATR levels calculated from PDC, bull/bear scenarios with exact
+                  strikes, psychology note, morning sequence steps, coaching commitment.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">PTR-FAST — live gate checking</div>
+                <div class="concept-sub">Reads ribbon color, setup name, TRIN level, SPX price. Checks all 3 gates.
+                  Calculates R:R from actual levels. Asks the two right follow-up questions before committing. TRIN 0.92
+                  → below 1.0 → Rule 19 clear → calls eligible. Exactly as designed.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Files built</div>
+          <div class="cards">
+            <div class="card">
+              <h3>context.py</h3>
+              <p>Fetches Google Doc via export URL. Returns plain text trading context. Handles errors gracefully. ~1
+                second fetch time.</p>
+            </div>
+            <div class="card">
+              <h3>agent.py</h3>
+              <p>Terminal agent loop. Loads live context once per session. Builds system prompt with full trading
+                constitution. Conversation history maintained. Prompt caching on system prompt.</p>
+            </div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Milestones</div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">Google Doc created + live context fetching working (34K chars)</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">"Open the Desk" returns full TD session opener with ATR levels</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">PTR-FAST running 3-gate check with correct levels + coaching</div><span
+              class="milestone-tag tag-code">code</span>
+          </div>
+          <div class="milestone-row">
+            <div class="check done">✓</div>
+            <div class="milestone-label">FastAPI + Next.js dashboard deployed — openthedesk.vercel.app live</div><span
+              class="milestone-tag tag-deploy">deploy</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- WEEK 10 -->
+      <div id="w10" class="week-content">
+        <div class="section">
+          <div class="section-title">Progress</div>
+          <div class="progress-bar-wrap">
+            <div class="progress-bar" style="width:100%"></div>
+          </div>
+          <div class="progress-label">Week 10 complete — 5 / 5 milestones · Chart vision production ready 🎉</div>
+        </div>
+        <div class="divider"></div>
+        <div class="section">
+          <div class="section-title">Core concepts</div>
+          <div class="concept-list">
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Claude Vision for chart analysis</div>
+                <div class="concept-sub">Send base64-encoded image alongside text to Claude. Model reads ribbon color,
+                  ATR levels, Phase Oscillator, setup structure — in that exact order per your rules. Returns
+                  PTR-FAST/TRADE IDEA analysis with full context in under 10 seconds.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Multipart form data in FastAPI</div>
+                <div class="concept-sub">UploadFile + File() for image uploads. Read bytes, encode to base64, detect
+                  media_type from content_type. Store simplified text version in history (not raw base64) to keep
+                  conversation manageable.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Google Doc retry pattern</div>
+                <div class="concept-sub">First attempt failed (Google 500 error), retry after 2 second sleep succeeded.
+                  Always wrap external API calls in retry loops with sleep. 3 attempts is the standard pattern.</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Ribbon vision — cloud vs candle color</div>
+                <div class="concept-sub">Critical distinction: gray/white candles can appear INSIDE a green ribbon
+                  during compression. The ribbon cloud color (filled area behind candles) determines ribbon state — not
+                  the candle color. Green/teal cloud = calls eligible even if candles are gray. Prompt must explicitly
+                  teach this distinction.</div>
+              </div>
+            </div>
+            <div class="concept-sub">Ribbon color (RED/ORANGE = puts only). ATR levels from PDC. Phase Oscillator state
+              for Bilbo filter. Setup structure (flag, VOMY, backtest). DTR calculation. Time of day check. Internals
+              from chart annotations. All checked against your 31 rules before verdict.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Live results from today</div>
+      <div class="cards">
+        <div class="card">
+          <h3>Chart analysis — TD23 1:51pm</h3>
+          <p>Ribbon RED, put trigger 7,346 hit, Bear GG open at 7,335. DTR 82% → Rule 16 → NO TRADE. Process grade A.
+            Pattern 15 flagged. Correct verdict delivered in under 10 seconds.</p>
+        </div>
+        <div class="card">
+          <h3>📊 button in UI</h3>
+          <p>Green chart upload button next to input. Type shortcut (PTR-FAST, TRADE IDEA) then click 📊 to upload
+            screenshot. Analysis comes back in chat as assistant message.</p>
+        </div>
+        <div class="card">
+          <h3>/analyze-chart endpoint</h3>
+          <p>POST with multipart form — file + context + session_id. Encodes image to base64, builds vision message,
+            calls Claude, stores text summary in history. Returns reply + session_id + type.</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">/analyze-chart endpoint — base64 vision + Claude analysis</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">📊 chart upload button in dashboard UI</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Streaming response — first text in 2-3 seconds (was 45s)</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Haiku model routing for PTR-FAST/PTR-FULL/GRADE — faster + cheaper</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Ribbon vision fix — distinguish candle color from ribbon cloud color</div><span
+          class="milestone-tag tag-debug">debug</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK 11 -->
+  <div id="w11" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:100%"></div>
+      </div>
+      <div class="progress-label">Week 11 complete — 4 / 4 milestones · Live market data + PREMARKET endpoint 🎉</div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Core concepts</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">yfinance for live market data</div>
+            <div class="concept-sub">Free, no API key needed. ^GSPC = SPX, ^VIX = VIX. history(period="5d") gets last 5
+              trading days. Last row = most recent completed day. During market hours today's data is incomplete — PDC =
+              second-to-last row. Correct behavior by design.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Saty ATR levels auto-calculated</div>
+            <div class="concept-sub">calculate_atr_levels(pdc, atr) computes all 8 levels: ±23.6% trigger, ±38.2% GG
+              open, ±61.8% GG complete, ±100% full ATR. ATR approximated from prior day range (H-L). Saty ATR indicator
+              gives exact value — use that to verify.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">PREMARKET endpoint with live data injection</div>
+            <div class="concept-sub">POST /premarket fetches live SPX + VIX + ATR levels, injects into user message as
+              structured context, streams Claude response. Agent receives real PDC, PDH, PDL, VIX alongside your trading
+              rules. PREMARKET button in UI calls this endpoint directly.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Polygon free tier limitations</div>
+            <div class="concept-sub">Polygon free tier doesn't include SPX index data or options chain snapshots.
+              yfinance is the better free alternative for SPX/VIX. Options data requires Polygon paid tier ($29/mo) or
+              Tradier brokerage account. Use manual premium input for v1.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Files built</div>
+      <div class="cards">
+        <div class="card">
+          <h3>market_data.py</h3>
+          <p>get_spx_price(), get_vix(), calculate_atr_levels(), get_market_summary(). All via yfinance. Free, no API
+            key needed.</p>
+        </div>
+        <div class="card">
+          <h3>POST /premarket</h3>
+          <p>Fetches live data, builds structured market context string, injects into Claude message, streams response.
+            PREMARKET button calls this directly.</p>
+        </div>
+        <div class="card">
+          <h3>GET /market-data</h3>
+          <p>Raw market data endpoint. Returns SPX, VIX, ATR levels as JSON. Can be used to display a pre-market levels
+            panel in the UI.</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">yfinance SPX + VIX live data working</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Saty ATR levels auto-calculated from PDC + ATR</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">POST /premarket endpoint with live data injection + streaming</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">PREMARKET button in dashboard calls live endpoint</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK 12 -->
+  <div id="w12" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:100%"></div>
+      </div>
+      <div class="progress-label">Week 12 complete — 4 / 4 milestones · Month 3 complete 🎉</div>
+    </div>
+    <div class="divider"></div>
+    <div class="live-url">
+      <div class="live-dot"></div>
+      <div>
+        <div class="live-label">OpenTheDesk — Frontend live</div>
+        <div class="live-url-text">https://openthedesk.vercel.app</div>
+      </div>
+    </div>
+    <div class="live-url">
+      <div class="live-dot"></div>
+      <div>
+        <div class="live-label">OpenTheDesk — Backend live</div>
+        <div class="live-url-text">https://openthedesk-production.up.railway.app</div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section-title">Core concepts</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Pre-market levels panel</div>
+            <div class="concept-sub">Third column in the 3-column layout. Fetches /market-data on load. Shows SPX close,
+              VIX, and all 8 ATR levels color-coded green/red. PDC as center anchor. ATR value at bottom. Updates on
+              page refresh.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">3-column grid layout</div>
+            <div class="concept-sub">grid-template-columns: 220px 200px 1fr. Header spans all 3 columns (grid-column: 1
+              / -1). Shortcuts left, levels middle, chat right. Levels panel must be inside the layout div to
+              participate in the grid.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Model routing — Haiku vs Sonnet</div>
+            <div class="concept-sub">PTR-FAST, PTR-FULL, GRADE → claude-haiku-4-5-20251001 (faster, cheaper). TRADE
+              IDEA, PREMARKET, EOD, TRADE REVIEW → claude-sonnet-4-6 (deeper analysis). One line change per endpoint.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Month 3 — what was built</div>
+      <div class="cards">
+        <div class="card">
+          <h3>context.py</h3>
+          <p>Google Doc fetcher with 3-attempt retry. 34K chars of trading rules loaded fresh each session.</p>
+        </div>
+        <div class="card">
+          <h3>market_data.py</h3>
+          <p>yfinance SPX + VIX. Saty ATR levels auto-calculated. No API key needed. Updates after market close.</p>
+        </div>
+        <div class="card">
+          <h3>agent.py</h3>
+          <p>Terminal agent — multi-turn conversation, prompt caching, full context in system prompt.</p>
+        </div>
+        <div class="card">
+          <h3>main.py</h3>
+          <p>FastAPI: /chat, /analyze-chart (streaming vision), /premarket (streaming + live data), /market-data,
+            /refresh-context, /session.</p>
+        </div>
+        <div class="card">
+          <h3>page.tsx</h3>
+          <p>3-column dashboard: shortcuts + ATR levels panel + chat. 📊 chart upload. Streaming responses. All 14
+            shortcuts wired.</p>
+        </div>
+        <div class="card">
+          <h3>README.md</h3>
+          <p>Full docs: architecture, shortcuts table, tech stack, Google Doc setup, deployment guide, live URLs.</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Pre-market ATR levels panel — live SPX, VIX, all 8 levels</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">3-column layout — shortcuts + levels + chat</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">README + favicon + title — portfolio ready</div><span
+          class="milestone-tag tag-git">git</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">OpenTheDesk fully deployed — Month 3 complete</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
+  </div>
+
+  <!-- 6-MONTH ROADMAP -->
+  <div id="roadmap" class="view-content">
+    <div class="salary-row">
+      <div class="sal-card">
+        <div class="sal-label">Entry-level salary</div>
+        <div class="sal-val">$95–130K</div>
+        <div class="sal-sub">Base, on hire</div>
+      </div>
+      <div class="sal-card">
+        <div class="sal-label">Mid-level (1–2 yrs)</div>
+        <div class="sal-val">$160–200K</div>
+        <div class="sal-sub">After first role</div>
+      </div>
+      <div class="sal-card">
+        <div class="sal-label">Specialist</div>
+        <div class="sal-val">$200–300K+</div>
+        <div class="sal-sub">Agents, fine-tuning</div>
+      </div>
+      <div class="sal-card">
+        <div class="sal-label">Daily commitment</div>
+        <div class="sal-val">2 hrs</div>
+        <div class="sal-sub">Weekdays only</div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-done">1</div>
+        <div class="month-title">Foundations</div>
+        <div class="month-sub">Weeks 1–4 · Apr 2026 ✓</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card done">
+          <div class="wk-label">Week 1 ✓</div>
+          <div class="wk-title">AI concepts + Python setup</div>
+          <div class="wk-tags"><span class="rtag rtag-amber">theory</span><span class="rtag rtag-green">code</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 2 ✓</div>
+          <div class="wk-title">Chatbot + FastAPI + Next.js + deploy</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 3 ✓</div>
+          <div class="wk-title">Prompt mastery + AI Code Reviewer</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 4 ✓</div>
+          <div class="wk-title">Batch analyzer + cost optimization</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-amber">caching</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-done">2</div>
+        <div class="month-title">RAG + vector databases</div>
+        <div class="month-sub">Weeks 5–8 · May 2026 ✓</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card done">
+          <div class="wk-label">Week 5 ✓</div>
+          <div class="wk-title">Embeddings + pgvector + ingestion</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">pgvector</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 6 ✓</div>
+          <div class="wk-title">RAG UI + full stack deploy</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 7 ✓</div>
+          <div class="wk-title">Hybrid search + reranking</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-purple">Cohere</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 8 ✓</div>
+          <div class="wk-title">Multi-doc + README + deploy</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-done">3</div>
+        <div class="month-title">AI agents + tool use — OpenTheDesk</div>
+        <div class="month-sub">Weeks 9–12 · May 2026 ✓</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card done">
+          <div class="wk-label">Week 9 ✓</div>
+          <div class="wk-title">Google Doc KB + terminal agent</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 10 ✓</div>
+          <div class="wk-title">Chart vision + streaming</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-purple">vision</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 11 ✓</div>
+          <div class="wk-title">Live market data + PREMARKET</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">yfinance</span>
+          </div>
+        </div>
+        <div class="week-card done">
+          <div class="wk-label">Week 12 ✓</div>
+          <div class="wk-title">ATR levels panel + README + deploy</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-active">4</div>
+        <div class="month-title">Production AI apps — Auth, billing, observability</div>
+        <div class="month-sub">Weeks 13–16 · Jun 2026</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card current">
+          <div class="wk-label">Week 13 — next</div>
+          <div class="wk-title">Auth with Clerk + user sessions</div>
+          <div class="wk-tags"><span class="rtag rtag-amber">theory</span><span class="rtag rtag-green">code</span>
+          </div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 14</div>
+          <div class="wk-title">Billing with Stripe + usage limits</div>
+          <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-purple">Stripe</span>
+          </div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 15–16</div>
+          <div class="wk-title">Observability + cost optimization + swing screener</div>
+          <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-teal">live</span>
+          </div>
+        </div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card">
+          <div class="wk-label">Week 13</div>
+          <div class="wk-title">Auth, billing + observability</div>
+          <div class="wk-tags"><span class="rtag rtag-blue">Clerk</span><span class="rtag rtag-green">Stripe</span>
+          </div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 14</div>
+          <div class="wk-title">Cost optimization + performance</div>
+          <div class="wk-tags"><span class="rtag rtag-amber">caching</span><span
+              class="rtag rtag-purple">batching</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 15–16</div>
+          <div class="wk-title">Ship full AI SaaS product</div>
+          <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-coral">live
+              users</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-future">5</div>
+        <div class="month-title">Specialization</div>
+        <div class="month-sub">Weeks 17–20 · Aug 2026</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card">
+          <div class="wk-label">Option A</div>
+          <div class="wk-title">Fine-tuning + evals</div>
+          <div class="wk-tags"><span class="rtag rtag-purple">ML</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Option B</div>
+          <div class="wk-title">Multimodal AI (vision + audio)</div>
+          <div class="wk-tags"><span class="rtag rtag-blue">vision</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Option C</div>
+          <div class="wk-title">Advanced agents + automation</div>
+          <div class="wk-tags"><span class="rtag rtag-teal">CrewAI</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Option D/E</div>
+          <div class="wk-title">AI infra or data/ML pipelines</div>
+          <div class="wk-tags"><span class="rtag rtag-coral">Ollama</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="month-row">
+      <div class="month-header">
+        <div class="month-num m-future">6</div>
+        <div class="month-title">Interview prep + job search</div>
+        <div class="month-sub">Weeks 21–24 · Sep 2026</div>
+      </div>
+      <div class="weeks-grid">
+        <div class="week-card">
+          <div class="wk-label">Week 21</div>
+          <div class="wk-title">System design + coding prep</div>
+          <div class="wk-tags"><span class="rtag rtag-amber">interviews</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 22</div>
+          <div class="wk-title">Portfolio + resume polish</div>
+          <div class="wk-tags"><span class="rtag rtag-blue">LinkedIn</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 23</div>
+          <div class="wk-title">Job search + networking</div>
+          <div class="wk-tags"><span class="rtag rtag-teal">outreach</span></div>
+        </div>
+        <div class="week-card">
+          <div class="wk-label">Week 24</div>
+          <div class="wk-title">Final polish + negotiate offers</div>
+          <div class="wk-tags"><span class="rtag rtag-green">hired</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">3 portfolio projects</div>
+      <div class="projects-grid">
+        <div class="proj-card">
+          <div class="proj-num">Project 1 · Month 2</div>
+          <div class="proj-name">Smart document analyzer</div>
+          <div class="proj-desc">Users upload PDFs, AI answers questions from them. Shows embeddings + retrieval +
+            production UX.</div>
+          <div class="proj-stack"><span class="rtag rtag-blue">Next.js</span><span
+              class="rtag rtag-teal">pgvector</span><span class="rtag rtag-green">FastAPI</span></div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-num">Project 2 · Month 3</div>
+          <div class="proj-name">Options research agent</div>
+          <div class="proj-desc">MCP server + LangGraph agent analyzing options chains, Greeks, IV rank, and unusual
+            flow. Human-in-the-loop. Next.js dashboard.</div>
+          <div class="proj-stack"><span class="rtag rtag-purple">LangGraph</span><span
+              class="rtag rtag-coral">MCP</span><span class="rtag rtag-blue">Next.js</span></div>
+        </div>
+        <div class="proj-card">
+          <div class="proj-num">Project 3 · Month 4</div>
+          <div class="proj-name">Full AI SaaS product</div>
+          <div class="proj-desc">Complete product with auth, Stripe billing, and real users. Proves you can ship beyond
+            prototypes.</div>
+          <div class="proj-stack"><span class="rtag rtag-blue">Clerk</span><span
+              class="rtag rtag-green">Stripe</span><span class="rtag rtag-teal">Supabase</span></div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Key milestones</div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">First Claude API call from Python</div>
+        <div class="ms-when">Week 1 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Full stack AI chatbot on GitHub</div>
+        <div class="ms-when">Week 2 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Chatbot deployed live — Vercel + Railway</div>
+        <div class="ms-when">Week 2 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">AI Code Reviewer shipped + deployed</div>
+        <div class="ms-when">Week 3 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Batch analyzer + prompt caching live</div>
+        <div class="ms-when">Week 4 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">RAG pipeline — ingest + retrieve + Claude Q&A working</div>
+        <div class="ms-when">Week 5 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Smart Document Analyzer — full stack deployed</div>
+        <div class="ms-when">Week 6 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Advanced RAG — hybrid search + reranking deployed</div>
+        <div class="ms-when">Week 7 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Knowledge base polish + Month 2 wrap-up</div>
+        <div class="ms-when">Week 8 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">OpenTheDesk — live at openthedesk.vercel.app</div>
+        <div class="ms-when">Week 9 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">OpenTheDesk — chart vision production ready</div>
+        <div class="ms-when">Week 10 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">OpenTheDesk — live market data + PREMARKET endpoint</div>
+        <div class="ms-when">Week 11 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">OpenTheDesk — pre-market levels panel + Month 3 complete</div>
+        <div class="ms-when">Week 12 ✓</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot future"></div>
+        <div class="ms-text">Month 4 — Auth, billing, observability</div>
+        <div class="ms-when">Week 13</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot future"></div>
+        <div class="ms-text">Options research agent working + documented</div>
+        <div class="ms-when">End of Week 12</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot future"></div>
+        <div class="ms-text">Full SaaS with payment flow live</div>
+        <div class="ms-when">End of Week 16</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot future"></div>
+        <div class="ms-text">Job offers and negotiation</div>
+        <div class="ms-when">Week 24</div>
+      </div>
+    </div>
+  </div>
+
+  </div>
+  <script>
+    function showView(id, btn) {
+      document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+    function showWeek(id, btn) {
+      document.querySelectorAll('.week-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+      btn.classList.add('active');
+    }
+  </script>
+</body>
+
+</html>

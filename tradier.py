@@ -18,13 +18,13 @@ HEADERS = {
 # CORE REQUEST HELPER
 # ─────────────────────────────────────────────
 
-def _get(endpoint: str, params: dict = {}) -> dict:
+def _get(endpoint: str, params: dict | None = None) -> dict:
     """Make a GET request to Tradier API."""
     try:
         response = requests.get(
             f"{BASE_URL}{endpoint}",
             headers=HEADERS,
-            params=params,
+            params=params or {},
             timeout=10
         )
         response.raise_for_status()

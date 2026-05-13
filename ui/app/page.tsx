@@ -123,12 +123,12 @@ interface OptionContract {
 
 interface MarketData {
   spx: {
-    close: number;
-    last?: number;
-    pdc: number;
-    pdh: number;
-    pdl: number;
-    today: string;
+    last: number | null;
+    close: number | null;
+    open: number | null;
+    high: number | null;
+    low: number | null;
+    pdc: number | null;
   };
   vix: { vix: number };
   atr_levels: {
@@ -148,11 +148,12 @@ interface MarketData {
   options?: {
     spot: number;
     expiry: string;
+    atr: number | null;
+    best_call: OptionContract | null;
+    best_put: OptionContract | null;
+    call_in_budget: boolean;
+    put_in_budget: boolean;
     chain: {
-      calls: OptionContract[];
-      puts: OptionContract[];
-    };
-    chain_full?: {
       calls: OptionContract[];
       puts: OptionContract[];
     };
@@ -208,12 +209,14 @@ export default function Home() {
 
     try {
       if (msg === "PREMARKET") {
+        const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
         const res = await fetch(`${API}/premarket`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             message: "PREMARKET",
             session_id: SESSION_ID,
+            ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}),
           }),
         });
         const reader = res.body!.getReader();
@@ -307,19 +310,16 @@ export default function Home() {
   }, []);
 
   const getBestOptions = () => {
-    const opts = marketData?.options as any;
+    const opts = marketData?.options;
     if (!opts)
       return { bestCall: null, bestPut: null, allCalls: [], allPuts: [] };
 
-    // New tradier.py returns best_call / best_put directly
-    const bestCall = opts.best_call ?? null;
-    const bestPut = opts.best_put ?? null;
-
-    // All budget strikes for count display
-    const allCalls = opts.chain?.calls ?? [];
-    const allPuts = opts.chain?.puts ?? [];
-
-    return { bestCall, bestPut, allCalls, allPuts };
+    return {
+      bestCall: opts.best_call,
+      bestPut: opts.best_put,
+      allCalls: opts.chain?.calls ?? [],
+      allPuts: opts.chain?.puts ?? [],
+    };
   };
 
   return (
@@ -538,10 +538,6 @@ export default function Home() {
         {marketData &&
           (() => {
             const { bestCall, bestPut, allCalls, allPuts } = getBestOptions();
-            const spot =
-              marketData.options?.spot ??
-              marketData.spx.last ??
-              marketData.spx.close;
 
             return (
               <div
@@ -597,7 +593,7 @@ export default function Home() {
                         color: "#0f172a",
                       }}
                     >
-                      {(marketData.spx.last ?? marketData.spx.close).toFixed(2)}
+                      {(marketData.spx.last ?? marketData.spx.close ?? 0).toFixed(2)}
                     </div>
                     <div
                       style={{
@@ -675,89 +671,6 @@ export default function Home() {
                   </div>
 
                   {/* ATR Levels */}
-                  {/* {[
-                    {
-                      label: "GG Complete ↑",
-                      value: marketData.atr_levels.gg_complete_call,
-                      color: "#15803d",
-                      bg: "#f0fdf4",
-                    },
-                    {
-                      label: "GG Open ↑",
-                      value: marketData.atr_levels.gg_open_call,
-                      color: "#16a34a",
-                      bg: "#f0fdf4",
-                    },
-                    {
-                      label: "Call Trigger",
-                      value: marketData.atr_levels.call_trigger,
-                      color: "#22c55e",
-                      bg: "#f0fdf4",
-                    },
-                    {
-                      label: "── PDC ──",
-                      value: marketData.atr_levels.PDC,
-                      color: "#0f172a",
-                      bg: "#f1f5f9",
-                      bold: true,
-                    },
-                    {
-                      label: "Put Trigger",
-                      value: marketData.atr_levels.put_trigger,
-                      color: "#dc2626",
-                      bg: "#fef2f2",
-                    },
-                    {
-                      label: "GG Open ↓",
-                      value: marketData.atr_levels.gg_open_put,
-                      color: "#b91c1c",
-                      bg: "#fef2f2",
-                    },
-                    {
-                      label: "GG Complete ↓",
-                      value: marketData.atr_levels.gg_complete_put,
-                      color: "#991b1b",
-                      bg: "#fef2f2",
-                    },
-                    {
-                      label: "Full ATR ↓",
-                      value: marketData.atr_levels.full_atr_put,
-                      color: "#7f1d1d",
-                      bg: "#fff1f2",
-                    },
-                  ].map((level, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        display: "flex",
-                        justifyContent: "space-between",
-                        alignItems: "center",
-                        padding: "5px 8px",
-                        borderRadius: "6px",
-                        background: level.bg,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: "10px",
-                          color: level.color,
-                          fontWeight: level.bold ? 700 : 500,
-                        }}
-                      >
-                        {level.label}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: "11px",
-                          fontWeight: 700,
-                          color: level.color,
-                          fontFamily: "monospace",
-                        }}
-                      >
-                        {level.value.toFixed(2)}
-                      </span>
-                    </div>
-                  ))} */}
                   {[
                     {
                       label: "Full ATR ↑",

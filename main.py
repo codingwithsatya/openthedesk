@@ -1,15 +1,13 @@
 import os
+import base64
 import anthropic
-from fastapi import FastAPI
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
+from typing import Optional
 from dotenv import load_dotenv
 from context import fetch_live_context
-import base64
-from fastapi import UploadFile, File
-from typing import Optional
-from fastapi.responses import StreamingResponse as FastAPIStreaming
-import json
 from market_data import get_market_summary
 from tradier import get_0dte_snapshot, format_options_context
 
@@ -83,7 +81,7 @@ sessions: dict[str, list[dict]] = {}
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
-    atr: float = None
+    atr: Optional[float] = None
 
 
 class RefreshRequest(BaseModel):
@@ -220,7 +218,7 @@ async def analyze_chart(
 async def market_data(atr: float = None):
     """Get live SPX + VIX + ATR levels + 0DTE options chain."""
     summary = get_market_summary(atr_override=atr)
-    snapshot = get_0dte_snapshot()
+    snapshot = get_0dte_snapshot(atr=atr)
     summary["options"] = snapshot
     summary["options_context"] = format_options_context(snapshot)
     return summary
@@ -232,8 +230,7 @@ async def premarket(request: ChatRequest):
     global LIVE_CONTEXT
 
     # Fetch live data
-    atr_value = request.atr if hasattr(request, 'atr') else None
-    market = get_market_summary(atr_override=atr_value)
+    market = get_market_summary(atr_override=request.atr)
 
     # Build market context string
     spx = market.get("spx", {})
@@ -293,7 +290,6 @@ async def premarket(request: ChatRequest):
                 yield text
         history.append({"role": "assistant", "content": full_reply})
 
-    from fastapi.responses import StreamingResponse as FastAPIStreaming
     return FastAPIStreaming(stream(), media_type="text/plain")
 
 
