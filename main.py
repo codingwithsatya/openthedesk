@@ -11,6 +11,7 @@ from typing import Optional
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 import json
 from market_data import get_market_summary
+from tradier import get_0dte_snapshot, format_options_context
 
 load_dotenv()
 
@@ -216,8 +217,15 @@ async def analyze_chart(
 
 @app.get("/market-data")
 async def market_data():
-    """Get live SPX + VIX + ATR levels."""
-    return get_market_summary()
+    """Get live SPX + VIX + ATR levels + 0DTE options chain."""
+    summary = get_market_summary()
+
+    # Add live options data from Tradier
+    snapshot = get_0dte_snapshot()
+    summary["options"] = snapshot
+    summary["options_context"] = format_options_context(snapshot)
+
+    return summary
 
 
 @app.post("/premarket")
@@ -233,23 +241,29 @@ async def premarket(request: ChatRequest):
     vix = market.get("vix", {})
     levels = market.get("atr_levels", {})
 
+    # Fetch live options data
+    snapshot = get_0dte_snapshot()
+    options_text = format_options_context(snapshot)
+
     market_context = f"""
-LIVE MARKET DATA (auto-fetched):
-SPX Close: {spx.get('close')} | PDC: {spx.get('pdc')} | PDH: {spx.get('pdh')} | PDL: {spx.get('pdl')}
-VIX: {vix.get('vix')} | VIX High: {vix.get('vix_high')} | VIX Low: {vix.get('vix_low')}
+    LIVE MARKET DATA (auto-fetched):
+    SPX Last: {spx.get('last')} | PDC: {spx.get('pdc')} | PDH: {spx.get('pdh')} | PDL: {spx.get('pdl')}
+    VIX: {vix.get('vix')} | VIX High: {vix.get('vix_high')} | VIX Low: {vix.get('vix_low')}
 
-ATR LEVELS (PDC {levels.get('PDC')} | ATR ~{levels.get('ATR')}):
-+61.8% GG Complete: {levels.get('gg_complete_call')}
-+38.2% GG Open:     {levels.get('gg_open_call')}
-+23.6% Call Trigger:{levels.get('call_trigger')}
-PDC Pivot:          {levels.get('PDC')}
--23.6% Put Trigger: {levels.get('put_trigger')}
--38.2% GG Open Put: {levels.get('gg_open_put')}
--61.8% GG Complete: {levels.get('gg_complete_put')}
-Full ATR Put:       {levels.get('full_atr_put')}
+    ATR LEVELS (PDC {levels.get('PDC')} | ATR ~{levels.get('ATR')}):
+    +61.8% GG Complete: {levels.get('gg_complete_call')}
+    +38.2% GG Open:     {levels.get('gg_open_call')}
+    +23.6% Call Trigger:{levels.get('call_trigger')}
+    PDC Pivot:          {levels.get('PDC')}
+    -23.6% Put Trigger: {levels.get('put_trigger')}
+    -38.2% GG Open Put: {levels.get('gg_open_put')}
+    -61.8% GG Complete: {levels.get('gg_complete_put')}
+    Full ATR Put:       {levels.get('full_atr_put')}
 
-Note: ATR approximated from prior day range. Verify with Saty ATR indicator.
-"""
+    {options_text}
+
+    Note: ATR approximated from prior day range. Verify with Saty ATR indicator.
+    """
 
     # Add to session history
     session_id = request.session_id
