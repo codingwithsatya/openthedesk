@@ -4,4 +4,3 @@ uvicorn
 python-dotenv
 requests
 python-multipart
-yfinance

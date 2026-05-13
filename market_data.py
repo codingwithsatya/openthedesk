@@ -1,68 +1,80 @@
 import os
-import yfinance as yf
+import requests
 from datetime import date
 from dotenv import load_dotenv
 
 load_dotenv()
 
+TRADIER_TOKEN = os.environ.get("TRADIER_TOKEN")
+BASE_URL = "https://api.tradier.com/v1"
+HEADERS = {
+    "Authorization": f"Bearer {TRADIER_TOKEN}",
+    "Accept": "application/json"
+}
 
-def get_spx_price() -> dict:
-    """Get SPX data using Yahoo Finance."""
+
+def get_spx_data() -> dict:
+    """Get SPX OHLC + previous close from Tradier."""
     try:
-        spx = yf.Ticker("^GSPC")
-        hist = spx.history(period="2d")
-        if hist.empty:
-            return {"error": "No SPX data"}
-        last = hist.iloc[-1]
-        prev = hist.iloc[-2] if len(hist) > 1 else hist.iloc[-1]
+        response = requests.get(
+            f"{BASE_URL}/markets/quotes",
+            headers=HEADERS,
+            params={"symbols": "SPX", "greeks": "false"},
+            timeout=10
+        )
+        response.raise_for_status()
+        quote = response.json()["quotes"]["quote"]
         return {
             "symbol": "SPX",
-            "close": round(float(last["Close"]), 2),
-            "open": round(float(last["Open"]), 2),
-            "high": round(float(last["High"]), 2),
-            "low": round(float(last["Low"]), 2),
-            "pdc": round(float(prev["Close"]), 2),
-            "pdh": round(float(prev["High"]), 2),
-            "pdl": round(float(prev["Low"]), 2),
-            "date": str(hist.index[-1].date())
+            "last":  quote.get("last"),
+            "open":  quote.get("open"),
+            "high":  quote.get("high"),
+            "low":   quote.get("low"),
+            "close": quote.get("close"),        # today's close (null intraday)
+            # previous day close ← key field
+            "pdc":   quote.get("prevclose"),
+            "source": "tradier"
         }
     except Exception as e:
         return {"error": str(e)}
 
 
-def get_vix() -> dict:
-    """Get VIX data using Yahoo Finance."""
+def get_vix_data() -> dict:
+    """Get VIX from Tradier."""
     try:
-        vix = yf.Ticker("^VIX")
-        hist = vix.history(period="2d")
-        if hist.empty:
-            return {"error": "No VIX data"}
-        last = hist.iloc[-1]
+        response = requests.get(
+            f"{BASE_URL}/markets/quotes",
+            headers=HEADERS,
+            params={"symbols": "VIX", "greeks": "false"},
+            timeout=10
+        )
+        response.raise_for_status()
+        quote = response.json()["quotes"]["quote"]
         return {
-            "vix": round(float(last["Close"]), 2),
-            "vix_high": round(float(last["High"]), 2),
-            "vix_low": round(float(last["Low"]), 2),
-            "date": str(hist.index[-1].date())
+            "vix":      quote.get("last"),
+            "vix_high": quote.get("high"),
+            "vix_low":  quote.get("low"),
+            "source":   "tradier"
         }
     except Exception as e:
         return {"error": str(e)}
 
 
 def calculate_atr_levels(pdc: float, atr: float) -> dict:
-    """Calculate Saty ATR levels from PDC and ATR value."""
+    """Calculate all 11 Saty ATR levels from PDC and ATR value."""
     return {
         "PDC":              round(pdc, 2),
         "ATR":              round(atr, 2),
         # Call side
         "call_trigger":     round(pdc + atr * 0.236, 2),
         "gg_open_call":     round(pdc + atr * 0.382, 2),
-        "gg_50_call":       round(pdc + atr * 0.500, 2),   # ← ADD THIS
+        "gg_50_call":       round(pdc + atr * 0.500, 2),
         "gg_complete_call": round(pdc + atr * 0.618, 2),
         "full_atr_call":    round(pdc + atr * 1.000, 2),
         # Put side
         "put_trigger":      round(pdc - atr * 0.236, 2),
         "gg_open_put":      round(pdc - atr * 0.382, 2),
-        "gg_50_put":        round(pdc - atr * 0.500, 2),   # ← ADD THIS
+        "gg_50_put":        round(pdc - atr * 0.500, 2),
         "gg_complete_put":  round(pdc - atr * 0.618, 2),
         "full_atr_put":     round(pdc - atr * 1.000, 2),
         "probabilities": {
@@ -75,26 +87,33 @@ def calculate_atr_levels(pdc: float, atr: float) -> dict:
 
 
 def get_market_summary(atr_override: float = None) -> dict:
-    """Full market summary — SPX + VIX + ATR levels."""
-    spx = get_spx_price()
-    vix = get_vix()
+    """Full market summary — SPX + VIX + ATR levels. Single source: Tradier."""
+    spx = get_spx_data()
+    vix = get_vix_data()
 
     result = {"spx": spx, "vix": vix}
 
-    if "pdc" in spx and "high" in spx and "low" in spx:
-        pdc = spx["pdc"]
+    pdc = spx.get("pdc")
+    if pdc:
         # Use Saty ATR if provided, else approximate from prior day range
-        atr = atr_override if atr_override else round(
-            spx["high"] - spx["low"], 2)
+        if atr_override:
+            atr = atr_override
+            atr_source = "saty_indicator"
+            note = "ATR from Saty indicator — exact levels."
+        else:
+            high = spx.get("high", 0)
+            low = spx.get("low", 0)
+            atr = round(high - low, 2) if high and low else 0
+            atr_source = "approx_hl"
+            note = "ATR approximated from day range. Enter Saty ATR for exact levels."
+
         result["atr_levels"] = calculate_atr_levels(pdc, atr)
-        result["atr_source"] = "saty_indicator" if atr_override else "approx_hl"
-        result["note"] = "ATR from Saty indicator." if atr_override else "ATR approximated from prior day range. Use Saty ATR indicator for exact value."
+        result["atr_source"] = atr_source
+        result["note"] = note
 
     return result
 
 
 if __name__ == "__main__":
     import json
-    print("Market summary:")
-    summary = get_market_summary()
-    print(json.dumps(summary, indent=2))
+    print(json.dumps(get_market_summary(), indent=2))
