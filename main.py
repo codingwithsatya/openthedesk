@@ -1,6 +1,9 @@
 import os
 import base64
+import asyncio
+import json
 import anthropic
+from datetime import datetime
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
@@ -10,6 +13,7 @@ from dotenv import load_dotenv
 from context import fetch_live_context
 from market_data import get_market_summary
 from tradier import get_0dte_snapshot, format_options_context
+from analyzer import get_ticker_analysis
 
 load_dotenv()
 
@@ -405,6 +409,117 @@ async def clear_session(session_id: str):
     """Clear conversation history for a session."""
     sessions.pop(session_id, None)
     return {"cleared": session_id}
+
+
+# ── Analyzer endpoints ───────────────────────────────────────────────────────
+
+_SHORT_TERM_SYSTEM = (
+    "You are a short-term options trade analyzer using the Saty Mahajan system. "
+    "Given ticker data, output:\n"
+    "DIRECTION: CALL / PUT / NEUTRAL (based on ribbon state)\n"
+    "STRIKE TARGET: price ± 0.5×ATR, rounded to nearest $1 (US) or ₹10 (India options, skip if India)\n"
+    "ENTRY ZONE: nearest ATR trigger level\n"
+    "TARGET: next ATR level\n"
+    "IV RANK: cheap (<30) / fair (30–60) / expensive (>60) — note if IV crush risk near earnings\n"
+    "EARNINGS WARNING: flag if earnings within 7 days\n"
+    "VERDICT: 1–2 sentence trade thesis or PASS if setup is not clean.\n"
+    "Be concise. No fluff."
+)
+
+_LONG_TERM_SYSTEM = (
+    "You are a long-term stock analyst using the Saty Mahajan system. "
+    "Given ticker data, output:\n"
+    "VERDICT: BUY / HOLD / SELL / AVOID\n"
+    "RIBBON: state and what it means for trend\n"
+    "PRICE vs 200 EMA: above/below and % distance\n"
+    "ATR TARGET: next meaningful ATR level in trend direction\n"
+    "INVALIDATION: level where thesis is wrong (opposite ATR level)\n"
+    "FUNDAMENTALS: PE vs sector context, EPS growth trend\n"
+    "EARNINGS: flag date and strategy implication if within 30 days\n"
+    "THESIS: 2–3 sentences max. Be direct, no hedging."
+)
+
+_US_WATCHLIST = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL", "AMD", "SPY", "QQQ"]
+_IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
+
+
+class AnalyzeRequest(BaseModel):
+    ticker: str
+
+
+@app.post("/analyze")
+async def analyze(request: AnalyzeRequest):
+    """Fetch ticker data then run Haiku (short-term) and Sonnet (long-term) in parallel."""
+    data = await asyncio.to_thread(get_ticker_analysis, request.ticker)
+    ctx  = json.dumps(data, indent=2, default=str)
+
+    def _haiku() -> str:
+        r = client.messages.create(
+            model=HAIKU,
+            max_tokens=512,
+            system=_SHORT_TERM_SYSTEM,
+            messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
+        )
+        return r.content[0].text
+
+    def _sonnet() -> str:
+        r = client.messages.create(
+            model=SONNET,
+            max_tokens=768,
+            system=_LONG_TERM_SYSTEM,
+            messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
+        )
+        return r.content[0].text
+
+    short_term, long_term = await asyncio.gather(
+        asyncio.to_thread(_haiku),
+        asyncio.to_thread(_sonnet),
+    )
+
+    return {
+        "ticker":      data["ticker"],
+        "market_data": data,
+        "short_term":  short_term,
+        "long_term":   long_term,
+    }
+
+
+@app.get("/screener")
+async def screener():
+    """Run get_ticker_analysis on the full watchlist in parallel, filter non-MIXED."""
+    all_tickers = _US_WATCHLIST + _IN_WATCHLIST
+    results = await asyncio.gather(
+        *[asyncio.to_thread(get_ticker_analysis, t) for t in all_tickers]
+    )
+
+    us_setups: list[dict] = []
+    in_setups: list[dict] = []
+
+    for r in results:
+        if r.get("ribbon_state") not in ("BULLISH", "BEARISH"):
+            continue
+        row = {
+            "ticker":       r["ticker"],
+            "ribbon_state": r["ribbon_state"],
+            "price":        r["price"],
+            "change_pct":   r["change_pct"],
+            "atr_14":       r["atr_14"],
+            "sector":       r["sector"],
+        }
+        if r["market"] == "US":
+            us_setups.append(row)
+        else:
+            in_setups.append(row)
+
+    _key = lambda x: abs(x.get("change_pct") or 0)
+    us_setups.sort(key=_key, reverse=True)
+    in_setups.sort(key=_key, reverse=True)
+
+    return {
+        "us_setups":    us_setups,
+        "india_setups": in_setups,
+        "generated_at": datetime.utcnow().isoformat() + "Z",
+    }
 
 
 if __name__ == "__main__":
