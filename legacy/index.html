@@ -702,7 +702,7 @@
         <h1>AI engineer learning notes</h1>
         <p>Updated after each session — your running reference</p>
       </div>
-      <span class="badge">Month 4 — Week 13 ✓</span>
+      <span class="badge">Month 4 — Week 14 Starting</span>
     </div>
 
     <div class="view-tabs">
@@ -779,6 +779,7 @@
         <button class="tab" onclick="showWeek('w11', this)">Week 11 ✓</button>
         <button class="tab" onclick="showWeek('w12', this)">Week 12 ✓</button>
         <button class="tab" onclick="showWeek('w13', this)">Week 13 ✓</button>
+        <button class="tab" onclick="showWeek('w14', this)">Week 14 ◑</button>
       </div>
 
       <!-- WEEK 1 -->
@@ -2679,11 +2680,20 @@
         <div class="concept">
           <div class="concept-dot done"></div>
           <div>
-            <div class="concept-text">Auto-calculate Saty ATR — ATR-10 Simple</div>
-            <div class="concept-sub">Tested 6 periods × 4 methods (Wilder, EMA, Simple, H-L) against known value 74.79.
-              Winner: ATR-10 Simple = 74.23 (diff 0.56). Formula: TR = max(H-L, |H-prevClose|, |L-prevClose|). Average
-              last 10 TRs. Auto-runs from Tradier history on every /market-data call. Manual override always wins if
-              typed.</div>
+            <div class="concept-text">Saty ATR = ATR-14 Wilder (confirmed from Pine Script source)</div>
+            <div class="concept-sub">Pine Script: ta.atr(14) with session=session.extended. Formula: TR = max(H-L,
+              |H-prevClose|, |L-prevClose|). Seed = avg of first 14 TRs. Then: ATR = (prev_ATR × 13 + today_TR) / 14. We
+              get 75.79 vs Saty's 74.79 — 1pt delta from extended session ticks (pre/after hours). Tradier history =
+              regular session only. Permanent ~1pt gap, close enough for trading.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Trading mode support — Day / Multiday / Swing</div>
+            <div class="concept-sub">Day = Daily ATR-14. Multiday = Weekly ATR-14. Swing = Monthly ATR-14. /market-data
+              accepts ?trading_mode=day|multiday query param. Pine Script maps: Day→D, Multiday→W, Swing→M, Position→3M,
+              Long-term→12M. Same Wilder formula, different timeframe bars.</div>
           </div>
         </div>
         <div class="concept">
@@ -2741,13 +2751,18 @@
         <div class="concept">
           <div class="concept-dot done"></div>
           <div>
-            <div class="concept-text">ATR-based strike targeting</div>
-            <div class="code-block">call_target = round((spot + atr * 0.5) / 5) * 5
-              put_target = round((spot - atr * 0.5) / 5) * 5
-
-              def best_strike(options, target):
-              candidates = [o for o in options if o.get("mid") and o["mid"] > 0.5]
-              return min(candidates, key=lambda x: abs(x["strike"] - target))</div>
+            <div class="concept-text">ATR-14 Wilder implementation</div>
+            <div class="code-block">def _wilder_atr(bars, period=14):
+              trs = []
+              for i in range(1, len(bars)):
+              h, l, pc = bars[i]["high"], bars[i]["low"], bars[i-1]["close"]
+              trs.append(max(h - l, abs(h - pc), abs(l - pc)))
+              # Seed with simple average of first 14 TRs
+              atr = sum(trs[:period]) / period
+              # Wilder smoothing — same as Pine ta.atr(14)
+              for tr in trs[period:]:
+              atr = (atr * (period - 1) + tr) / period
+              return round(atr, 2)</div>
           </div>
         </div>
         <div class="concept">
@@ -2828,13 +2843,92 @@
       </div>
       <div class="milestone-row">
         <div class="check done">✓</div>
-        <div class="milestone-label">Folder restructure — legacy/, opendesk-ui → ui/</div><span
+        <div class="milestone-label">Folder restructure — legacy/, ui/</div><span
           class="milestone-tag tag-git">git</span>
       </div>
       <div class="milestone-row">
         <div class="check done">✓</div>
         <div class="milestone-label">Production deployed + curl verified — atr_source: auto_atr10</div><span
           class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK 14 -->
+  <div id="w14" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:25%"></div>
+      </div>
+      <div class="progress-label">Week 14 started — Clerk auth shipped, cost optimization next</div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Core concepts</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Clerk Authentication</div>
+            <div class="concept-sub">ClerkProvider wraps Next.js app in layout.tsx. proxy.ts (Next.js 16 convention)
+              replaces middleware.ts. All routes protected — unauthenticated requests get 307 redirect to Clerk hosted
+              sign-in. UserButton in header shows avatar + sign out. Env vars: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY +
+              CLERK_SECRET_KEY in both ui/.env.local and Vercel dashboard.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Cost Optimization — model routing</div>
+            <div class="concept-sub">Fast commands (PTR-FAST, GRADE, PTR-FULL) → claude-haiku-4-5 (~10x cheaper). Deep
+              analysis (PREMARKET, TRADE IDEA, BLUNT FEEDBACK) → claude-sonnet-4-6. Token counting before send. Prompt
+              caching for system prompt (already implemented with cache_control ephemeral).</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Unusual Whales manual input</div>
+            <div class="concept-sub">v1: paste flow data as text into UI panel → injected into Claude context for
+              PTR-FULL and TRADE IDEA. v2 (later): Unusual Whales API integration. Flow data = unusual options activity,
+              dark pool prints, net flow direction.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Session milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Clerk auth — OpenTheDesk locked to Satya only, Google sign-in</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">ATR-14 Wilder verified live — all 11 levels match TradingView exactly</div><span
+          class="milestone-tag tag-theory">verified</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">None bid/ask/greeks bug fixed — options chain stable after hours</div><span
+          class="milestone-tag tag-debug">debug</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Cost optimization — Haiku routing for fast commands</div><span
+          class="milestone-tag tag-code">next</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Unusual Whales manual input panel</div><span
+          class="milestone-tag tag-code">next</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Fix stale folder name references in codebase</div><span
+          class="milestone-tag tag-code">next</span>
       </div>
     </div>
   </div>
@@ -3170,13 +3264,18 @@
       </div>
       <div class="ms-row">
         <div class="ms-dot done"></div>
-        <div class="ms-text">Tradier live options + auto ATR-10 + Claude Code cleanup deployed</div>
+        <div class="ms-text">Tradier live options + ATR-14 Wilder + skeleton UI + Claude Code cleanup</div>
         <div class="ms-when">Week 13 ✓</div>
       </div>
       <div class="ms-row">
         <div class="ms-dot future"></div>
         <div class="ms-text">Options research agent working + documented</div>
         <div class="ms-when">End of Week 12</div>
+      </div>
+      <div class="ms-row">
+        <div class="ms-dot done"></div>
+        <div class="ms-text">Clerk auth — OpenTheDesk locked, Google sign-in live</div>
+        <div class="ms-when">Week 14 ◑</div>
       </div>
       <div class="ms-row">
         <div class="ms-dot future"></div>
