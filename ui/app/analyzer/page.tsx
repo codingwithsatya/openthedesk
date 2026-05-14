@@ -30,10 +30,20 @@ interface TickerData {
   ribbon_state: "BULLISH" | "BEARISH" | "MIXED" | null;
   atr_14: number | null;
   atr_levels: AtrLevels | null;
+  week52_high: number | null;
+  week52_low: number | null;
+  price_vs_52w_high_pct: number | null;
+  distance_from_52w_high_pct: number | null;
+  avg_volume_10d: number | null;
+  relative_volume: number | null;
   pe_ratio: number | null;
   eps_growth_yoy: number | null;
+  revenue_growth_yoy: number | null;
   market_cap: number | null;
   sector: string | null;
+  beta: number | null;
+  debt_to_equity: number | null;
+  short_interest_pct: number | null;
   earnings_date: string | null;
   days_to_earnings: number | null;
   iv_rank?: number | null;
@@ -318,29 +328,66 @@ export default function AnalyzerPage() {
             <div style={{ marginBottom: 36, borderRadius: 12, overflow: "hidden", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
 
               {/* Header bar */}
-              <div style={{
-                background: "#0d1320", padding: "16px 20px",
-                display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const,
-              }}>
-                <span style={{ fontSize: 22, fontWeight: 700, color: "white", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
-                  {md.ticker}
-                </span>
-                <span style={{ fontSize: 20, fontWeight: 600, color: "#e2e8f0", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
-                  {ccy}{fmt(md.price)}
-                </span>
-                <span style={{
-                  fontSize: 14, fontFamily: "var(--font-jetbrains-mono), monospace",
-                  color: (md.change_pct ?? 0) >= 0 ? "#4ade80" : "#f87171",
-                }}>
-                  {fmtChange(md.change_pct)}
-                </span>
-                <RibbonBadge state={md.ribbon_state} />
-                <span style={{
-                  padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
-                  letterSpacing: "0.04em", background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe",
-                }}>
-                  {md.market}
-                </span>
+              <div style={{ background: "#0d1320", padding: "16px 20px" }}>
+                {/* Row 1: ticker, price, change, ribbon, market */}
+                <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" as const }}>
+                  <span style={{ fontSize: 22, fontWeight: 700, color: "white", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+                    {md.ticker}
+                  </span>
+                  <span style={{ fontSize: 20, fontWeight: 600, color: "#e2e8f0", fontFamily: "var(--font-jetbrains-mono), monospace" }}>
+                    {ccy}{fmt(md.price)}
+                  </span>
+                  <span style={{
+                    fontSize: 14, fontFamily: "var(--font-jetbrains-mono), monospace",
+                    color: (md.change_pct ?? 0) >= 0 ? "#4ade80" : "#f87171",
+                  }}>
+                    {fmtChange(md.change_pct)}
+                  </span>
+                  <RibbonBadge state={md.ribbon_state} />
+                  <span style={{
+                    padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                    letterSpacing: "0.04em", background: "#eff6ff", color: "#1d4ed8", border: "1px solid #bfdbfe",
+                  }}>
+                    {md.market}
+                  </span>
+                </div>
+                {/* Row 2: 52W position + volume badges */}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 8, flexWrap: "wrap" as const }}>
+                  {md.price_vs_52w_high_pct != null && (() => {
+                    const pct = md.price_vs_52w_high_pct!;
+                    const isNearATH  = pct >= -5;
+                    const isValueZone = pct <= -15;
+                    const bg     = isNearATH ? "#fef2f2" : isValueZone ? "#f0fdf4" : "rgba(255,255,255,0.07)";
+                    const color  = isNearATH ? "#dc2626" : isValueZone ? "#15803d" : "#94a3b8";
+                    const border = isNearATH ? "#fecaca" : isValueZone ? "#bbf7d0" : "rgba(255,255,255,0.12)";
+                    const label  = isNearATH
+                      ? `${Math.abs(pct).toFixed(1)}% from ATH ⚠`
+                      : `${Math.abs(pct).toFixed(1)}% from ATH`;
+                    return (
+                      <span style={{
+                        padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        letterSpacing: "0.04em", background: bg, color, border: `1px solid ${border}`,
+                      }}>
+                        {label}
+                      </span>
+                    );
+                  })()}
+                  {md.relative_volume != null && (() => {
+                    const rv = md.relative_volume!;
+                    const highVol = rv >= 1.5;
+                    return (
+                      <span style={{
+                        padding: "3px 10px", borderRadius: 99, fontSize: 11, fontWeight: 600,
+                        letterSpacing: "0.04em",
+                        background: highVol ? "#f0fdf4" : "rgba(255,255,255,0.07)",
+                        color:  highVol ? "#15803d" : "#94a3b8",
+                        border: `1px solid ${highVol ? "#bbf7d0" : "rgba(255,255,255,0.12)"}`,
+                      }}>
+                        Vol {rv.toFixed(1)}x
+                      </span>
+                    );
+                  })()}
+                </div>
               </div>
 
               {/* ATR levels row */}
@@ -397,7 +444,7 @@ export default function AnalyzerPage() {
                     textTransform: "uppercase" as const, letterSpacing: "0.08em",
                     marginBottom: 12, display: "flex", alignItems: "center", gap: 6,
                   }}>
-                    Short-Term Play
+                    OPTIONS TRADE PLAN · 1–2 Month
                     <span style={{ padding: "1px 6px", borderRadius: 4, background: "#eff6ff", color: "#1d4ed8", fontSize: 9, fontWeight: 700 }}>
                       HAIKU
                     </span>
@@ -411,7 +458,7 @@ export default function AnalyzerPage() {
                     textTransform: "uppercase" as const, letterSpacing: "0.08em",
                     marginBottom: 12, display: "flex", alignItems: "center", gap: 6,
                   }}>
-                    Long-Term Thesis
+                    STOCK ANALYSIS · Long-Term
                     <span style={{ padding: "1px 6px", borderRadius: 4, background: "#faf5ff", color: "#7e22ce", fontSize: 9, fontWeight: 700 }}>
                       SONNET
                     </span>

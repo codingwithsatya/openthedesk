@@ -149,24 +149,34 @@ def get_ticker_analysis(ticker: str) -> dict:
     market = "IN" if is_india else "US"
 
     result: dict = {
-        "ticker":          ticker,
-        "market":          market,
-        "price":           None,
-        "prev_close":      None,
-        "change_pct":      None,
-        "ema_8":           None,
-        "ema_21":          None,
-        "ema_48":          None,
-        "ema_200":         None,
-        "ribbon_state":    None,
-        "atr_14":          None,
-        "atr_levels":      None,
-        "pe_ratio":        None,
-        "eps_growth_yoy":  None,
-        "market_cap":      None,
-        "sector":          None,
-        "earnings_date":   None,
-        "days_to_earnings": None,
+        "ticker":                    ticker,
+        "market":                    market,
+        "price":                     None,
+        "prev_close":                None,
+        "change_pct":                None,
+        "ema_8":                     None,
+        "ema_21":                    None,
+        "ema_48":                    None,
+        "ema_200":                   None,
+        "ribbon_state":              None,
+        "atr_14":                    None,
+        "atr_levels":                None,
+        "week52_high":               None,
+        "week52_low":                None,
+        "price_vs_52w_high_pct":     None,
+        "distance_from_52w_high_pct": None,
+        "avg_volume_10d":            None,
+        "relative_volume":           None,
+        "pe_ratio":                  None,
+        "eps_growth_yoy":            None,
+        "revenue_growth_yoy":        None,
+        "market_cap":                None,
+        "sector":                    None,
+        "beta":                      None,
+        "debt_to_equity":            None,
+        "short_interest_pct":        None,
+        "earnings_date":             None,
+        "days_to_earnings":          None,
     }
 
     if not _YF:
@@ -221,6 +231,16 @@ def get_ticker_analysis(ticker: str) -> dict:
         atr = _wilder_atr(bars, 14)
         result["atr_14"] = atr
 
+        # Volume
+        try:
+            vol_today = float(hist["Volume"].iloc[-1])
+            avg_vol   = float(hist["Volume"].tail(10).mean())
+            result["avg_volume_10d"] = round(avg_vol)
+            if avg_vol > 0:
+                result["relative_volume"] = round(vol_today / avg_vol, 2)
+        except Exception:
+            pass
+
         if atr:
             pdc = prev_close
             result["atr_levels"] = {
@@ -238,14 +258,34 @@ def get_ticker_analysis(ticker: str) -> dict:
         try:
             info = tk.info or {}
             result["pe_ratio"] = info.get("trailingPE")
-            result["sector"] = info.get("sector")
+            result["sector"]   = info.get("sector")
+            result["beta"]     = info.get("beta")
+            result["debt_to_equity"] = info.get("debtToEquity")
+
             mc = info.get("marketCap")
             result["market_cap"] = round(mc / 1e9, 1) if mc else None
+
             eps = info.get("trailingEps")
             fwd = info.get("forwardEps")
             if eps and fwd and eps != 0:
-                result["eps_growth_yoy"] = round(
-                    (fwd - eps) / abs(eps) * 100, 1)
+                result["eps_growth_yoy"] = round((fwd - eps) / abs(eps) * 100, 1)
+
+            rg = info.get("revenueGrowth")
+            if rg is not None:
+                result["revenue_growth_yoy"] = round(rg * 100, 1)
+
+            si = info.get("shortPercentOfFloat")
+            if si is not None:
+                result["short_interest_pct"] = round(si * 100, 1)
+
+            w52h = info.get("fiftyTwoWeekHigh")
+            w52l = info.get("fiftyTwoWeekLow")
+            result["week52_high"] = w52h
+            result["week52_low"]  = w52l
+            if w52h and w52h > 0:
+                pct = round((price - w52h) / w52h * 100, 1)
+                result["price_vs_52w_high_pct"]      = pct
+                result["distance_from_52w_high_pct"] = round(abs(pct), 1)
         except Exception:
             pass
 
