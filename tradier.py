@@ -146,14 +146,14 @@ def get_0dte_chain(expiry: str, spot: float, width_pct: float = 0.02) -> dict:
             "expiration": opt.get("expiration_date"),
             "bid": opt.get("bid"),
             "ask": opt.get("ask"),
-            "mid": round((opt.get("bid", 0) + opt.get("ask", 0)) / 2, 2),
+            "mid": round(((opt.get("bid") or 0) + (opt.get("ask") or 0)) / 2, 2),
             "last": opt.get("last"),
             "volume": opt.get("volume"),
             "open_interest": opt.get("open_interest"),
-            "iv": opt.get("greeks", {}).get("mid_iv"),
-            "delta": opt.get("greeks", {}).get("delta"),
-            "gamma": opt.get("greeks", {}).get("gamma"),
-            "theta": opt.get("greeks", {}).get("theta"),
+            "iv": (opt.get("greeks") or {}).get("mid_iv"),
+            "delta": (opt.get("greeks") or {}).get("delta"),
+            "gamma": (opt.get("greeks") or {}).get("gamma"),
+            "theta": (opt.get("greeks") or {}).get("theta"),
         }
 
         if opt.get("option_type") == "call":
