@@ -22,7 +22,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-client = anthropic.Anthropic()
+# ── LangSmith setup — graceful if not configured ────────────────
+_LS_ENABLED = False
+try:
+    if os.getenv("LANGSMITH_API_KEY"):
+        from langsmith.wrappers import wrap_anthropic as _ls_wrap
+        _LS_ENABLED = True
+except ImportError:
+    pass  # langsmith not installed — tracing silently disabled
+
+_raw_client = anthropic.Anthropic()
+client = _ls_wrap(_raw_client) if _LS_ENABLED else _raw_client
 
 # ── Model constants ──────────────────────────────────────────────
 SONNET = "claude-sonnet-4-6"
@@ -41,16 +51,28 @@ def route_model(message: str) -> str:
     return HAIKU if message.strip().upper() in _HAIKU_COMMANDS else SONNET
 
 
-def log_tokens(label: str, *texts: str) -> None:
-    """Estimate and log input token count to Railway console."""
-    est = sum(len(t) for t in texts) // 4
-    print(f"[tokens] {label} — ~{est:,} input tokens  model={route_model(label)}")
+def log_trace(
+    command: str,
+    model: str,
+    session_id: str,
+    endpoint: str,
+    tokens_in: int,
+    tokens_out: int,
+) -> None:
+    """Log exact token usage to Railway console after each Claude call."""
+    model_short = "haiku" if "haiku" in model else "sonnet"
+    print(
+        f"[TRACE] command={command!r}  model={model_short}"
+        f"  tokens_in={tokens_in:,}  tokens_out={tokens_out:,}"
+        f"  session={session_id}  endpoint={endpoint}"
+    )
 
 
 # Load context once at startup
 print("📡 Loading live trading context...")
 LIVE_CONTEXT = fetch_live_context()
 print("✅ Context loaded")
+print(f"🔍 LangSmith tracing: {'enabled → project=openthedesk' if _LS_ENABLED else 'disabled (LANGSMITH_API_KEY not set)'}")
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
@@ -149,7 +171,6 @@ async def chat(request: ChatRequest):
 
     model = route_model(request.message)
     prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
-    log_tokens(request.message, prompt, request.message)
 
     response = client.messages.create(
         model=model,
@@ -159,13 +180,16 @@ async def chat(request: ChatRequest):
             "text": prompt,
             "cache_control": {"type": "ephemeral"}
         }],
-        messages=history
+        messages=history,
     )
 
     reply = response.content[0].text
-
-    # Add assistant reply to history
     history.append({"role": "assistant", "content": reply})
+
+    log_trace(
+        request.message, model, request.session_id, "chat",
+        response.usage.input_tokens, response.usage.output_tokens,
+    )
 
     return {
         "reply": reply,
@@ -193,7 +217,6 @@ async def analyze_chart(
 
     model = route_model(context)
     prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
-    log_tokens(context, prompt, context)
 
     user_message = {
         "role": "user",
@@ -236,6 +259,8 @@ async def analyze_chart(
 
     history.append(user_message)
 
+    _session_id = session_id
+
     def stream():
         full_reply = ""
         with client.messages.stream(
@@ -246,13 +271,19 @@ async def analyze_chart(
                 "text": prompt,
                 "cache_control": {"type": "ephemeral"}
             }],
-            messages=history
-        ) as stream:
-            for text in stream.text_stream:
+            messages=history,
+        ) as s:
+            for text in s.text_stream:
                 full_reply += text
                 yield text
+            # Capture exact usage before stream context closes
+            try:
+                _usage = s.get_final_message().usage
+                log_trace(context, model, _session_id, "analyze-chart",
+                          _usage.input_tokens, _usage.output_tokens)
+            except Exception:
+                pass
 
-        # Store in history after streaming completes
         history[-1] = {"role": "user", "content": f"[Chart] {context}"}
         history.append({"role": "assistant", "content": full_reply})
 
@@ -328,23 +359,32 @@ async def premarket(request: ChatRequest):
         "content": f"PREMARKET\n\n{market_context}\n\nRun the full 5-step pre-market plan for today."
     })
 
-    # Stream response — system prompt does NOT include flow here because
-    # fresh_flow is already injected into the user message (market_context)
+    _session_id = session_id
+    _model      = SONNET
+
+    # Stream response — fresh_flow already injected into the user message
     def stream():
         full_reply = ""
         with client.messages.stream(
-            model="claude-sonnet-4-6",
+            model=_model,
             max_tokens=2048,
             system=[{
                 "type": "text",
                 "text": build_system_prompt(LIVE_CONTEXT),
                 "cache_control": {"type": "ephemeral"}
             }],
-            messages=history
+            messages=history,
         ) as s:
             for text in s.text_stream:
                 full_reply += text
                 yield text
+            try:
+                _usage = s.get_final_message().usage
+                log_trace("PREMARKET", _model, _session_id, "premarket",
+                          _usage.input_tokens, _usage.output_tokens)
+            except Exception:
+                pass
+
         history.append({"role": "assistant", "content": full_reply})
 
     return FastAPIStreaming(stream(), media_type="text/plain")
