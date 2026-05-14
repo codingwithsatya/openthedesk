@@ -93,6 +93,12 @@ def health():
     return {"status": "ok", "context_loaded": len(LIVE_CONTEXT) > 0}
 
 
+@app.get("/me")
+def me():
+    """Auth probe — confirms backend is reachable by an authenticated client."""
+    return {"status": "authenticated"}
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
     global LIVE_CONTEXT

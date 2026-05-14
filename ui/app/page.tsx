@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { UserButton } from "@clerk/nextjs";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const SESSION_ID = "satya";
@@ -523,6 +524,13 @@ export default function Home() {
             <button className="hbtn" onClick={clearSession}>
               Clear Session
             </button>
+            <UserButton
+              appearance={{
+                elements: {
+                  avatarBox: { width: 32, height: 32, borderRadius: 8 },
+                },
+              }}
+            />
           </div>
         </header>
 
