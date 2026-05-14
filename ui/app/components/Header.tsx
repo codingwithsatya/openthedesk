@@ -38,15 +38,25 @@ export default function Header({
         </div>
       </div>
 
-      {/* Mobile: SPX ticker */}
-      {spxPrice && (
-        <div className="header-spx">
-          <div className="header-spx-price">{spxPrice}</div>
-          <div className="header-spx-meta">
-            VIX {marketData!.vix.vix} · PDC {marketData!.atr_levels.PDC.toFixed(0)} · ATR ~{marketData!.atr_levels.ATR.toFixed(1)}
-          </div>
-        </div>
-      )}
+      {/*
+       * Mobile: SPX ticker — always rendered so the right side of the header
+       * is never blank. Shows a shimmer skeleton until marketData arrives.
+       */}
+      <div className="header-spx">
+        {spxPrice ? (
+          <>
+            <div className="header-spx-price">{spxPrice}</div>
+            <div className="header-spx-meta">
+              VIX {marketData!.vix.vix} · PDC {marketData!.atr_levels.PDC.toFixed(0)} · ATR ~{marketData!.atr_levels.ATR.toFixed(1)}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="skel" style={{ width: "72px", height: "18px", borderRadius: "6px" }} />
+            <div className="skel" style={{ width: "120px", height: "10px", borderRadius: "4px", marginTop: "4px" }} />
+          </>
+        )}
+      </div>
 
       <div className="header-right">
         <button className="hbtn" onClick={onRefresh} disabled={refreshing}>
