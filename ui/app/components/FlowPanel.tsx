@@ -5,105 +5,90 @@ interface FlowPanelProps {
   marketData: MarketData | null;
 }
 
-function RatioBadge({ ratio }: { ratio: number }) {
-  const bright = ratio >= 5;
-  return (
-    <span
-      style={{
-        display: "inline-block",
-        padding: "1px 5px",
-        borderRadius: "4px",
-        fontSize: "10px",
-        fontWeight: 700,
-        fontFamily: "monospace",
-        background: bright ? "#dcfce7" : "#f0fdf4",
-        color:      bright ? "#15803d" : "#22c55e",
-        border:     `1px solid ${bright ? "#86efac" : "#bbf7d0"}`,
-        minWidth:   "34px",
-        textAlign:  "center",
-      }}
-    >
-      {ratio}x
-    </span>
-  );
+// Cap display at 99x so it never breaks layout
+function displayRatio(ratio: number): string {
+  return ratio > 99 ? "99x+" : `${ratio}x`;
 }
 
-function RatioBadgePut({ ratio }: { ratio: number }) {
+function RatioBadge({ ratio, isCall }: { ratio: number; isCall: boolean }) {
   const bright = ratio >= 5;
+  const bg     = isCall
+    ? (bright ? "#dcfce7" : "#f0fdf4")
+    : (bright ? "#fee2e2" : "#fef2f2");
+  const color  = isCall
+    ? (bright ? "#15803d" : "#22c55e")
+    : (bright ? "#b91c1c" : "#ef4444");
+  const border = isCall
+    ? (bright ? "#86efac" : "#bbf7d0")
+    : (bright ? "#fca5a5" : "#fecaca");
+
   return (
     <span
       style={{
         display: "inline-block",
-        padding: "1px 5px",
+        padding: "1px 4px",
         borderRadius: "4px",
-        fontSize: "10px",
+        fontSize: "9px",
         fontWeight: 700,
         fontFamily: "monospace",
-        background: bright ? "#fee2e2" : "#fef2f2",
-        color:      bright ? "#b91c1c" : "#ef4444",
-        border:     `1px solid ${bright ? "#fca5a5" : "#fecaca"}`,
-        minWidth:   "34px",
-        textAlign:  "center",
+        background: bg,
+        color,
+        border: `1px solid ${border}`,
+        whiteSpace: "nowrap",
+        flexShrink: 0,
       }}
     >
-      {ratio}x
+      {displayRatio(ratio)}
     </span>
   );
 }
 
 function FlowRow({ item }: { item: UnusualFlowItem }) {
   const isCall = item.type === "call";
-  const color = isCall ? "#15803d" : "#b91c1c";
+  const color  = isCall ? "#15803d" : "#b91c1c";
 
   return (
     <div
       style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
         padding: "5px 8px",
         borderRadius: "6px",
         background: isCall ? "#f0fdf4" : "#fef2f2",
-        gap: "4px",
       }}
     >
-      {/* Strike + type */}
-      <span
-        style={{
-          fontSize: "11px",
-          fontWeight: 700,
-          color,
-          fontFamily: "monospace",
-          minWidth: "52px",
-        }}
-      >
-        {item.strike}{isCall ? "C" : "P"}
-      </span>
+      {/* Line 1: strike | badge | mid */}
+      <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
+        <span
+          style={{
+            fontSize: "10px",
+            fontWeight: 700,
+            color,
+            fontFamily: "monospace",
+            flexShrink: 0,
+          }}
+        >
+          {item.strike}{isCall ? "C" : "P"}
+        </span>
 
-      {/* Ratio badge */}
-      {isCall
-        ? <RatioBadge ratio={item.vol_oi_ratio} />
-        : <RatioBadgePut ratio={item.vol_oi_ratio} />
-      }
+        <RatioBadge ratio={item.vol_oi_ratio} isCall={isCall} />
 
-      {/* Mid */}
-      <span
-        style={{
-          fontSize: "10px",
-          fontWeight: 600,
-          color,
-          fontFamily: "monospace",
-          minWidth: "32px",
-          textAlign: "right",
-        }}
-      >
-        ${item.mid.toFixed(2)}
-      </span>
+        <span
+          style={{
+            fontSize: "10px",
+            fontWeight: 600,
+            color,
+            fontFamily: "monospace",
+            marginLeft: "auto",
+            flexShrink: 0,
+          }}
+        >
+          ${item.mid.toFixed(2)}
+        </span>
+      </div>
 
-      {/* Volume */}
-      <span style={{ fontSize: "10px", color: "#94a3b8", fontFamily: "monospace" }}>
-        v {item.volume.toLocaleString()}
-      </span>
+      {/* Line 2: volume */}
+      <div style={{ fontSize: "9px", color: "#94a3b8", fontFamily: "monospace", marginTop: "1px" }}>
+        vol {item.volume.toLocaleString()} · OI {item.open_interest.toLocaleString()}
+      </div>
     </div>
   );
 }
@@ -155,34 +140,17 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
 
       {/* Content */}
       {!marketData ? (
-        /* Skeleton */
+        /* Skeleton — matches two-line row layout */
         <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "5px 8px", borderRadius: "6px", background: "#f0fdf4",
-              }}
-            >
-              <div className="skel" style={{ width: "46px" }} />
-              <div className="skel" style={{ width: "30px" }} />
-              <div className="skel" style={{ width: "28px" }} />
-              <div className="skel" style={{ width: "40px" }} />
-            </div>
-          ))}
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i + 10}
-              style={{
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-                padding: "5px 8px", borderRadius: "6px", background: "#fef2f2",
-              }}
-            >
-              <div className="skel" style={{ width: "46px" }} />
-              <div className="skel" style={{ width: "30px" }} />
-              <div className="skel" style={{ width: "28px" }} />
-              <div className="skel" style={{ width: "40px" }} />
+          {([["#f0fdf4", 1], ["#f0fdf4", 2], ["#f0fdf4", 3],
+             ["#fef2f2", 4], ["#fef2f2", 5], ["#fef2f2", 6]] as [string, number][]).map(([bg, i]) => (
+            <div key={i} style={{ padding: "5px 8px", borderRadius: "6px", background: bg }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "4px" }}>
+                <div className="skel" style={{ width: "46px" }} />
+                <div className="skel" style={{ width: "26px" }} />
+                <div className="skel" style={{ width: "28px", marginLeft: "auto" }} />
+              </div>
+              <div className="skel" style={{ width: "80px", height: "8px" }} />
             </div>
           ))}
         </div>

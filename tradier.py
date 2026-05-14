@@ -185,9 +185,11 @@ def get_unusual_flow(all_calls: list, all_puts: list) -> dict:
     aggressive new position opening, not rolling existing contracts.
 
     Thresholds (conservative for 0DTE SPX):
-      - vol/OI ratio > 3.0  (volume 3× the open interest)
-      - volume > 500         (meaningful size, filters noise)
-      - mid > 1.00           (eliminates near-zero lottery tickets)
+      - open_interest >= 50  (requires an OI baseline — ratio is meaningless
+                              on fresh 0DTE contracts with OI of 1–10)
+      - vol/OI ratio > 3.0   (volume 3× the open interest)
+      - volume > 500          (meaningful size, filters noise)
+      - mid > 1.00            (eliminates near-zero lottery tickets)
 
     Returns top 10 unusual strikes each for calls and puts,
     sorted by vol/OI ratio descending.
@@ -199,10 +201,14 @@ def get_unusual_flow(all_calls: list, all_puts: list) -> dict:
         oi     = opt.get("open_interest") or 0
         mid    = opt.get("mid") or 0
 
+        # OI must have a real baseline — otherwise ratio is meaningless
+        if oi < 50:
+            return None
+
         if volume < 500 or mid < 1.0:
             return None
 
-        ratio = volume / max(oi, 1)
+        ratio = volume / oi
         if ratio < 3.0:
             return None
 
