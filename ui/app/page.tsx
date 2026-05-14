@@ -109,7 +109,21 @@ const SHORTCUTS = [
 interface Message {
   role: "user" | "assistant";
   content: string;
+  model?: string;  // "claude-haiku-4-5-20251001" | "claude-sonnet-4-6"
 }
+
+// Commands routed to Haiku — must mirror route_model() in main.py
+const HAIKU_COMMANDS = new Set([
+  "PTR-FAST", "PTR-FULL", "GRADE", "PATTERN CHECK",
+  "MARKET REGIME", "CAPITAL PROTECTION", "WIRE OUT",
+  "TRADE REVIEW", "EOD",
+]);
+const routeModel = (msg: string) =>
+  HAIKU_COMMANDS.has(msg.trim().toUpperCase())
+    ? "claude-haiku-4-5-20251001"
+    : "claude-sonnet-4-6";
+const modelLabel = (m?: string) =>
+  m === "claude-haiku-4-5-20251001" ? "haiku" : m ? "sonnet" : undefined;
 
 interface OptionContract {
   strike: number;
@@ -223,14 +237,14 @@ export default function Home() {
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let reply = "";
-        setMessages((prev) => [...prev, { role: "assistant", content: "" }]);
+        setMessages((prev) => [...prev, { role: "assistant", content: "", model: "claude-sonnet-4-6" }]);
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           reply += decoder.decode(value);
           setMessages((prev) => [
             ...prev.slice(0, -1),
-            { role: "assistant", content: reply },
+            { role: "assistant", content: reply, model: "claude-sonnet-4-6" },
           ]);
         }
         return;
@@ -244,7 +258,7 @@ export default function Home() {
       const data = await res.json();
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: data.reply },
+        { role: "assistant", content: data.reply, model: data.model },
       ]);
       if (msg === "Open the Desk") setDeskOpen(true);
     } catch {
@@ -1128,10 +1142,18 @@ export default function Home() {
                   >
                     {msg.role === "user" ? "S" : "D"}
                   </div>
-                  <div
-                    className={`msg-bubble ${msg.role === "user" ? "user" : "desk"}`}
-                  >
-                    {msg.content}
+                  <div style={{ display: "flex", flexDirection: "column", maxWidth: "calc(100% - 40px)" }}>
+                    <div
+                      className={`msg-bubble ${msg.role === "user" ? "user" : "desk"}`}
+                      style={{ maxWidth: "100%" }}
+                    >
+                      {msg.content}
+                    </div>
+                    {msg.role === "assistant" && modelLabel(msg.model) && (
+                      <div style={{ fontSize: "9px", color: "#94a3b8", marginTop: "3px", fontFamily: "monospace", paddingLeft: "2px" }}>
+                        {modelLabel(msg.model)}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))
@@ -1187,12 +1209,13 @@ export default function Home() {
                         method: "POST",
                         body: form,
                       });
+                      const chartModel = routeModel(context);
                       const reader = res.body!.getReader();
                       const decoder = new TextDecoder();
                       let reply = "";
                       setMessages((prev) => [
                         ...prev,
-                        { role: "assistant", content: "" },
+                        { role: "assistant", content: "", model: chartModel },
                       ]);
                       while (true) {
                         const { done, value } = await reader.read();
@@ -1200,7 +1223,7 @@ export default function Home() {
                         reply += decoder.decode(value);
                         setMessages((prev) => [
                           ...prev.slice(0, -1),
-                          { role: "assistant", content: reply },
+                          { role: "assistant", content: reply, model: chartModel },
                         ]);
                       }
                     } catch {

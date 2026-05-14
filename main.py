@@ -24,6 +24,29 @@ app.add_middleware(
 
 client = anthropic.Anthropic()
 
+# ── Model constants ──────────────────────────────────────────────
+SONNET = "claude-sonnet-4-6"
+HAIKU  = "claude-haiku-4-5-20251001"
+
+# Commands that need speed/structure, not deep reasoning
+_HAIKU_COMMANDS = {
+    "PTR-FAST", "PTR-FULL", "GRADE", "PATTERN CHECK",
+    "MARKET REGIME", "CAPITAL PROTECTION", "WIRE OUT",
+    "TRADE REVIEW", "EOD",
+}
+
+
+def route_model(message: str) -> str:
+    """Return the cheapest model that can handle this command well."""
+    return HAIKU if message.strip().upper() in _HAIKU_COMMANDS else SONNET
+
+
+def log_tokens(label: str, *texts: str) -> None:
+    """Estimate and log input token count to Railway console."""
+    est = sum(len(t) for t in texts) // 4
+    print(f"[tokens] {label} — ~{est:,} input tokens  model={route_model(label)}")
+
+
 # Load context once at startup
 print("📡 Loading live trading context...")
 LIVE_CONTEXT = fetch_live_context()
@@ -112,9 +135,11 @@ async def chat(request: ChatRequest):
     # Add user message
     history.append({"role": "user", "content": request.message})
 
-    # Call Claude
+    model = route_model(request.message)
+    log_tokens(request.message, build_system_prompt(LIVE_CONTEXT), request.message)
+
     response = client.messages.create(
-        model="claude-sonnet-4-6",
+        model=model,
         max_tokens=2048,
         system=[{
             "type": "text",
@@ -131,6 +156,7 @@ async def chat(request: ChatRequest):
 
     return {
         "reply": reply,
+        "model": model,
         "session_id": request.session_id,
         "turns": len(history) // 2
     }
@@ -152,9 +178,8 @@ async def analyze_chart(
         sessions[session_id] = []
     history = sessions[session_id]
 
-    # Smart model routing
-    model = "claude-haiku-4-5-20251001" if context in [
-        "PTR-FAST", "PTR-FULL", "GRADE"] else "claude-sonnet-4-6"
+    model = route_model(context)
+    log_tokens(context, build_system_prompt(LIVE_CONTEXT), context)
 
     user_message = {
         "role": "user",
