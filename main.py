@@ -52,8 +52,20 @@ print("📡 Loading live trading context...")
 LIVE_CONTEXT = fetch_live_context()
 print("✅ Context loaded")
 
+# Unusual flow context — updated on each /market-data poll (every 60s from frontend)
+FLOW_CONTEXT: str = ""
 
-def build_system_prompt(live_context: str) -> str:
+
+def build_system_prompt(live_context: str, flow_context: str = "") -> str:
+    flow_section = ""
+    if flow_context:
+        flow_section = f"""
+
+    UNUSUAL FLOW DETECTED (auto-calculated from Tradier vol/OI — refreshes every 60s):
+    ================================================================
+    {flow_context}
+    ================================================================"""
+
     return f"""You are the OpenTheDesk trading agent for Satya Pramod.
 
     You are a professional 0DTE options trading desk agent, personal trading coach,
@@ -71,7 +83,7 @@ def build_system_prompt(live_context: str) -> str:
     LIVE TRADING CONTEXT (fetched fresh today):
     ================================================================
     {live_context}
-    ================================================================
+    ================================================================{flow_section}
 
     SHORTCUT COMMANDS — respond in exact format when triggered:
     - "Open the Desk" → Full session opener with TD number, account, gap to $3,000, Phase 2 rules, session ready
@@ -124,7 +136,7 @@ def me():
 
 @app.post("/chat")
 async def chat(request: ChatRequest):
-    global LIVE_CONTEXT
+    global LIVE_CONTEXT, FLOW_CONTEXT
 
     # Get or create session history
     if request.session_id not in sessions:
@@ -136,14 +148,15 @@ async def chat(request: ChatRequest):
     history.append({"role": "user", "content": request.message})
 
     model = route_model(request.message)
-    log_tokens(request.message, build_system_prompt(LIVE_CONTEXT), request.message)
+    prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
+    log_tokens(request.message, prompt, request.message)
 
     response = client.messages.create(
         model=model,
         max_tokens=2048,
         system=[{
             "type": "text",
-            "text": build_system_prompt(LIVE_CONTEXT),
+            "text": prompt,
             "cache_control": {"type": "ephemeral"}
         }],
         messages=history
@@ -179,7 +192,8 @@ async def analyze_chart(
     history = sessions[session_id]
 
     model = route_model(context)
-    log_tokens(context, build_system_prompt(LIVE_CONTEXT), context)
+    prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
+    log_tokens(context, prompt, context)
 
     user_message = {
         "role": "user",
@@ -229,7 +243,7 @@ async def analyze_chart(
             max_tokens=2048,
             system=[{
                 "type": "text",
-                "text": build_system_prompt(LIVE_CONTEXT),
+                "text": prompt,
                 "cache_control": {"type": "ephemeral"}
             }],
             messages=history
@@ -247,11 +261,16 @@ async def analyze_chart(
 
 @app.get("/market-data")
 async def market_data(atr: float = None, trading_mode: str = "day"):
-    """Get live SPX + VIX + ATR levels + 0DTE options chain."""
+    """Get live SPX + VIX + ATR levels + 0DTE options chain + unusual flow."""
+    global FLOW_CONTEXT
     summary = get_market_summary(atr_override=atr, trading_mode=trading_mode)
     snapshot = get_0dte_snapshot(atr=atr)
     summary["options"] = snapshot
     summary["options_context"] = format_options_context(snapshot)
+    summary["unusual_flow"] = snapshot.get("unusual_flow", {"calls": [], "puts": []})
+    summary["flow_context"]  = snapshot.get("flow_context", "")
+    # Cache flow context so /chat can inject it without a fresh API call
+    FLOW_CONTEXT = summary["flow_context"]
     return summary
 
 
@@ -268,9 +287,14 @@ async def premarket(request: ChatRequest):
     vix = market.get("vix", {})
     levels = market.get("atr_levels", {})
 
-    # Fetch live options data
-    snapshot = get_0dte_snapshot()
+    # Fetch live options data (includes unusual flow)
+    snapshot = get_0dte_snapshot(atr=request.atr)
     options_text = format_options_context(snapshot)
+    fresh_flow   = snapshot.get("flow_context", "")
+
+    flow_block = ""
+    if fresh_flow:
+        flow_block = f"\n    {fresh_flow}\n"
 
     market_context = f"""
     LIVE MARKET DATA (auto-fetched at {__import__('datetime').datetime.now().strftime('%H:%M ET')}):
@@ -290,7 +314,7 @@ async def premarket(request: ChatRequest):
     -61.8% GG Complete:  {levels.get('gg_complete_put')}
     -100% Full ATR:      {levels.get('full_atr_put')}
 
-    {options_text}
+    {options_text}{flow_block}
     """
 
     # Add to session history
@@ -304,7 +328,8 @@ async def premarket(request: ChatRequest):
         "content": f"PREMARKET\n\n{market_context}\n\nRun the full 5-step pre-market plan for today."
     })
 
-    # Stream response
+    # Stream response — system prompt does NOT include flow here because
+    # fresh_flow is already injected into the user message (market_context)
     def stream():
         full_reply = ""
         with client.messages.stream(
@@ -323,6 +348,7 @@ async def premarket(request: ChatRequest):
         history.append({"role": "assistant", "content": full_reply})
 
     return FastAPIStreaming(stream(), media_type="text/plain")
+
 
 
 @app.post("/refresh-context")

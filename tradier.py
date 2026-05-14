@@ -175,6 +175,99 @@ def get_0dte_chain(expiry: str, spot: float, width_pct: float = 0.02) -> dict:
 
 
 # ─────────────────────────────────────────────
+# UNUSUAL FLOW DETECTION — VOL/OI RATIO
+# ─────────────────────────────────────────────
+
+def get_unusual_flow(all_calls: list, all_puts: list) -> dict:
+    """
+    Detect unusual options flow by vol/OI ratio.
+    A high ratio means volume far exceeds open interest — indicating
+    aggressive new position opening, not rolling existing contracts.
+
+    Thresholds (conservative for 0DTE SPX):
+      - vol/OI ratio > 3.0  (volume 3× the open interest)
+      - volume > 500         (meaningful size, filters noise)
+      - mid > 1.00           (eliminates near-zero lottery tickets)
+
+    Returns top 10 unusual strikes each for calls and puts,
+    sorted by vol/OI ratio descending.
+    """
+    TOP_N = 10
+
+    def score(opt: dict, opt_type: str) -> dict | None:
+        volume = opt.get("volume") or 0
+        oi     = opt.get("open_interest") or 0
+        mid    = opt.get("mid") or 0
+
+        if volume < 500 or mid < 1.0:
+            return None
+
+        ratio = volume / max(oi, 1)
+        if ratio < 3.0:
+            return None
+
+        return {
+            "strike":        opt["strike"],
+            "type":          opt_type,
+            "mid":           round(mid, 2),
+            "volume":        int(volume),
+            "open_interest": int(oi),
+            "vol_oi_ratio":  round(ratio, 1),
+            "delta":         opt.get("delta"),
+            "iv":            opt.get("iv"),
+        }
+
+    unusual_calls = [r for c in all_calls if (r := score(c, "call"))]
+    unusual_puts  = [r for p in all_puts  if (r := score(p, "put"))]
+
+    unusual_calls.sort(key=lambda x: x["vol_oi_ratio"], reverse=True)
+    unusual_puts.sort(key=lambda x:  x["vol_oi_ratio"], reverse=True)
+
+    return {
+        "calls": unusual_calls[:TOP_N],
+        "puts":  unusual_puts[:TOP_N],
+    }
+
+
+def format_flow_context(unusual_flow: dict) -> str:
+    """
+    Format unusual flow as a clean text block for Claude's system prompt.
+    Returns empty string when no unusual flow is detected.
+    """
+    calls = unusual_flow.get("calls", [])
+    puts  = unusual_flow.get("puts",  [])
+
+    if not calls and not puts:
+        return ""
+
+    lines = ["UNUSUAL SPX FLOW (Tradier — vol/OI ratio):"]
+
+    if calls:
+        lines.append("CALLS (aggressive new buying above market):")
+        for c in calls[:5]:
+            delta_str = f"δ={c['delta']:.2f}" if c.get("delta") is not None else "δ=—"
+            lines.append(
+                f"  {c['strike']}C  vol={c['volume']:,}  OI={c['open_interest']:,}"
+                f"  ratio={c['vol_oi_ratio']}x  mid=${c['mid']}  {delta_str}"
+            )
+
+    if puts:
+        lines.append("PUTS (aggressive new buying below market):")
+        for p in puts[:5]:
+            delta_str = f"δ={p['delta']:.2f}" if p.get("delta") is not None else "δ=—"
+            lines.append(
+                f"  {p['strike']}P  vol={p['volume']:,}  OI={p['open_interest']:,}"
+                f"  ratio={p['vol_oi_ratio']}x  mid=${p['mid']}  {delta_str}"
+            )
+
+    lines.append(
+        "Interpretation: ratio >3x = volume significantly exceeds OI"
+        " → new aggressive positioning, not rolling existing contracts"
+    )
+    return "\n".join(lines)
+
+
+# ─────────────────────────────────────────────
 # FILTER — STRIKES MATCHING $3–4 PREMIUM BUDGET
 # ─────────────────────────────────────────────
 
@@ -293,6 +386,10 @@ def get_0dte_snapshot(atr: float = None) -> dict:
     call_in_budget = best_call and in_budget(best_call)
     put_in_budget = best_put and in_budget(best_put)
 
+    # 8. Unusual flow — calculated from full chain (not budget-filtered)
+    unusual_flow = get_unusual_flow(all_calls, all_puts)
+    flow_context = format_flow_context(unusual_flow)
+
     return {
         "spot": spot,
         "expiry": expiry,
@@ -312,6 +409,8 @@ def get_0dte_snapshot(atr: float = None) -> dict:
             "calls": budget_calls,
             "puts":  budget_puts,
         },
+        "unusual_flow": unusual_flow,      # vol/OI flagged strikes
+        "flow_context": flow_context,      # pre-formatted for Claude
         "quote": quote
     }
 

@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { Message, MarketData } from "./types";
 import Header        from "./components/Header";
 import LevelsPanel   from "./components/LevelsPanel";
+import FlowPanel     from "./components/FlowPanel";
 import ChatPanel     from "./components/ChatPanel";
 import CommandPalette from "./components/CommandPalette";
 import MobileSheet   from "./components/MobileSheet";
@@ -185,6 +186,7 @@ export default function Home() {
               onApply={handleAtrApply}
               onReset={handleAtrReset}
             />
+            <FlowPanel marketData={marketData} />
           </div>
         </div>
 

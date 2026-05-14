@@ -1,6 +1,7 @@
 "use client";
 import { useEffect } from "react";
 import LevelsPanel from "./LevelsPanel";
+import FlowPanel   from "./FlowPanel";
 import { MarketData } from "../types";
 
 interface MobileSheetProps {
@@ -36,7 +37,7 @@ export default function MobileSheet({
       <div className={`sheet-overlay ${open ? "open" : ""}`} onClick={onClose} />
       <div className={`sheet-panel ${open ? "open" : ""}`}>
         <div className="sheet-handle" />
-        <div className="sheet-title">Today&apos;s Levels</div>
+        <div className="sheet-title">Levels &amp; Flow</div>
         <div className="sheet-body">
           <LevelsPanel
             marketData={marketData}
@@ -46,6 +47,7 @@ export default function MobileSheet({
             onApply={onApply}
             onReset={onReset}
           />
+          <FlowPanel marketData={marketData} />
         </div>
       </div>
     </>

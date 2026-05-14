@@ -4,6 +4,17 @@ export interface Message {
   model?: string;
 }
 
+export interface UnusualFlowItem {
+  strike: number;
+  type: "call" | "put";
+  mid: number;
+  volume: number;
+  open_interest: number;
+  vol_oi_ratio: number;
+  delta: number | null;
+  iv: number | null;
+}
+
 export interface OptionContract {
   strike: number;
   bid: number;
@@ -52,6 +63,11 @@ export interface MarketData {
       puts: OptionContract[];
     };
   };
+  unusual_flow?: {
+    calls: UnusualFlowItem[];
+    puts:  UnusualFlowItem[];
+  };
+  flow_context?: string;
 }
 
 // Must mirror route_model() in main.py
