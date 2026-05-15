@@ -413,33 +413,47 @@ async def clear_session(session_id: str):
 
 # ── Analyzer endpoints ───────────────────────────────────────────────────────
 
-_SHORT_TERM_SYSTEM = """You are a short-to-medium term options trade analyzer (1–8 weeks timeframe) using the Saty Mahajan system.
+_SHORT_TERM_SYSTEM = """You are a short-to-medium term options trade analyzer using the Saty Mahajan system.
 
-Given ticker data including price, EMAs, ATR levels, IV rank, 52-week positioning, and fundamentals, output EXACTLY this structure:
+You will receive ticker data for a specific trading mode (day/multiday/swing/position) with the corresponding ATR timeframe already calculated.
+
+Additional Saty system context you must use:
+- RIBBON uses EMA 8/21/34. BULLISH = 8>21>34. BEARISH = 8<21<34.
+- CONVICTION confirmed when EMA 13 crosses EMA 48 (conviction_state field).
+- CANDLE BIAS = price vs EMA 48 (candle_bias field).
+- PHASE OSCILLATOR (po_value) ranges: Extreme Up >100, Distribution 61.8–100, Neutral Up 23.6–61.8, Neutral -23.6–23.6, Neutral Down -61.8–-23.6, Accumulation -100–-61.8, Extreme Down <-100.
+- COMPRESSION (compression field) = Bollinger Bands inside 2×ATR band = coiling for breakout.
+- ATR LEVELS include extensions to 3.0×ATR for strong trending moves.
+
+Output EXACTLY this structure:
 
 STOCK VERDICT
 ─────────────
 BIAS: BULLISH / BEARISH / NEUTRAL
-TREND: one sentence on ribbon state and what it means right now
-POSITION IN RANGE: where price sits relative to 52-week high/low (e.g. "12% below ATH — extended base building" or "AT ALL-TIME HIGHS — momentum but no margin of safety")
-VOLUME: comment on relative volume — confirming or diverging from price action
-VERDICT: BUY SETUP / WAIT FOR PULLBACK / AVOID — one crisp sentence why
+RIBBON: state (8>21>34 or not) + conviction state (13/48 cross)
+CANDLE BIAS: above or below 48 EMA — what it means
+PHASE: po_zone value + po_value number + what phase means for this setup
+COMPRESSION: YES/NO — if YES, breakout imminent, wait for direction
+POSITION IN RANGE: price vs 52-week high/low
+VOLUME: relative volume read
+VERDICT: BUY SETUP / WAIT FOR PULLBACK / AVOID / COMPRESSION COIL — one sentence
 
-OPTIONS TRADE PLAN (1–2 month horizon)
-───────────────────────────────────────
+OPTIONS TRADE PLAN
+───────────────────
+TRADING MODE: [Day/Multiday/Swing/Position] — state the timeframe being analyzed
 DIRECTION: CALL / PUT / NO TRADE
-EXPIRY TARGET: specific month (e.g. "July 18 2025" — 6-8 weeks out minimum for 1-2 month plays, never 0DTE)
-STRIKE: specific strike price (0.5 ATR OTM from entry, rounded to nearest $1 for stocks >$50, nearest $0.50 for stocks <$50)
-BUDGET: target premium $2–3 (state estimated premium range based on ATR and IV — say "estimated $X–Y" and note if IV rank makes this expensive)
-ENTRY TRIGGER: exact price level to enter (ATR trigger level or EMA retest — be specific)
-TARGET 1: first profit zone (GG complete ATR level or next EMA — take 50% off here)
-TARGET 2: full target (full ATR level — let runner go here)
-STOP LOSS: exact invalidation level (opposite ATR trigger — exit if price closes below this)
-RISK/REWARD: calculate and state (e.g. "Risk $150 to make $400 — 2.7:1")
-HOLD RULES: 2–3 bullet points on when to hold vs exit early (time decay, earnings approaching, key level break)
-IV NOTE: cheap / fair / expensive based on IV rank — and whether to use debit spread instead of naked call/put if IV rank >60
+EXPIRY TARGET: match to trading mode (Day=1-2wk, Multiday=3-4wk, Swing=6-8wk, Position=3-6mo)
+STRIKE: 0.5×ATR OTM from entry trigger, specific price
+BUDGET: $2–3 premium target (use debit spread if IV rank >60)
+ENTRY TRIGGER: exact ATR level (use the extended levels if in a strong trend)
+TARGET 1: next ATR fibonacci level (take 50% off)
+TARGET 2: next extended ATR level (let runner go)
+STOP LOSS: opposite ATR trigger — specific price
+RISK/REWARD: calculate and state
+HOLD RULES: 3 bullets — when to hold, when to exit early, earnings rule
+IV + COMPRESSION NOTE: cheap/fair/expensive + compression context
 
-Be specific with numbers. No vague advice. If the setup is not clean, say NO TRADE and explain why in one sentence."""
+NO TRADE if: compression active with no direction, PO in extreme zone with no reversal signal, within 7 days of earnings."""
 
 _LONG_TERM_SYSTEM = """You are a long-term stock analyst (3–12 month horizon) using the Saty Mahajan system combined with fundamental analysis.
 
@@ -456,6 +470,9 @@ RIBBON: state (BULLISH/BEARISH/MIXED) and trend maturity (early/mid/extended)
 ATH CONTEXT: price vs 52-week high — if within 5% of ATH flag as "extended, wait for base" — if >20% below ATH assess if structural breakdown or opportunity
 200 EMA: above/below and % distance — flag if >20% above as overextended
 TREND INVALIDATION: exact price level where long-term thesis breaks (full ATR down or 200 EMA loss)
+PHASE OSCILLATOR: state po_zone and po_value — is this stock in accumulation (buy more), distribution (take profits), or neutral?
+COMPRESSION: if True — note this as a high-probability breakout setup pending direction
+CONVICTION: state 13/48 EMA conviction — confirmed bullish/bearish or not yet crossed?
 
 FUNDAMENTAL PICTURE
 ───────────────────
@@ -487,18 +504,19 @@ _IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.N
 
 class AnalyzeRequest(BaseModel):
     ticker: str
+    trading_mode: str = "day"   # day | multiday | swing | position
 
 
 @app.post("/analyze")
 async def analyze(request: AnalyzeRequest):
     """Fetch ticker data then run Haiku (short-term) and Sonnet (long-term) in parallel."""
-    data = await asyncio.to_thread(get_ticker_analysis, request.ticker)
+    data = await asyncio.to_thread(get_ticker_analysis, request.ticker, request.trading_mode)
     ctx  = json.dumps(data, indent=2, default=str)
 
     def _haiku() -> str:
         r = client.messages.create(
             model=HAIKU,
-            max_tokens=512,
+            max_tokens=1024,
             system=_SHORT_TERM_SYSTEM,
             messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
         )
@@ -507,7 +525,7 @@ async def analyze(request: AnalyzeRequest):
     def _sonnet() -> str:
         r = client.messages.create(
             model=SONNET,
-            max_tokens=768,
+            max_tokens=1536,
             system=_LONG_TERM_SYSTEM,
             messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
         )

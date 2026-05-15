@@ -136,47 +136,126 @@ def sanitize(obj):
         return [sanitize(v) for v in obj]
     return obj
 
+
+# trading_mode → yfinance history kwargs
+_HISTORY_PARAMS: dict[str, dict] = {
+    "day":      {"period": "1y",  "interval": "1d"},
+    "multiday": {"period": "2y",  "interval": "1wk"},
+    "swing":    {"period": "5y",  "interval": "1mo"},
+    "position": {"period": "10y", "interval": "3mo"},
+}
+
+
+def _po_zone(val: float) -> str:
+    if val >= 100:
+        return "EXTREME_UP"
+    if val >= 61.8:
+        return "DISTRIBUTION"
+    if val >= 23.6:
+        return "NEUTRAL_UP"
+    if val >= -23.6:
+        return "NEUTRAL"
+    if val >= -61.8:
+        return "NEUTRAL_DOWN"
+    if val >= -100:
+        return "ACCUMULATION"
+    return "EXTREME_DOWN"
+
+
+def _build_atr_levels(pdc: float, atr: float) -> dict:
+    """Full Fibonacci ATR levels — core + extensions to 3×ATR."""
+    def _l(mult: float) -> float:
+        return round(pdc + atr * mult, 2)
+
+    return {
+        # Core upside
+        "trigger_up":      _l(0.236),
+        "gg_open_up":      _l(0.382),
+        "half_up":         _l(0.500),
+        "gg_complete_up":  _l(0.618),
+        "full_atr_up":     _l(1.000),
+        # Extension upside
+        "ext_1236_up":     _l(1.236),
+        "ext_1618_up":     _l(1.618),
+        "ext_2000_up":     _l(2.000),
+        "ext_2236_up":     _l(2.236),
+        "ext_2618_up":     _l(2.618),
+        "ext_3000_up":     _l(3.000),
+        # Core downside
+        "trigger_down":    _l(-0.236),
+        "gg_open_down":    _l(-0.382),
+        "half_down":       _l(-0.500),
+        "gg_complete_down": _l(-0.618),
+        "full_atr_down":   _l(-1.000),
+        # Extension downside
+        "ext_1236_down":   _l(-1.236),
+        "ext_1618_down":   _l(-1.618),
+        "ext_2000_down":   _l(-2.000),
+        "ext_2236_down":   _l(-2.236),
+        "ext_2618_down":   _l(-2.618),
+        "ext_3000_down":   _l(-3.000),
+    }
+
+
 # ── Main analysis ────────────────────────────────────────────────────────────
 
-
-def get_ticker_analysis(ticker: str) -> dict:
+def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
     """
-    Full ticker analysis: price, EMAs, ATR-14, ATR levels, fundamentals.
+    Full ticker analysis: price, EMAs (8/13/21/34/48/200), ATR-14, ATR levels,
+    Phase Oscillator, compression, fundamentals.
+    trading_mode: "day" | "multiday" | "swing" | "position"
     Returns a flat dict — all fields present, failures set to None.
     """
-    ticker = ticker.strip().upper()
+    ticker   = ticker.strip().upper()
     is_india = ticker.endswith(".NS")
-    market = "IN" if is_india else "US"
+    market   = "IN" if is_india else "US"
+
+    hist_kwargs = _HISTORY_PARAMS.get(trading_mode, _HISTORY_PARAMS["day"])
 
     result: dict = {
-        "ticker":                    ticker,
-        "market":                    market,
-        "price":                     None,
-        "prev_close":                None,
-        "change_pct":                None,
-        "ema_8":                     None,
-        "ema_21":                    None,
-        "ema_48":                    None,
-        "ema_200":                   None,
-        "ribbon_state":              None,
-        "atr_14":                    None,
-        "atr_levels":                None,
-        "week52_high":               None,
-        "week52_low":                None,
-        "price_vs_52w_high_pct":     None,
+        "ticker":                     ticker,
+        "market":                     market,
+        "trading_mode":               trading_mode,
+        "price":                      None,
+        "prev_close":                 None,
+        "change_pct":                 None,
+        # Saty Pivot Ribbon Pro EMAs
+        "ema_8":                      None,
+        "ema_13":                     None,   # conviction EMA
+        "ema_21":                     None,
+        "ema_34":                     None,   # ribbon EMA (8/21/34)
+        "ema_48":                     None,   # bias + conviction EMA
+        "ema_200":                    None,
+        # Ribbon / bias / conviction
+        "ribbon_state":               None,   # BULLISH / BEARISH / MIXED (8/21/34)
+        "conviction_state":           None,   # BULLISH_CONVICTION / BEARISH_CONVICTION (13 vs 48)
+        "candle_bias":                None,   # BULLISH_BIAS / BEARISH_BIAS (price vs 48)
+        # ATR
+        "atr_14":                     None,
+        "atr_levels":                 None,
+        # Phase Oscillator
+        "po_value":                   None,
+        "po_zone":                    None,
+        "compression":                None,
+        # Volume
+        "avg_volume_10d":             None,
+        "relative_volume":            None,
+        # 52-week
+        "week52_high":                None,
+        "week52_low":                 None,
+        "price_vs_52w_high_pct":      None,
         "distance_from_52w_high_pct": None,
-        "avg_volume_10d":            None,
-        "relative_volume":           None,
-        "pe_ratio":                  None,
-        "eps_growth_yoy":            None,
-        "revenue_growth_yoy":        None,
-        "market_cap":                None,
-        "sector":                    None,
-        "beta":                      None,
-        "debt_to_equity":            None,
-        "short_interest_pct":        None,
-        "earnings_date":             None,
-        "days_to_earnings":          None,
+        # Fundamentals
+        "pe_ratio":                   None,
+        "eps_growth_yoy":             None,
+        "revenue_growth_yoy":         None,
+        "market_cap":                 None,
+        "sector":                     None,
+        "beta":                       None,
+        "debt_to_equity":             None,
+        "short_interest_pct":         None,
+        "earnings_date":              None,
+        "days_to_earnings":           None,
     }
 
     if not _YF:
@@ -184,42 +263,54 @@ def get_ticker_analysis(ticker: str) -> dict:
         return sanitize(result)
 
     try:
-        tk = yf.Ticker(ticker)
-        hist = tk.history(period="1y")
+        tk   = yf.Ticker(ticker)
+        hist = tk.history(**hist_kwargs)
 
         if hist.empty:
             result["error"] = "no price data"
             return sanitize(result)
 
-        closes = hist["Close"]
-        price = float(closes.iloc[-1])
+        closes     = hist["Close"]
+        price      = float(closes.iloc[-1])
         prev_close = float(closes.iloc[-2]) if len(closes) >= 2 else price
 
-        result["price"] = round(price, 2)
+        result["price"]      = round(price, 2)
         result["prev_close"] = round(prev_close, 2)
         if prev_close:
-            result["change_pct"] = round(
-                (price - prev_close) / prev_close * 100, 2)
+            result["change_pct"] = round((price - prev_close) / prev_close * 100, 2)
 
-        # EMAs
-        result["ema_8"] = round(
-            float(closes.ewm(span=8,   adjust=False).mean().iloc[-1]), 2)
-        result["ema_21"] = round(
-            float(closes.ewm(span=21,  adjust=False).mean().iloc[-1]), 2)
-        result["ema_48"] = round(
-            float(closes.ewm(span=48,  adjust=False).mean().iloc[-1]), 2)
-        result["ema_200"] = round(
-            float(closes.ewm(span=200, adjust=False).mean().iloc[-1]), 2)
+        # ── EMAs (8, 13, 21, 34, 48, 200) ───────────────────────────────────
+        def _ema(span: int) -> float:
+            return round(float(closes.ewm(span=span, adjust=False).mean().iloc[-1]), 2)
 
-        e8, e21, e48 = result["ema_8"], result["ema_21"], result["ema_48"]
-        if e8 >= e21 >= e48:
+        result["ema_8"]   = _ema(8)
+        result["ema_13"]  = _ema(13)
+        result["ema_21"]  = _ema(21)
+        result["ema_34"]  = _ema(34)
+        result["ema_48"]  = _ema(48)
+        result["ema_200"] = _ema(200)
+
+        # Ribbon state: Saty Pivot Ribbon Pro uses 8/21/34
+        e8, e21, e34 = result["ema_8"], result["ema_21"], result["ema_34"]
+        if e8 >= e21 >= e34:
             result["ribbon_state"] = "BULLISH"
-        elif e8 <= e21 <= e48:
+        elif e8 <= e21 <= e34:
             result["ribbon_state"] = "BEARISH"
         else:
             result["ribbon_state"] = "MIXED"
 
-        # ATR-14 Wilder
+        # Conviction: EMA 13 vs EMA 48 crossover (Pine Script conviction arrow)
+        e13, e48 = result["ema_13"], result["ema_48"]
+        result["conviction_state"] = (
+            "BULLISH_CONVICTION" if e13 >= e48 else "BEARISH_CONVICTION"
+        )
+
+        # Candle bias: price vs EMA 48
+        result["candle_bias"] = (
+            "BULLISH_BIAS" if price >= e48 else "BEARISH_BIAS"
+        )
+
+        # ── ATR-14 Wilder ────────────────────────────────────────────────────
         bars = [
             {
                 "high":  float(hist["High"].iloc[i]),
@@ -231,7 +322,7 @@ def get_ticker_analysis(ticker: str) -> dict:
         atr = _wilder_atr(bars, 14)
         result["atr_14"] = atr
 
-        # Volume
+        # ── Volume ────────────────────────────────────────────────────────────
         try:
             vol_today = float(hist["Volume"].iloc[-1])
             avg_vol   = float(hist["Volume"].tail(10).mean())
@@ -241,25 +332,32 @@ def get_ticker_analysis(ticker: str) -> dict:
         except Exception:
             pass
 
+        # ── ATR levels (full Fibonacci + extensions) ─────────────────────────
         if atr:
-            pdc = prev_close
-            result["atr_levels"] = {
-                "trigger_up":       round(pdc + atr * 0.236, 2),
-                "gg_open_up":       round(pdc + atr * 0.382, 2),
-                "gg_complete_up":   round(pdc + atr * 0.618, 2),
-                "full_atr_up":      round(pdc + atr * 1.000, 2),
-                "trigger_down":     round(pdc - atr * 0.236, 2),
-                "gg_open_down":     round(pdc - atr * 0.382, 2),
-                "gg_complete_down": round(pdc - atr * 0.618, 2),
-                "full_atr_down":    round(pdc - atr * 1.000, 2),
-            }
+            result["atr_levels"] = _build_atr_levels(prev_close, atr)
 
-        # Fundamentals
+        # ── Phase Oscillator + compression ───────────────────────────────────
+        if atr:
+            try:
+                e21_val = result["ema_21"]
+                po_val  = round(((price - e21_val) / (3.0 * atr)) * 100, 1)
+                result["po_value"] = po_val
+                result["po_zone"]  = _po_zone(po_val)
+
+                # Bollinger compression: bband_up vs ema_21 + 2×ATR
+                std_21   = float(closes.rolling(21).std(ddof=1).iloc[-1])
+                bband_up = e21_val + 2.0 * std_21
+                threshold_up = e21_val + 2.0 * atr
+                result["compression"] = (bband_up - threshold_up) <= 0
+            except Exception:
+                pass
+
+        # ── Fundamentals ─────────────────────────────────────────────────────
         try:
             info = tk.info or {}
-            result["pe_ratio"] = info.get("trailingPE")
-            result["sector"]   = info.get("sector")
-            result["beta"]     = info.get("beta")
+            result["pe_ratio"]       = info.get("trailingPE")
+            result["sector"]         = info.get("sector")
+            result["beta"]           = info.get("beta")
             result["debt_to_equity"] = info.get("debtToEquity")
 
             mc = info.get("marketCap")
@@ -289,11 +387,11 @@ def get_ticker_analysis(ticker: str) -> dict:
         except Exception:
             pass
 
-        # Earnings date
+        # ── Earnings date ─────────────────────────────────────────────────────
         try:
             earn_df = tk.earnings_dates
             if earn_df is not None and not earn_df.empty:
-                today = datetime.now().date()
+                today  = datetime.now().date()
                 future = sorted([
                     idx.date()
                     for idx in earn_df.index
@@ -301,7 +399,7 @@ def get_ticker_analysis(ticker: str) -> dict:
                 ])
                 if future:
                     next_earn = future[0]
-                    result["earnings_date"] = next_earn.strftime("%b %d %Y")
+                    result["earnings_date"]    = next_earn.strftime("%b %d %Y")
                     result["days_to_earnings"] = (next_earn - today).days
         except Exception:
             pass
@@ -310,10 +408,9 @@ def get_ticker_analysis(ticker: str) -> dict:
         result["error"] = str(e)
         return sanitize(result)
 
-    # US-only: options data via Tradier
+    # ── US-only: options / IV rank via Tradier ────────────────────────────────
     if market == "US" and _TRADIER_TOKEN:
         try:
-            # all US watchlist stocks are optionable
             result["has_options"] = True
             if result.get("price"):
                 result["iv_rank"] = _get_iv_rank(ticker, result["price"])
@@ -321,6 +418,6 @@ def get_ticker_analysis(ticker: str) -> dict:
                 result["iv_rank"] = None
         except Exception:
             result["has_options"] = True
-            result["iv_rank"] = None
+            result["iv_rank"]     = None
 
     return sanitize(result)
