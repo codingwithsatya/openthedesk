@@ -14,6 +14,7 @@ from context import fetch_live_context
 from market_data import get_market_summary
 from tradier import get_0dte_snapshot, format_options_context
 from analyzer import get_ticker_analysis
+import time
 
 load_dotenv()
 
@@ -40,7 +41,7 @@ client = _ls_wrap(_raw_client) if _LS_ENABLED else _raw_client
 
 # ── Model constants ──────────────────────────────────────────────
 SONNET = "claude-sonnet-4-6"
-HAIKU  = "claude-haiku-4-5-20251001"
+HAIKU = "claude-haiku-4-5-20251001"
 
 # Commands that need speed/structure, not deep reasoning
 _HAIKU_COMMANDS = {
@@ -76,7 +77,8 @@ def log_trace(
 print("📡 Loading live trading context...")
 LIVE_CONTEXT = fetch_live_context()
 print("✅ Context loaded")
-print(f"🔍 LangSmith tracing: {'enabled → project=openthedesk' if _LS_ENABLED else 'disabled (LANGSMITH_API_KEY not set)'}")
+print(
+    f"🔍 LangSmith tracing: {'enabled → project=openthedesk' if _LS_ENABLED else 'disabled (LANGSMITH_API_KEY not set)'}")
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
@@ -302,8 +304,9 @@ async def market_data(atr: float = None, trading_mode: str = "day"):
     snapshot = get_0dte_snapshot(atr=atr)
     summary["options"] = snapshot
     summary["options_context"] = format_options_context(snapshot)
-    summary["unusual_flow"] = snapshot.get("unusual_flow", {"calls": [], "puts": []})
-    summary["flow_context"]  = snapshot.get("flow_context", "")
+    summary["unusual_flow"] = snapshot.get(
+        "unusual_flow", {"calls": [], "puts": []})
+    summary["flow_context"] = snapshot.get("flow_context", "")
     # Cache flow context so /chat can inject it without a fresh API call
     FLOW_CONTEXT = summary["flow_context"]
     return summary
@@ -325,7 +328,7 @@ async def premarket(request: ChatRequest):
     # Fetch live options data (includes unusual flow)
     snapshot = get_0dte_snapshot(atr=request.atr)
     options_text = format_options_context(snapshot)
-    fresh_flow   = snapshot.get("flow_context", "")
+    fresh_flow = snapshot.get("flow_context", "")
 
     flow_block = ""
     if fresh_flow:
@@ -364,7 +367,7 @@ async def premarket(request: ChatRequest):
     })
 
     _session_id = session_id
-    _model      = SONNET
+    _model = SONNET
 
     # Stream response — fresh_flow already injected into the user message
     def stream():
@@ -392,7 +395,6 @@ async def premarket(request: ChatRequest):
         history.append({"role": "assistant", "content": full_reply})
 
     return FastAPIStreaming(stream(), media_type="text/plain")
-
 
 
 @app.post("/refresh-context")
@@ -507,6 +509,7 @@ EARNINGS NOTE: flag upcoming earnings and how to manage around it (reduce size, 
 
 Be direct. No hedging. If it's at all-time highs with a stretched valuation, say WAIT. If it's a strong setup, say BUY and give the exact zone."""
 
+
 def _fmt_options_context(oc: dict | None) -> str:
     """Format real options chain dict into a structured string for Haiku."""
     if not oc:
@@ -529,8 +532,10 @@ def _fmt_options_context(oc: dict | None) -> str:
     return "\n".join(lines)
 
 
-_US_WATCHLIST = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL", "AMD", "SPY", "QQQ"]
-_IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
+_US_WATCHLIST = ["AAPL", "NVDA", "TSLA", "MSFT",
+                 "AMZN", "META", "GOOGL", "AMD", "SPY", "QQQ"]
+_IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS",
+                 "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
 
 
 class AnalyzeRequest(BaseModel):
@@ -542,28 +547,45 @@ class AnalyzeRequest(BaseModel):
 async def analyze(request: AnalyzeRequest):
     """Fetch ticker data then run Haiku (short-term) and Sonnet (long-term) in parallel."""
     data = await asyncio.to_thread(get_ticker_analysis, request.ticker, request.trading_mode)
-    ctx  = json.dumps(data, indent=2, default=str)
+    ctx = json.dumps(data, indent=2, default=str)
 
-    options_chain   = data.get("options_chain")
+    options_chain = data.get("options_chain")
     options_context = _fmt_options_context(options_chain)
 
+    import time
+
     def _haiku() -> str:
-        r = client.messages.create(
-            model=HAIKU,
-            max_tokens=1024,
-            system=_SHORT_TERM_SYSTEM,
-            messages=[{"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
-        )
-        return r.content[0].text
+        for attempt in range(3):
+            try:
+                r = client.messages.create(
+                    model=HAIKU,
+                    max_tokens=1024,
+                    system=_SHORT_TERM_SYSTEM,
+                    messages=[
+                        {"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
+                )
+                return r.content[0].text
+            except anthropic.OverloadedError:
+                if attempt < 2:
+                    time.sleep(2 ** attempt)  # 1s, 2s backoff
+                else:
+                    raise
 
     def _sonnet() -> str:
-        r = client.messages.create(
-            model=SONNET,
-            max_tokens=1536,
-            system=_LONG_TERM_SYSTEM,
-            messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
-        )
-        return r.content[0].text
+        for attempt in range(3):
+            try:
+                r = client.messages.create(
+                    model=SONNET,
+                    max_tokens=1536,
+                    system=_LONG_TERM_SYSTEM,
+                    messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
+                )
+                return r.content[0].text
+            except anthropic.OverloadedError:
+                if attempt < 2:
+                    time.sleep(2 ** attempt)
+                else:
+                    raise
 
     short_term, long_term = await asyncio.gather(
         asyncio.to_thread(_haiku),
@@ -605,7 +627,7 @@ async def screener():
         else:
             in_setups.append(row)
 
-    _key = lambda x: abs(x.get("change_pct") or 0)
+    def _key(x): return abs(x.get("change_pct") or 0)
     us_setups.sort(key=_key, reverse=True)
     in_setups.sort(key=_key, reverse=True)
 
