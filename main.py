@@ -1,4 +1,5 @@
 import os
+import uuid
 import base64
 import asyncio
 import json
@@ -6,7 +7,7 @@ import httpx
 import anthropic
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
@@ -19,6 +20,7 @@ from analyzer import get_ticker_analysis
 import time
 
 load_dotenv()
+TV_WEBHOOK_SECRET = os.getenv("TV_WEBHOOK_SECRET", "dev-secret")
 
 app = FastAPI()
 
@@ -99,6 +101,9 @@ print(
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
+
+# TradingView webhook alert buffer — newest first, capped at 50
+TV_ALERTS: list[dict] = []
 
 _ET = ZoneInfo("America/New_York")
 
@@ -681,6 +686,45 @@ async def screener():
         "india_setups": in_setups,
         "generated_at": datetime.utcnow().isoformat() + "Z",
     }
+
+
+# ── TradingView webhook ──────────────────────────────────────────────────────
+
+class TVAlertPayload(BaseModel):
+    ticker: str
+    timeframe: str
+    condition: str
+    price: str
+    atr_level: str
+
+
+@app.post("/webhook/tv")
+async def webhook_tv(
+    payload: TVAlertPayload,
+    x_tv_secret: str = Header(None),
+):
+    if x_tv_secret != TV_WEBHOOK_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    alert = {
+        "id": str(uuid.uuid4()),
+        "ts": datetime.now(timezone.utc).isoformat(),
+        "ticker": payload.ticker,
+        "timeframe": payload.timeframe,
+        "condition": payload.condition,
+        "price": payload.price,
+        "atr_level": payload.atr_level,
+    }
+    TV_ALERTS.insert(0, alert)
+    if len(TV_ALERTS) > 50:
+        TV_ALERTS.pop()
+    return {"status": "received", "id": alert["id"]}
+
+
+@app.get("/alerts")
+def get_alerts(limit: int = 20):
+    limit = min(limit, 50)
+    sliced = TV_ALERTS[:limit]
+    return {"alerts": sliced, "count": len(sliced)}
 
 
 if __name__ == "__main__":
