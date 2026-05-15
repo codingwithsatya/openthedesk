@@ -413,7 +413,16 @@ async def clear_session(session_id: str):
 
 # ── Analyzer endpoints ───────────────────────────────────────────────────────
 
-_SHORT_TERM_SYSTEM = """You are a short-to-medium term options trade analyzer using the Saty Mahajan system.
+_SHORT_TERM_SYSTEM = """You will receive REAL options chain data with actual strikes, expiry dates, and premiums from Tradier.
+CRITICAL RULES:
+- ONLY use the exact strikes and expiry dates provided in the options data. Never invent or approximate a date or strike.
+- If the call contract mid premium is within $1.50–$4.00 (in_budget=True), recommend the naked call.
+- If in_budget=False (premium too high), recommend the debit call spread instead and state the net debit.
+- If IV environment is HIGH or EXTREME, always recommend the spread, never the naked option.
+- State the exact dollar cost to buy 1 contract (mid × 100) in your response.
+- State the exact theta decay per day in dollars (theta × 100).
+
+You are a short-to-medium term options trade analyzer using the Saty Mahajan system.
 
 You will receive ticker data for a specific trading mode (day/multiday/swing/position) with the corresponding ATR timeframe already calculated.
 
@@ -498,6 +507,28 @@ EARNINGS NOTE: flag upcoming earnings and how to manage around it (reduce size, 
 
 Be direct. No hedging. If it's at all-time highs with a stretched valuation, say WAIT. If it's a strong setup, say BUY and give the exact zone."""
 
+def _fmt_options_context(oc: dict | None) -> str:
+    """Format real options chain dict into a structured string for Haiku."""
+    if not oc:
+        return "OPTIONS DATA: no options data available"
+
+    tc = oc.get("target_call") or {}
+    tp = oc.get("target_put") or {}
+    cs = oc.get("call_spread") or {}
+    ps = oc.get("put_spread") or {}
+
+    lines = [
+        f"OPTIONS DATA — Expiry: {oc.get('expiry')} ({oc.get('days_to_expiry')} DTE) | IV Environment: {oc.get('iv_environment')}",
+        "",
+        f"TARGET CALL  Strike: {tc.get('strike')}  Mid: ${tc.get('mid')}  Delta: {tc.get('delta')}  Theta: {tc.get('theta')}  IV: {tc.get('implied_volatility')}  in_budget: {tc.get('in_budget')}",
+        f"TARGET PUT   Strike: {tp.get('strike')}  Mid: ${tp.get('mid')}  Delta: {tp.get('delta')}  Theta: {tp.get('theta')}  IV: {tp.get('implied_volatility')}  in_budget: {tp.get('in_budget')}",
+        "",
+        f"CALL SPREAD  Long: {cs.get('long_strike')} @ ${cs.get('long_mid')}  /  Short: {cs.get('short_strike')} @ ${cs.get('short_mid')}  Net Debit: ${cs.get('spread_cost')}  Max Profit: ${cs.get('spread_max_profit')}",
+        f"PUT SPREAD   Long: {ps.get('long_strike')} @ ${ps.get('long_mid')}  /  Short: {ps.get('short_strike')} @ ${ps.get('short_mid')}  Net Debit: ${ps.get('spread_cost')}  Max Profit: ${ps.get('spread_max_profit')}",
+    ]
+    return "\n".join(lines)
+
+
 _US_WATCHLIST = ["AAPL", "NVDA", "TSLA", "MSFT", "AMZN", "META", "GOOGL", "AMD", "SPY", "QQQ"]
 _IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS", "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
 
@@ -513,12 +544,15 @@ async def analyze(request: AnalyzeRequest):
     data = await asyncio.to_thread(get_ticker_analysis, request.ticker, request.trading_mode)
     ctx  = json.dumps(data, indent=2, default=str)
 
+    options_chain   = data.get("options_chain")
+    options_context = _fmt_options_context(options_chain)
+
     def _haiku() -> str:
         r = client.messages.create(
             model=HAIKU,
             max_tokens=1024,
             system=_SHORT_TERM_SYSTEM,
-            messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
+            messages=[{"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
         )
         return r.content[0].text
 

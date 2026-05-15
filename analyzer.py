@@ -3,7 +3,7 @@ Ticker analysis — price, EMAs, ATR-14 Wilder, fundamentals, IV rank.
 Used by /analyze and /screener endpoints.
 """
 import os
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional
 import math
 
@@ -122,6 +122,151 @@ def _get_iv_rank(ticker: str, spot: float) -> Optional[float]:
 
         rank = (float(current_iv) - iv_lo) / (iv_hi - iv_lo) * 100
         return round(min(max(rank, 0), 100), 1)
+    except Exception:
+        return None
+
+
+def get_options_chain_for_analysis(
+    ticker: str,
+    trading_mode: str,
+    spot_price: float,
+    atr_14: float,
+) -> Optional[dict]:
+    """
+    Fetch real options chain from Tradier.
+    Selects expiry based on trading_mode, returns target call/put + debit spreads.
+    Returns None on any failure.
+    """
+    try:
+        # Step 1 — expiry dates
+        exp_data = _tradier_get(
+            "/options/expirations",
+            {"symbol": ticker, "includeAllRoots": "true"},
+        )
+        raw_exps = exp_data.get("expirations", {}).get("date", [])
+        if not raw_exps:
+            return None
+        if isinstance(raw_exps, str):
+            raw_exps = [raw_exps]
+
+        # Step 2 — select target expiry
+        today    = date.today()
+        min_days = {"day": 7, "multiday": 21, "swing": 35, "position": 60}.get(trading_mode, 7)
+
+        future_exps: list[date] = []
+        for d in raw_exps:
+            try:
+                future_exps.append(datetime.strptime(d, "%Y-%m-%d").date())
+            except Exception:
+                continue
+        future_exps = sorted(e for e in future_exps if e > today)
+        if not future_exps:
+            return None
+
+        target_exp = next(
+            (e for e in future_exps if (e - today).days >= min_days),
+            future_exps[-1],
+        )
+        expiry_str     = target_exp.strftime("%Y-%m-%d")
+        days_to_expiry = (target_exp - today).days
+
+        # Step 3 — fetch chain
+        chain_data = _tradier_get(
+            "/markets/options/chains",
+            {"symbol": ticker, "expiration": expiry_str, "greeks": "true"},
+        )
+        options = chain_data.get("options", {}).get("option", []) or []
+        if not options:
+            return None
+
+        calls = [o for o in options if o.get("option_type") == "call"]
+        puts  = [o for o in options if o.get("option_type") == "put"]
+        if not calls or not puts:
+            return None
+
+        # Step 4 — contract extractor
+        def _extract(contract: dict) -> dict:
+            g   = contract.get("greeks") or {}
+            bid = float(contract.get("bid") or 0)
+            ask = float(contract.get("ask") or 0)
+            mid = round((bid + ask) / 2, 2)
+            iv  = g.get("smv_vol") or contract.get("implied_volatility")
+            dlt = g.get("delta")
+            tht = g.get("theta")
+            return {
+                "strike":             float(contract.get("strike") or 0),
+                "expiration":         contract.get("expiration_date") or expiry_str,
+                "days_to_expiry":     days_to_expiry,
+                "bid":                bid,
+                "ask":                ask,
+                "mid":                mid,
+                "volume":             int(contract.get("volume") or 0),
+                "open_interest":      int(contract.get("open_interest") or 0),
+                "implied_volatility": round(float(iv), 4) if iv is not None else None,
+                "delta":              round(float(dlt), 4) if dlt is not None else None,
+                "theta":              round(float(tht), 4) if tht is not None else None,
+                "in_budget":          1.50 <= mid <= 4.00,
+            }
+
+        # Target strikes
+        t_call = spot_price + 0.5 * atr_14
+        t_put  = spot_price - 0.5 * atr_14
+        s_call = spot_price + 2.0 * atr_14   # short leg of call spread
+        s_put  = spot_price - 2.0 * atr_14   # short leg of put spread
+
+        best_call  = min(calls, key=lambda o: abs((o.get("strike") or 0) - t_call))
+        best_put   = min(puts,  key=lambda o: abs((o.get("strike") or 0) - t_put))
+        short_call = min(calls, key=lambda o: abs((o.get("strike") or 0) - s_call))
+        short_put  = min(puts,  key=lambda o: abs((o.get("strike") or 0) - s_put))
+
+        tc = _extract(best_call)
+        tp = _extract(best_put)
+        sc = _extract(short_call)
+        sp = _extract(short_put)
+
+        # Step 5 — spreads
+        cs_cost   = round(tc["mid"] - sc["mid"], 2)
+        cs_profit = round((sc["strike"] - tc["strike"]) - cs_cost, 2)
+        ps_cost   = round(tp["mid"] - sp["mid"], 2)
+        ps_profit = round((tp["strike"] - sp["strike"]) - ps_cost, 2)
+
+        # IV environment from ATM call
+        atm_call = min(calls, key=lambda o: abs((o.get("strike") or 0) - spot_price))
+        atm_iv   = (atm_call.get("greeks") or {}).get("smv_vol") or atm_call.get("implied_volatility") or 0
+        atm_iv   = float(atm_iv)
+        iv_env   = (
+            "EXTREME"  if atm_iv >= 0.70 else
+            "HIGH"     if atm_iv >= 0.50 else
+            "MODERATE" if atm_iv >= 0.30 else
+            "LOW"
+        )
+
+        return {
+            "expiry":         expiry_str,
+            "days_to_expiry": days_to_expiry,
+            "target_call":    tc,
+            "target_put":     tp,
+            "call_spread": {
+                "long_strike":       tc["strike"],
+                "short_strike":      sc["strike"],
+                "long_mid":          tc["mid"],
+                "short_mid":         sc["mid"],
+                "spread_cost":       cs_cost,
+                "spread_max_profit": cs_profit,
+                "expiration":        expiry_str,
+            },
+            "put_spread": {
+                "long_strike":       tp["strike"],
+                "short_strike":      sp["strike"],
+                "long_mid":          tp["mid"],
+                "short_mid":         sp["mid"],
+                "spread_cost":       ps_cost,
+                "spread_max_profit": ps_profit,
+                "expiration":        expiry_str,
+            },
+            "iv_environment": iv_env,
+        }
+
     except Exception:
         return None
 
@@ -256,6 +401,7 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         "short_interest_pct":         None,
         "earnings_date":              None,
         "days_to_earnings":           None,
+        "options_chain":              None,
     }
 
     if not _YF:
@@ -419,5 +565,12 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         except Exception:
             result["has_options"] = True
             result["iv_rank"]     = None
+
+        price_val = result.get("price")
+        atr_val   = result.get("atr_14")
+        if price_val and atr_val:
+            result["options_chain"] = get_options_chain_for_analysis(
+                ticker, trading_mode, price_val, atr_val
+            )
 
     return sanitize(result)
