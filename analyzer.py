@@ -67,7 +67,8 @@ def _tradier_get(path: str, params: dict) -> dict:
 
 
 def _has_options(ticker: str) -> bool:
-    data = _tradier_get("/options/expirations", {"symbol": ticker})
+    data = _tradier_get("/markets/options/expirations",
+                        {"symbol": ticker, "includeAllRoots": "true"})
     exps = data.get("expirations", {}).get("date", [])
     return bool(exps)
 
@@ -80,7 +81,7 @@ def _get_iv_rank(ticker: str, spot: float) -> Optional[float]:
     """
     try:
         exp_data = _tradier_get(
-            "/options/expirations",
+            "/markets/options/expirations",
             {"symbol": ticker, "includeAllRoots": "true"},
         )
         exps = exp_data.get("expirations", {}).get("date", [])
@@ -140,7 +141,7 @@ def get_options_chain_for_analysis(
     try:
         # Step 1 — expiry dates
         exp_data = _tradier_get(
-            "/options/expirations",
+            "/markets/options/expirations",
             {"symbol": ticker, "includeAllRoots": "true"},
         )
         raw_exps = exp_data.get("expirations", {}).get("date", [])
@@ -150,8 +151,9 @@ def get_options_chain_for_analysis(
             raw_exps = [raw_exps]
 
         # Step 2 — select target expiry
-        today    = date.today()
-        min_days = {"day": 7, "multiday": 21, "swing": 35, "position": 60}.get(trading_mode, 7)
+        today = date.today()
+        min_days = {"day": 7, "multiday": 21, "swing": 35,
+                    "position": 60}.get(trading_mode, 7)
 
         future_exps: list[date] = []
         for d in raw_exps:
@@ -167,7 +169,7 @@ def get_options_chain_for_analysis(
             (e for e in future_exps if (e - today).days >= min_days),
             future_exps[-1],
         )
-        expiry_str     = target_exp.strftime("%Y-%m-%d")
+        expiry_str = target_exp.strftime("%Y-%m-%d")
         days_to_expiry = (target_exp - today).days
 
         # Step 3 — fetch chain
@@ -180,17 +182,17 @@ def get_options_chain_for_analysis(
             return None
 
         calls = [o for o in options if o.get("option_type") == "call"]
-        puts  = [o for o in options if o.get("option_type") == "put"]
+        puts = [o for o in options if o.get("option_type") == "put"]
         if not calls or not puts:
             return None
 
         # Step 4 — contract extractor
         def _extract(contract: dict) -> dict:
-            g   = contract.get("greeks") or {}
+            g = contract.get("greeks") or {}
             bid = float(contract.get("bid") or 0)
             ask = float(contract.get("ask") or 0)
             mid = round((bid + ask) / 2, 2)
-            iv  = g.get("smv_vol") or contract.get("implied_volatility")
+            iv = g.get("smv_vol") or contract.get("implied_volatility")
             dlt = g.get("delta")
             tht = g.get("theta")
             return {
@@ -210,14 +212,18 @@ def get_options_chain_for_analysis(
 
         # Target strikes
         t_call = spot_price + 0.5 * atr_14
-        t_put  = spot_price - 0.5 * atr_14
+        t_put = spot_price - 0.5 * atr_14
         s_call = spot_price + 2.0 * atr_14   # short leg of call spread
-        s_put  = spot_price - 2.0 * atr_14   # short leg of put spread
+        s_put = spot_price - 2.0 * atr_14   # short leg of put spread
 
-        best_call  = min(calls, key=lambda o: abs((o.get("strike") or 0) - t_call))
-        best_put   = min(puts,  key=lambda o: abs((o.get("strike") or 0) - t_put))
-        short_call = min(calls, key=lambda o: abs((o.get("strike") or 0) - s_call))
-        short_put  = min(puts,  key=lambda o: abs((o.get("strike") or 0) - s_put))
+        best_call = min(calls, key=lambda o: abs(
+            (o.get("strike") or 0) - t_call))
+        best_put = min(puts,  key=lambda o: abs(
+            (o.get("strike") or 0) - t_put))
+        short_call = min(calls, key=lambda o: abs(
+            (o.get("strike") or 0) - s_call))
+        short_put = min(puts,  key=lambda o: abs(
+            (o.get("strike") or 0) - s_put))
 
         tc = _extract(best_call)
         tp = _extract(best_put)
@@ -225,18 +231,20 @@ def get_options_chain_for_analysis(
         sp = _extract(short_put)
 
         # Step 5 — spreads
-        cs_cost   = round(tc["mid"] - sc["mid"], 2)
+        cs_cost = round(tc["mid"] - sc["mid"], 2)
         cs_profit = round((sc["strike"] - tc["strike"]) - cs_cost, 2)
-        ps_cost   = round(tp["mid"] - sp["mid"], 2)
+        ps_cost = round(tp["mid"] - sp["mid"], 2)
         ps_profit = round((tp["strike"] - sp["strike"]) - ps_cost, 2)
 
         # IV environment from ATM call
-        atm_call = min(calls, key=lambda o: abs((o.get("strike") or 0) - spot_price))
-        atm_iv   = (atm_call.get("greeks") or {}).get("smv_vol") or atm_call.get("implied_volatility") or 0
-        atm_iv   = float(atm_iv)
-        iv_env   = (
-            "EXTREME"  if atm_iv >= 0.70 else
-            "HIGH"     if atm_iv >= 0.50 else
+        atm_call = min(calls, key=lambda o: abs(
+            (o.get("strike") or 0) - spot_price))
+        atm_iv = (atm_call.get("greeks") or {}).get(
+            "smv_vol") or atm_call.get("implied_volatility") or 0
+        atm_iv = float(atm_iv)
+        iv_env = (
+            "EXTREME" if atm_iv >= 0.70 else
+            "HIGH" if atm_iv >= 0.50 else
             "MODERATE" if atm_iv >= 0.30 else
             "LOW"
         )
@@ -351,9 +359,9 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
     trading_mode: "day" | "multiday" | "swing" | "position"
     Returns a flat dict — all fields present, failures set to None.
     """
-    ticker   = ticker.strip().upper()
+    ticker = ticker.strip().upper()
     is_india = ticker.endswith(".NS")
-    market   = "IN" if is_india else "US"
+    market = "IN" if is_india else "US"
 
     hist_kwargs = _HISTORY_PARAMS.get(trading_mode, _HISTORY_PARAMS["day"])
 
@@ -372,9 +380,12 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         "ema_48":                     None,   # bias + conviction EMA
         "ema_200":                    None,
         # Ribbon / bias / conviction
-        "ribbon_state":               None,   # BULLISH / BEARISH / MIXED (8/21/34)
-        "conviction_state":           None,   # BULLISH_CONVICTION / BEARISH_CONVICTION (13 vs 48)
-        "candle_bias":                None,   # BULLISH_BIAS / BEARISH_BIAS (price vs 48)
+        # BULLISH / BEARISH / MIXED (8/21/34)
+        "ribbon_state":               None,
+        # BULLISH_CONVICTION / BEARISH_CONVICTION (13 vs 48)
+        "conviction_state":           None,
+        # BULLISH_BIAS / BEARISH_BIAS (price vs 48)
+        "candle_bias":                None,
         # ATR
         "atr_14":                     None,
         "atr_levels":                 None,
@@ -409,31 +420,32 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         return sanitize(result)
 
     try:
-        tk   = yf.Ticker(ticker)
+        tk = yf.Ticker(ticker)
         hist = tk.history(**hist_kwargs)
 
         if hist.empty:
             result["error"] = "no price data"
             return sanitize(result)
 
-        closes     = hist["Close"]
-        price      = float(closes.iloc[-1])
+        closes = hist["Close"]
+        price = float(closes.iloc[-1])
         prev_close = float(closes.iloc[-2]) if len(closes) >= 2 else price
 
-        result["price"]      = round(price, 2)
+        result["price"] = round(price, 2)
         result["prev_close"] = round(prev_close, 2)
         if prev_close:
-            result["change_pct"] = round((price - prev_close) / prev_close * 100, 2)
+            result["change_pct"] = round(
+                (price - prev_close) / prev_close * 100, 2)
 
         # ── EMAs (8, 13, 21, 34, 48, 200) ───────────────────────────────────
         def _ema(span: int) -> float:
             return round(float(closes.ewm(span=span, adjust=False).mean().iloc[-1]), 2)
 
-        result["ema_8"]   = _ema(8)
-        result["ema_13"]  = _ema(13)
-        result["ema_21"]  = _ema(21)
-        result["ema_34"]  = _ema(34)
-        result["ema_48"]  = _ema(48)
+        result["ema_8"] = _ema(8)
+        result["ema_13"] = _ema(13)
+        result["ema_21"] = _ema(21)
+        result["ema_34"] = _ema(34)
+        result["ema_48"] = _ema(48)
         result["ema_200"] = _ema(200)
 
         # Ribbon state: Saty Pivot Ribbon Pro uses 8/21/34
@@ -471,7 +483,7 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         # ── Volume ────────────────────────────────────────────────────────────
         try:
             vol_today = float(hist["Volume"].iloc[-1])
-            avg_vol   = float(hist["Volume"].tail(10).mean())
+            avg_vol = float(hist["Volume"].tail(10).mean())
             result["avg_volume_10d"] = round(avg_vol)
             if avg_vol > 0:
                 result["relative_volume"] = round(vol_today / avg_vol, 2)
@@ -486,12 +498,12 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         if atr:
             try:
                 e21_val = result["ema_21"]
-                po_val  = round(((price - e21_val) / (3.0 * atr)) * 100, 1)
+                po_val = round(((price - e21_val) / (3.0 * atr)) * 100, 1)
                 result["po_value"] = po_val
-                result["po_zone"]  = _po_zone(po_val)
+                result["po_zone"] = _po_zone(po_val)
 
                 # Bollinger compression: bband_up vs ema_21 + 2×ATR
-                std_21   = float(closes.rolling(21).std(ddof=1).iloc[-1])
+                std_21 = float(closes.rolling(21).std(ddof=1).iloc[-1])
                 bband_up = e21_val + 2.0 * std_21
                 threshold_up = e21_val + 2.0 * atr
                 result["compression"] = (bband_up - threshold_up) <= 0
@@ -501,9 +513,9 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         # ── Fundamentals ─────────────────────────────────────────────────────
         try:
             info = tk.info or {}
-            result["pe_ratio"]       = info.get("trailingPE")
-            result["sector"]         = info.get("sector")
-            result["beta"]           = info.get("beta")
+            result["pe_ratio"] = info.get("trailingPE")
+            result["sector"] = info.get("sector")
+            result["beta"] = info.get("beta")
             result["debt_to_equity"] = info.get("debtToEquity")
 
             mc = info.get("marketCap")
@@ -512,7 +524,8 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
             eps = info.get("trailingEps")
             fwd = info.get("forwardEps")
             if eps and fwd and eps != 0:
-                result["eps_growth_yoy"] = round((fwd - eps) / abs(eps) * 100, 1)
+                result["eps_growth_yoy"] = round(
+                    (fwd - eps) / abs(eps) * 100, 1)
 
             rg = info.get("revenueGrowth")
             if rg is not None:
@@ -525,10 +538,10 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
             w52h = info.get("fiftyTwoWeekHigh")
             w52l = info.get("fiftyTwoWeekLow")
             result["week52_high"] = w52h
-            result["week52_low"]  = w52l
+            result["week52_low"] = w52l
             if w52h and w52h > 0:
                 pct = round((price - w52h) / w52h * 100, 1)
-                result["price_vs_52w_high_pct"]      = pct
+                result["price_vs_52w_high_pct"] = pct
                 result["distance_from_52w_high_pct"] = round(abs(pct), 1)
         except Exception:
             pass
@@ -537,7 +550,7 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
         try:
             earn_df = tk.earnings_dates
             if earn_df is not None and not earn_df.empty:
-                today  = datetime.now().date()
+                today = datetime.now().date()
                 future = sorted([
                     idx.date()
                     for idx in earn_df.index
@@ -545,7 +558,7 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
                 ])
                 if future:
                     next_earn = future[0]
-                    result["earnings_date"]    = next_earn.strftime("%b %d %Y")
+                    result["earnings_date"] = next_earn.strftime("%b %d %Y")
                     result["days_to_earnings"] = (next_earn - today).days
         except Exception:
             pass
@@ -558,19 +571,13 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
     if market == "US" and _TRADIER_TOKEN:
         try:
             result["has_options"] = True
-            if result.get("price"):
-                result["iv_rank"] = _get_iv_rank(ticker, result["price"])
-            else:
-                result["iv_rank"] = None
-        except Exception:
-            result["has_options"] = True
-            result["iv_rank"]     = None
-
-        price_val = result.get("price")
-        atr_val   = result.get("atr_14")
-        if price_val and atr_val:
             result["options_chain"] = get_options_chain_for_analysis(
-                ticker, trading_mode, price_val, atr_val
+                ticker, trading_mode, result["price"], result["atr_14"]
             )
+            result["iv_rank"] = _get_iv_rank(ticker, result["price"])
+        except Exception as e:
+            print(f"[analyzer] US options error: {e}")
+            result["has_options"] = True
+            result["iv_rank"] = None
 
     return sanitize(result)

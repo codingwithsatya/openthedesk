@@ -702,7 +702,7 @@
         <h1>AI engineer learning notes</h1>
         <p>Updated after each session — your running reference</p>
       </div>
-      <span class="badge">Month 4 — Week 14 Starting</span>
+      <span class="badge">Month 4 — Week 15 Starting</span>
     </div>
 
     <div class="view-tabs">
@@ -779,7 +779,8 @@
         <button class="tab" onclick="showWeek('w11', this)">Week 11 ✓</button>
         <button class="tab" onclick="showWeek('w12', this)">Week 12 ✓</button>
         <button class="tab" onclick="showWeek('w13', this)">Week 13 ✓</button>
-        <button class="tab" onclick="showWeek('w14', this)">Week 14 ◑</button>
+        <button class="tab" onclick="showWeek('w14', this)">Week 14 ✓</button>
+        <button class="tab" onclick="showWeek('w15', this)">Week 15 →</button>
       </div>
 
       <!-- WEEK 1 -->
@@ -2843,7 +2844,7 @@
       </div>
       <div class="milestone-row">
         <div class="check done">✓</div>
-        <div class="milestone-label">Folder restructure — legacy/, ui/</div><span
+        <div class="milestone-label">Folder restructure — legacy/, opendesk-ui → ui/</div><span
           class="milestone-tag tag-git">git</span>
       </div>
       <div class="milestone-row">
@@ -2859,9 +2860,9 @@
     <div class="section">
       <div class="section-title">Progress</div>
       <div class="progress-bar-wrap">
-        <div class="progress-bar" style="width:25%"></div>
+        <div class="progress-bar" style="width:80%"></div>
       </div>
-      <div class="progress-label">Week 14 started — Clerk auth shipped, cost optimization next</div>
+      <div class="progress-label">Week 14 in progress — UI redesign shipped, mobile fixed, cost optimization live</div>
     </div>
     <div class="divider"></div>
     <div class="section">
@@ -2871,28 +2872,94 @@
           <div class="concept-dot done"></div>
           <div>
             <div class="concept-text">Clerk Authentication</div>
-            <div class="concept-sub">ClerkProvider wraps Next.js app in layout.tsx. proxy.ts (Next.js 16 convention)
-              replaces middleware.ts. All routes protected — unauthenticated requests get 307 redirect to Clerk hosted
-              sign-in. UserButton in header shows avatar + sign out. Env vars: NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY +
-              CLERK_SECRET_KEY in both ui/.env.local and Vercel dashboard.</div>
+            <div class="concept-sub">ClerkProvider wraps Next.js app in layout.tsx. proxy.ts (Next.js 16 convention).
+              All routes protected — 307 redirect to Clerk hosted sign-in. UserButton in header. Env vars in
+              ui/.env.local + Vercel dashboard.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Model routing — Haiku vs Sonnet</div>
+            <div class="concept-sub">route_model(message) function in main.py. Haiku: PTR-FAST, PTR-FULL, GRADE, PATTERN
+              CHECK, MARKET REGIME, CAPITAL PROTECTION, WIRE OUT, TRADE REVIEW, EOD. Sonnet: PREMARKET, TRADE IDEA, IN
+              TRADE, BLUNT FEEDBACK, WEEKLY REVIEW, Open the Desk. Model shown below each response in 9px gray. ~10x
+              cost saving on fast commands.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Component architecture</div>
+            <div class="concept-sub">page.tsx split into: Header.tsx, LevelsPanel.tsx, ChatPanel.tsx,
+              CommandPalette.tsx, QuickActions.tsx, MobileSheet.tsx. Shared types in types.ts. All CSS in globals.css.
+              page.tsx is now a thin shell ~160 lines.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Command palette</div>
+            <div class="concept-sub">Press / or click "/ Commands" pill. Floating panel above input. Type to filter
+              commands. Shows haiku/sonnet badge per command. Two groups: Quick·haiku and Deep·sonnet. Escape to close.
+              Replaces 220px shortcuts sidebar entirely.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">100dvh — iOS Safari fix</div>
+            <div class="concept-sub">100vh on iOS Safari = layout viewport including browser chrome → layout taller than
+              visible area → white gap. 100dvh = dynamic viewport height, tracks visual viewport, shrinks/grows with
+              Safari chrome. Also needed: min-height: 0 on flex children to prevent content bloat,
+              env(safe-area-inset-bottom, 16px) for input area above iPhone home bar.</div>
           </div>
         </div>
         <div class="concept">
           <div class="concept-dot active"></div>
           <div>
-            <div class="concept-text">Cost Optimization — model routing</div>
-            <div class="concept-sub">Fast commands (PTR-FAST, GRADE, PTR-FULL) → claude-haiku-4-5 (~10x cheaper). Deep
-              analysis (PREMARKET, TRADE IDEA, BLUNT FEEDBACK) → claude-sonnet-4-6. Token counting before send. Prompt
-              caching for system prompt (already implemented with cache_control ephemeral).</div>
+            <div class="concept-text">Next — Unusual Whales + LangSmith</div>
+            <div class="concept-sub">Unusual Whales manual input panel (paste flow data → injected into Claude context).
+              LangSmith observability (track token usage, latency, cost per command).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Key iOS Safari lessons</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Always use 100dvh not 100vh</div>
+            <div class="code-block">/* Wrong — breaks on iPhone Safari */
+              height: 100vh;
+              calc(100vh - 64px)
+
+              /* Correct — dynamic viewport height */
+              height: 100dvh;
+              calc(100dvh - 64px)</div>
           </div>
         </div>
         <div class="concept">
-          <div class="concept-dot active"></div>
+          <div class="concept-dot done"></div>
           <div>
-            <div class="concept-text">Unusual Whales manual input</div>
-            <div class="concept-sub">v1: paste flow data as text into UI panel → injected into Claude context for
-              PTR-FULL and TRADE IDEA. v2 (later): Unusual Whales API integration. Flow data = unusual options activity,
-              dark pool prints, net flow direction.</div>
+            <div class="concept-text">Flex children need min-height: 0</div>
+            <div class="code-block">/* Flex column children default to min-height: auto */
+              /* This causes them to bloat beyond their container */
+              .chat { display: flex; flex-direction: column; min-height: 0; }
+              .messages { flex: 1; min-height: 0; overflow-y: auto; }</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Safe area for iPhone home bar</div>
+            <div class="code-block">/* Prevents input hiding behind iPhone home indicator */
+              .input-area {
+              padding-bottom: env(safe-area-inset-bottom, 16px);
+              }</div>
           </div>
         </div>
       </div>
@@ -2902,40 +2969,160 @@
       <div class="section-title">Session milestones</div>
       <div class="milestone-row">
         <div class="check done">✓</div>
-        <div class="milestone-label">Clerk auth — OpenTheDesk locked to Satya only, Google sign-in</div><span
+        <div class="milestone-label">Clerk auth — OpenTheDesk locked to Satya only, Google sign-in live</div><span
           class="milestone-tag tag-deploy">deploy</span>
       </div>
       <div class="milestone-row">
         <div class="check done">✓</div>
-        <div class="milestone-label">ATR-14 Wilder verified live — all 11 levels match TradingView exactly</div><span
-          class="milestone-tag tag-theory">verified</span>
+        <div class="milestone-label">Model routing — Haiku/Sonnet by command, shown in UI, $0.018/PTR-FAST</div><span
+          class="milestone-tag tag-code">code</span>
       </div>
       <div class="milestone-row">
         <div class="check done">✓</div>
-        <div class="milestone-label">None bid/ask/greeks bug fixed — options chain stable after hours</div><span
+        <div class="milestone-label">Full UI redesign — command palette, 7 components, globals.css</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Mobile Safari fixed — 100dvh, safe area, iPhone 16 Pro Max verified</div><span
           class="milestone-tag tag-debug">debug</span>
       </div>
       <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Unusual flow panel — Tradier vol/OI auto-detected, injected into Claude</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">LangSmith live — every Claude call traced, costs visible in dashboard</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK 15 -->
+  <div id="w15" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:0%"></div>
+      </div>
+      <div class="progress-label">Week 15 starting — OpenTheDesk Analyzer (separate screen)</div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">What we're building</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Ticker Analyzer — separate screen (/analyzer route)</div>
+            <div class="concept-sub">Completely separate from the SPX 0DTE desk. New tab in header. Own layout — no
+              levels panel, no flow panel. Full width search + results. Two modes: short-term options play, long-term
+              hold analysis.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Objective 1 — Short-term options (2–5 days)</div>
+            <div class="concept-sub">Which strike to buy (0.5 ATR OTM, Saty rule). Call or put based on ribbon
+              direction. Entry at ATR level, target next level. IV rank — cheap or expensive. Earnings date warning (IV
+              crush risk). Works for any US optionable stock.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Objective 2 — Long-term hold (weeks to months)</div>
+            <div class="concept-sub">Buy/sell/hold verdict. PE vs sector average. Earnings growth trend (YoY). Price vs
+              200 EMA. Ribbon state (8/21/48). ATR-based price target. Risk invalidation level. Works for US + India
+              stocks.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">Objective 3 — Earnings play scanner</div>
+            <div class="concept-sub">Stocks reporting earnings in next 5–10 days. IV rank check — high IV = sell
+              premium, low IV = buy. Historical move vs current options pricing. Verdict: straddle / strangle /
+              directional / avoid.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot active"></div>
+          <div>
+            <div class="concept-text">US + India support</div>
+            <div class="concept-sub">US stocks: Tradier (options data) + yfinance (price, fundamentals). India stocks:
+              yfinance only with .NS suffix (RELIANCE.NS, INFY.NS). Auto-detect by suffix — India mode hides options
+              section, shows fundamentals only.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Tech stack</div>
+      <div class="cards">
+        <div class="card">
+          <h3>analyzer.py</h3>
+          <p>New backend file. Fetches price, EMA (8/21/48/200), ATR-14 Wilder, PE, EPS growth, IV rank, short interest,
+            earnings date via yfinance + Tradier.</p>
+        </div>
+        <div class="card">
+          <h3>/analyze endpoint</h3>
+          <p>POST with ticker → returns full data package. Claude analyzes and returns structured verdict: short-term +
+            long-term + options recommendation.</p>
+        </div>
+        <div class="card">
+          <h3>/screener endpoint</h3>
+          <p>Daily pre-screened list. Bullish ribbon + ATR level setup + IV rank filter. Returns top 10 US + top 5 India
+            setups.</p>
+        </div>
+        <div class="card">
+          <h3>/analyzer route</h3>
+          <p>New Next.js page. TickerSearch, AnalysisCard, Screener components. Separate system prompt for Claude —
+            focused on individual stock analysis, not SPX 0DTE.</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Session milestones</div>
+      <div class="milestone-row">
         <div class="check pending">○</div>
-        <div class="milestone-label">Cost optimization — Haiku routing for fast commands</div><span
+        <div class="milestone-label">analyzer.py — yfinance + Tradier data fetch for any ticker</div><span
           class="milestone-tag tag-code">next</span>
       </div>
       <div class="milestone-row">
         <div class="check pending">○</div>
-        <div class="milestone-label">Unusual Whales manual input panel</div><span
+        <div class="milestone-label">/analyze endpoint — Claude verdict with structured output</div><span
           class="milestone-tag tag-code">next</span>
       </div>
       <div class="milestone-row">
         <div class="check pending">○</div>
-        <div class="milestone-label">Fix stale folder name references in codebase</div><span
+        <div class="milestone-label">/analyzer page — separate Next.js route with search UI</div><span
+          class="milestone-tag tag-code">next</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">US + India detection — auto mode switch on .NS suffix</div><span
+          class="milestone-tag tag-code">next</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Screener — daily pre-screened setups list</div><span
+          class="milestone-tag tag-code">next</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check pending">○</div>
+        <div class="milestone-label">Earnings scanner — IV rank + move size analysis</div><span
           class="milestone-tag tag-code">next</span>
       </div>
     </div>
   </div>
 
   </div>
-
-  <!-- 6-MONTH ROADMAP -->
   <div id="roadmap" class="view-content">
     <div class="salary-row">
       <div class="sal-card">
@@ -3072,16 +3259,16 @@
           <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
           </div>
         </div>
-        <div class="week-card">
-          <div class="wk-label">Week 14</div>
-          <div class="wk-title">Billing with Stripe + usage limits</div>
-          <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-purple">Stripe</span>
+        <div class="week-card done">
+          <div class="wk-label">Week 14 ✓</div>
+          <div class="wk-title">Auth + model routing + UI redesign + flow + LangSmith</div>
+          <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
           </div>
         </div>
-        <div class="week-card">
+        <div class="week-card current">
           <div class="wk-label">Week 15–16</div>
-          <div class="wk-title">Observability + cost optimization + swing screener</div>
-          <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-teal">live</span>
+          <div class="wk-title">Swing screener + full AI SaaS + Stripe billing</div>
+          <div class="wk-tags"><span class="rtag rtag-amber">next</span><span class="rtag rtag-purple">Stripe</span>
           </div>
         </div>
       </div>
@@ -3274,8 +3461,8 @@
       </div>
       <div class="ms-row">
         <div class="ms-dot done"></div>
-        <div class="ms-text">Clerk auth — OpenTheDesk locked, Google sign-in live</div>
-        <div class="ms-when">Week 14 ◑</div>
+        <div class="ms-text">Auth + model routing + UI redesign + flow + LangSmith live</div>
+        <div class="ms-when">Week 14 ✓</div>
       </div>
       <div class="ms-row">
         <div class="ms-dot future"></div>
