@@ -23,7 +23,7 @@ export default function Header({
   activePage = "desk",
 }: HeaderProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { alerts, alertCount, markAllRead } = useAlerts();
+  const { alerts, alertCount, markAllRead, markRead } = useAlerts();
 
   const spxPrice = marketData
     ? (marketData.spx.last ?? marketData.spx.close ?? 0).toFixed(2)
@@ -104,7 +104,7 @@ export default function Header({
           )}
           <button
             className="alert-bell"
-            onClick={() => setDrawerOpen((o) => !o)}
+            onClick={() => { if (!drawerOpen) markAllRead(); setDrawerOpen((o) => !o); }}
             aria-label="TradingView alerts"
           >
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -130,6 +130,7 @@ export default function Header({
             alerts={alerts}
             alertCount={alertCount}
             markAllRead={markAllRead}
+            markRead={markRead}
             onClose={() => setDrawerOpen(false)}
           />
         </>

@@ -33,9 +33,9 @@ export function useAlerts() {
     if (stored) setLastSeenId(stored);
   }, []);
 
+  // Initial load — populate list immediately before SSE stream starts
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL ?? "";
-
     const run = async () => {
       try {
         const res = await fetch(`${base}/alerts?limit=50`);
@@ -52,10 +52,26 @@ export function useAlerts() {
         // swallow network errors silently
       }
     };
-
     run();
-    const id = setInterval(run, 30_000);
-    return () => clearInterval(id);
+  }, []);
+
+  // SSE stream — push new alerts in real time
+  useEffect(() => {
+    const base = process.env.NEXT_PUBLIC_API_URL ?? "";
+    const es = new EventSource(`${base}/alerts/stream`);
+    es.onmessage = (e) => {
+      if (e.data === "ping") return;
+      try {
+        const alert: TVAlert = JSON.parse(e.data);
+        setAlerts((prev) => {
+          if (prev.some((a) => a.id === alert.id)) return prev;
+          return [alert, ...prev];
+        });
+      } catch {
+        // ignore malformed events
+      }
+    };
+    return () => es.close();
   }, []);
 
   const markAllRead = useCallback(() => {
@@ -64,6 +80,18 @@ export function useAlerts() {
     setLastSeenId(alerts[0].id);
   }, [alerts]);
 
+  const markRead = useCallback((id: string) => {
+    const clickIdx = alerts.findIndex((a) => a.id === id);
+    if (clickIdx === -1) return;
+    // If baseline has been evicted from the capped list, treat it as older than everything
+    let seenIdx = lastSeenId ? alerts.findIndex((a) => a.id === lastSeenId) : -1;
+    if (lastSeenId && seenIdx === -1) seenIdx = alerts.length;
+    // Alert is already read (same position or older than baseline)
+    if (clickIdx >= seenIdx) return;
+    localStorage.setItem(LS_KEY, id);
+    setLastSeenId(id);
+  }, [alerts, lastSeenId]);
+
   // alerts are newest-first; index of lastSeenId = number of unread alerts before it
   const alertCount = (() => {
     if (!lastSeenId) return 0;
@@ -71,17 +99,18 @@ export function useAlerts() {
     return idx === -1 ? alerts.length : idx;
   })();
 
-  return { alerts, alertCount, markAllRead };
+  return { alerts, alertCount, markAllRead, markRead };
 }
 
 interface AlertDrawerProps {
   alerts: TVAlert[];
   alertCount: number;
   markAllRead: () => void;
+  markRead: (id: string) => void;
   onClose: () => void;
 }
 
-export function AlertDrawer({ alerts, alertCount, markAllRead }: AlertDrawerProps) {
+export function AlertDrawer({ alerts, alertCount, markAllRead, markRead }: AlertDrawerProps) {
   return (
     <div className="alert-drawer">
       <div className="alert-hdr">
@@ -99,7 +128,7 @@ export function AlertDrawer({ alerts, alertCount, markAllRead }: AlertDrawerProp
           <div className="alert-empty">No alerts yet</div>
         ) : (
           alerts.map((a) => (
-            <div key={a.id} className="alert-row">
+            <div key={a.id} className="alert-row" style={{ cursor: "pointer" }} onClick={() => markRead(a.id)}>
               <div className="alert-row-top">
                 <span className="alert-ticker">{a.ticker}</span>
                 <span className="alert-sep">·</span>

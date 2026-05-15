@@ -105,6 +105,9 @@ FLOW_CONTEXT: str = ""
 # TradingView webhook alert buffer — newest first, capped at 50
 TV_ALERTS: list[dict] = []
 
+# One asyncio.Queue per connected SSE client
+ALERT_SUBSCRIBERS: set[asyncio.Queue] = set()
+
 _ET = ZoneInfo("America/New_York")
 
 
@@ -718,6 +721,8 @@ async def webhook_tv(
     TV_ALERTS.insert(0, alert)
     if len(TV_ALERTS) > 50:
         TV_ALERTS.pop()
+    for q in set(ALERT_SUBSCRIBERS):
+        q.put_nowait(alert)
     return {"status": "received", "id": alert["id"]}
 
 
@@ -726,6 +731,29 @@ def get_alerts(limit: int = 20):
     limit = min(limit, 50)
     sliced = TV_ALERTS[:limit]
     return {"alerts": sliced, "count": len(sliced)}
+
+
+@app.get("/alerts/stream")
+async def alerts_stream():
+    queue: asyncio.Queue = asyncio.Queue()
+    ALERT_SUBSCRIBERS.add(queue)
+
+    async def generate():
+        try:
+            while True:
+                try:
+                    alert = await asyncio.wait_for(queue.get(), timeout=1.0)
+                    yield f"data: {json.dumps(alert)}\n\n"
+                except asyncio.TimeoutError:
+                    yield "data: ping\n\n"
+        finally:
+            ALERT_SUBSCRIBERS.discard(queue)
+
+    return FastAPIStreaming(
+        generate(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":
