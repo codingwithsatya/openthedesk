@@ -2,8 +2,10 @@ import os
 import base64
 import asyncio
 import json
+import httpx
 import anthropic
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
@@ -36,8 +38,10 @@ try:
 except ImportError:
     pass  # langsmith not installed — tracing silently disabled
 
-_raw_client = anthropic.Anthropic()
+_raw_client = anthropic.Anthropic(timeout=60.0)
+_raw_stream_client = anthropic.Anthropic(timeout=120.0)
 client = _ls_wrap(_raw_client) if _LS_ENABLED else _raw_client
+stream_client = _ls_wrap(_raw_stream_client) if _LS_ENABLED else _raw_stream_client
 
 # ── Model constants ──────────────────────────────────────────────
 SONNET = "claude-sonnet-4-6"
@@ -73,6 +77,19 @@ def log_trace(
     )
 
 
+def with_retry(fn, max_attempts=3):
+    """Retry fn on OverloadedError or APIStatusError 529 with exponential backoff (1s, 2s, 4s…)."""
+    for attempt in range(max_attempts):
+        try:
+            return fn()
+        except (anthropic.OverloadedError, anthropic.APIStatusError) as e:
+            if isinstance(e, anthropic.APIStatusError) and e.status_code != 529:
+                raise
+            if attempt == max_attempts - 1:
+                raise
+            time.sleep(2 ** attempt)
+
+
 # Load context once at startup
 print("📡 Loading live trading context...")
 LIVE_CONTEXT = fetch_live_context()
@@ -82,6 +99,27 @@ print(
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
+
+_ET = ZoneInfo("America/New_York")
+
+
+async def _keep_alive():
+    """Ping /ping every 10 min on weekdays 09:00–16:00 ET to prevent Railway idle."""
+    port = int(os.environ.get("PORT", 8000))
+    async with httpx.AsyncClient() as http:
+        while True:
+            await asyncio.sleep(600)
+            now = datetime.now(_ET)
+            if now.weekday() < 5 and 9 <= now.hour < 16:
+                try:
+                    await http.get(f"http://localhost:{port}/ping")
+                except Exception:
+                    pass
+
+
+@app.on_event("startup")
+async def startup():
+    asyncio.create_task(_keep_alive())
 
 
 def build_system_prompt(live_context: str, flow_context: str = "") -> str:
@@ -162,6 +200,11 @@ def me():
     return {"status": "authenticated"}
 
 
+@app.get("/ping")
+def ping():
+    return {"status": "alive", "ts": datetime.now(timezone.utc).isoformat()}
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
     global LIVE_CONTEXT, FLOW_CONTEXT
@@ -178,7 +221,7 @@ async def chat(request: ChatRequest):
     model = route_model(request.message)
     prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
 
-    response = client.messages.create(
+    response = with_retry(lambda: client.messages.create(
         model=model,
         max_tokens=2048,
         system=[{
@@ -187,7 +230,7 @@ async def chat(request: ChatRequest):
             "cache_control": {"type": "ephemeral"}
         }],
         messages=history,
-    )
+    ))
 
     reply = response.content[0].text
     history.append({"role": "assistant", "content": reply})
@@ -269,26 +312,35 @@ async def analyze_chart(
 
     def stream():
         full_reply = ""
-        with client.messages.stream(
-            model=model,
-            max_tokens=2048,
-            system=[{
-                "type": "text",
-                "text": prompt,
-                "cache_control": {"type": "ephemeral"}
-            }],
-            messages=history,
-        ) as s:
-            for text in s.text_stream:
-                full_reply += text
-                yield text
-            # Capture exact usage before stream context closes
+        for attempt in range(3):
             try:
-                _usage = s.get_final_message().usage
-                log_trace(context, model, _session_id, "analyze-chart",
-                          _usage.input_tokens, _usage.output_tokens)
-            except Exception:
-                pass
+                with stream_client.messages.stream(
+                    model=model,
+                    max_tokens=2048,
+                    system=[{
+                        "type": "text",
+                        "text": prompt,
+                        "cache_control": {"type": "ephemeral"}
+                    }],
+                    messages=history,
+                ) as s:
+                    for text in s.text_stream:
+                        full_reply += text
+                        yield text
+                    try:
+                        _usage = s.get_final_message().usage
+                        log_trace(context, model, _session_id, "analyze-chart",
+                                  _usage.input_tokens, _usage.output_tokens)
+                    except Exception:
+                        pass
+                break
+            except (anthropic.OverloadedError, anthropic.APIStatusError) as e:
+                if isinstance(e, anthropic.APIStatusError) and e.status_code != 529:
+                    raise
+                if attempt == 2:
+                    raise
+                full_reply = ""
+                time.sleep(2 ** attempt)
 
         history[-1] = {"role": "user", "content": f"[Chart] {context}"}
         history.append({"role": "assistant", "content": full_reply})
@@ -372,25 +424,35 @@ async def premarket(request: ChatRequest):
     # Stream response — fresh_flow already injected into the user message
     def stream():
         full_reply = ""
-        with client.messages.stream(
-            model=_model,
-            max_tokens=2048,
-            system=[{
-                "type": "text",
-                "text": build_system_prompt(LIVE_CONTEXT),
-                "cache_control": {"type": "ephemeral"}
-            }],
-            messages=history,
-        ) as s:
-            for text in s.text_stream:
-                full_reply += text
-                yield text
+        for attempt in range(3):
             try:
-                _usage = s.get_final_message().usage
-                log_trace("PREMARKET", _model, _session_id, "premarket",
-                          _usage.input_tokens, _usage.output_tokens)
-            except Exception:
-                pass
+                with stream_client.messages.stream(
+                    model=_model,
+                    max_tokens=2048,
+                    system=[{
+                        "type": "text",
+                        "text": build_system_prompt(LIVE_CONTEXT),
+                        "cache_control": {"type": "ephemeral"}
+                    }],
+                    messages=history,
+                ) as s:
+                    for text in s.text_stream:
+                        full_reply += text
+                        yield text
+                    try:
+                        _usage = s.get_final_message().usage
+                        log_trace("PREMARKET", _model, _session_id, "premarket",
+                                  _usage.input_tokens, _usage.output_tokens)
+                    except Exception:
+                        pass
+                break
+            except (anthropic.OverloadedError, anthropic.APIStatusError) as e:
+                if isinstance(e, anthropic.APIStatusError) and e.status_code != 529:
+                    raise
+                if attempt == 2:
+                    raise
+                full_reply = ""
+                time.sleep(2 ** attempt)
 
         history.append({"role": "assistant", "content": full_reply})
 
@@ -552,40 +614,23 @@ async def analyze(request: AnalyzeRequest):
     options_chain = data.get("options_chain")
     options_context = _fmt_options_context(options_chain)
 
-    import time
-
     def _haiku() -> str:
-        for attempt in range(3):
-            try:
-                r = client.messages.create(
-                    model=HAIKU,
-                    max_tokens=2048,
-                    system=_SHORT_TERM_SYSTEM,
-                    messages=[
-                        {"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
-                )
-                return r.content[0].text
-            except anthropic.OverloadedError:
-                if attempt < 2:
-                    time.sleep(2 ** attempt)  # 1s, 2s backoff
-                else:
-                    raise
+        r = with_retry(lambda: client.messages.create(
+            model=HAIKU,
+            max_tokens=2048,
+            system=_SHORT_TERM_SYSTEM,
+            messages=[{"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
+        ))
+        return r.content[0].text
 
     def _sonnet() -> str:
-        for attempt in range(3):
-            try:
-                r = client.messages.create(
-                    model=SONNET,
-                    max_tokens=1536,
-                    system=_LONG_TERM_SYSTEM,
-                    messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
-                )
-                return r.content[0].text
-            except anthropic.OverloadedError:
-                if attempt < 2:
-                    time.sleep(2 ** attempt)
-                else:
-                    raise
+        r = with_retry(lambda: client.messages.create(
+            model=SONNET,
+            max_tokens=1536,
+            system=_LONG_TERM_SYSTEM,
+            messages=[{"role": "user", "content": f"Analyze:\n{ctx}"}],
+        ))
+        return r.content[0].text
 
     short_term, long_term = await asyncio.gather(
         asyncio.to_thread(_haiku),
