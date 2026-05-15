@@ -198,8 +198,8 @@ def get_unusual_flow(all_calls: list, all_puts: list) -> dict:
 
     def score(opt: dict, opt_type: str) -> dict | None:
         volume = opt.get("volume") or 0
-        oi     = opt.get("open_interest") or 0
-        mid    = opt.get("mid") or 0
+        oi = opt.get("open_interest") or 0
+        mid = opt.get("mid") or 0
 
         # OI must have a real baseline — otherwise ratio is meaningless
         if oi < 50:
@@ -224,7 +224,7 @@ def get_unusual_flow(all_calls: list, all_puts: list) -> dict:
         }
 
     unusual_calls = [r for c in all_calls if (r := score(c, "call"))]
-    unusual_puts  = [r for p in all_puts  if (r := score(p, "put"))]
+    unusual_puts = [r for p in all_puts if (r := score(p, "put"))]
 
     unusual_calls.sort(key=lambda x: x["vol_oi_ratio"], reverse=True)
     unusual_puts.sort(key=lambda x:  x["vol_oi_ratio"], reverse=True)
@@ -241,7 +241,7 @@ def format_flow_context(unusual_flow: dict) -> str:
     Returns empty string when no unusual flow is detected.
     """
     calls = unusual_flow.get("calls", [])
-    puts  = unusual_flow.get("puts",  [])
+    puts = unusual_flow.get("puts",  [])
 
     if not calls and not puts:
         return ""
@@ -251,7 +251,8 @@ def format_flow_context(unusual_flow: dict) -> str:
     if calls:
         lines.append("CALLS (aggressive new buying above market):")
         for c in calls[:5]:
-            delta_str = f"δ={c['delta']:.2f}" if c.get("delta") is not None else "δ=—"
+            delta_str = f"δ={c['delta']:.2f}" if c.get(
+                "delta") is not None else "δ=—"
             lines.append(
                 f"  {c['strike']}C  vol={c['volume']:,}  OI={c['open_interest']:,}"
                 f"  ratio={c['vol_oi_ratio']}x  mid=${c['mid']}  {delta_str}"
@@ -260,7 +261,8 @@ def format_flow_context(unusual_flow: dict) -> str:
     if puts:
         lines.append("PUTS (aggressive new buying below market):")
         for p in puts[:5]:
-            delta_str = f"δ={p['delta']:.2f}" if p.get("delta") is not None else "δ=—"
+            delta_str = f"δ={p['delta']:.2f}" if p.get(
+                "delta") is not None else "δ=—"
             lines.append(
                 f"  {p['strike']}P  vol={p['volume']:,}  OI={p['open_interest']:,}"
                 f"  ratio={p['vol_oi_ratio']}x  mid=${p['mid']}  {delta_str}"
@@ -373,12 +375,25 @@ def get_0dte_snapshot(atr: float = None) -> dict:
     # 5. Find best call — strike closest to call_target with a real mid price
     def best_strike(options, target):
         candidates = [o for o in options if o.get("mid") and o["mid"] > 0.5]
-        if not candidates:
-            return None
-        return min(candidates, key=lambda x: abs(x["strike"] - target))
+        return min(candidates, key=lambda o: abs(o["strike"] - target)) if candidates else None
 
-    best_call = best_strike(all_calls, call_target)
-    best_put = best_strike(all_puts,  put_target)
+    # Filter to delta 0.20–0.45 first (Saty system entry zone)
+    # Fall back to unfiltered if no contracts in range
+    filtered_calls = [o for o in all_calls if o.get(
+        "delta") is not None and 0.20 <= o["delta"] <= 0.45]
+    filtered_puts = [o for o in all_puts if o.get(
+        "delta") is not None and -0.45 <= o["delta"] <= -0.20]
+
+    # Apply budget filter ($2–$5) on top of delta filter
+    budget_filtered_calls = [o for o in (filtered_calls or all_calls) if o.get(
+        "mid") and 2.0 <= o["mid"] <= 5.0]
+    budget_filtered_puts = [o for o in (filtered_puts or all_puts) if o.get(
+        "mid") and 2.0 <= o["mid"] <= 5.0]
+
+    best_call = best_strike(
+        budget_filtered_calls or filtered_calls or all_calls, call_target)
+    best_put = best_strike(
+        budget_filtered_puts or filtered_puts or all_puts,  put_target)
 
     # 6. Budget filter — $2–6 range (Phase 2: max $3-4, slight buffer)
     def in_budget(opt):

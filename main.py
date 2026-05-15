@@ -559,7 +559,7 @@ async def analyze(request: AnalyzeRequest):
             try:
                 r = client.messages.create(
                     model=HAIKU,
-                    max_tokens=1024,
+                    max_tokens=2048,
                     system=_SHORT_TERM_SYSTEM,
                     messages=[
                         {"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
