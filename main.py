@@ -696,6 +696,7 @@ class TVAlertPayload(BaseModel):
     condition: str
     price: str
     atr_level: str
+    secret: Optional[str] = None
 
 
 @app.post("/webhook/tv")
@@ -703,7 +704,7 @@ async def webhook_tv(
     payload: TVAlertPayload,
     x_tv_secret: str = Header(None),
 ):
-    if x_tv_secret != TV_WEBHOOK_SECRET:
+    if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
     alert = {
         "id": str(uuid.uuid4()),
