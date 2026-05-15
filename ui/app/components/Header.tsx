@@ -1,7 +1,9 @@
 "use client";
+import { useState } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { MarketData } from "../types";
+import { useAlerts, AlertDrawer } from "./AlertPanel";
 
 interface HeaderProps {
   deskOpen: boolean;
@@ -20,6 +22,9 @@ export default function Header({
   marketData,
   activePage = "desk",
 }: HeaderProps) {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const { alerts, alertCount, markAllRead } = useAlerts();
+
   const spxPrice = marketData
     ? (marketData.spx.last ?? marketData.spx.close ?? 0).toFixed(2)
     : null;
@@ -41,67 +46,94 @@ export default function Header({
   );
 
   return (
-    <header className="header">
-      <div className="header-left">
-        <div className="logo-wrap">
-          <img
-            src="/logo.png"
-            alt="OpenTheDesk"
-            style={{ height: "52px", width: "auto", objectFit: "contain" }}
-          />
+    <>
+      <header className="header">
+        <div className="header-left">
+          <div className="logo-wrap">
+            <img
+              src="/logo.png"
+              alt="OpenTheDesk"
+              style={{ height: "52px", width: "auto", objectFit: "contain" }}
+            />
+          </div>
+          <div className="divider-v" />
+          {activePage === "desk" && (
+            <div className={`status-badge ${deskOpen ? "open" : "closed"}`}>
+              <div className={`status-dot ${deskOpen ? "pulse" : ""}`} />
+              {deskOpen ? "Desk Open" : "Desk Closed"}
+            </div>
+          )}
+          <div style={{ display: "flex", gap: 2, marginLeft: activePage === "desk" ? 8 : 0 }}>
+            {navLink("/", "Desk", activePage === "desk")}
+            {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
+          </div>
         </div>
-        <div className="divider-v" />
+
+        {/*
+         * Mobile SPX ticker — desk page only. Hidden on analyzer page to avoid
+         * showing stale/null data.
+         */}
         {activePage === "desk" && (
-          <div className={`status-badge ${deskOpen ? "open" : "closed"}`}>
-            <div className={`status-dot ${deskOpen ? "pulse" : ""}`} />
-            {deskOpen ? "Desk Open" : "Desk Closed"}
+          <div className="header-spx">
+            {spxPrice ? (
+              <>
+                <div className="header-spx-price">{spxPrice}</div>
+                <div className="header-spx-meta">
+                  VIX {marketData!.vix.vix} · PDC {marketData!.atr_levels.PDC.toFixed(0)} · ATR ~{marketData!.atr_levels.ATR.toFixed(1)}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="skel" style={{ width: "72px", height: "18px", borderRadius: "6px" }} />
+                <div className="skel" style={{ width: "120px", height: "10px", borderRadius: "4px", marginTop: "4px" }} />
+              </>
+            )}
           </div>
         )}
-        <div style={{ display: "flex", gap: 2, marginLeft: activePage === "desk" ? 8 : 0 }}>
-          {navLink("/", "Desk", activePage === "desk")}
-          {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
-        </div>
-      </div>
 
-      {/*
-       * Mobile SPX ticker — desk page only. Hidden on analyzer page to avoid
-       * showing stale/null data.
-       */}
-      {activePage === "desk" && (
-        <div className="header-spx">
-          {spxPrice ? (
+        <div className="header-right">
+          {activePage === "desk" && (
             <>
-              <div className="header-spx-price">{spxPrice}</div>
-              <div className="header-spx-meta">
-                VIX {marketData!.vix.vix} · PDC {marketData!.atr_levels.PDC.toFixed(0)} · ATR ~{marketData!.atr_levels.ATR.toFixed(1)}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="skel" style={{ width: "72px", height: "18px", borderRadius: "6px" }} />
-              <div className="skel" style={{ width: "120px", height: "10px", borderRadius: "4px", marginTop: "4px" }} />
+              <button className="hbtn" onClick={onRefresh} disabled={refreshing}>
+                {refreshing ? "Refreshing..." : "↻ Refresh Context"}
+              </button>
+              <button className="hbtn" onClick={onClearSession}>
+                Clear Session
+              </button>
             </>
           )}
+          <button
+            className="alert-bell"
+            onClick={() => setDrawerOpen((o) => !o)}
+            aria-label="TradingView alerts"
+          >
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+            {alertCount > 0 && (
+              <span className="alert-badge">{alertCount > 9 ? "9+" : alertCount}</span>
+            )}
+          </button>
+          <UserButton
+            appearance={{
+              elements: { avatarBox: { width: 32, height: 32, borderRadius: 8 } },
+            }}
+          />
         </div>
-      )}
+      </header>
 
-      <div className="header-right">
-        {activePage === "desk" && (
-          <>
-            <button className="hbtn" onClick={onRefresh} disabled={refreshing}>
-              {refreshing ? "Refreshing..." : "↻ Refresh Context"}
-            </button>
-            <button className="hbtn" onClick={onClearSession}>
-              Clear Session
-            </button>
-          </>
-        )}
-        <UserButton
-          appearance={{
-            elements: { avatarBox: { width: 32, height: 32, borderRadius: 8 } },
-          }}
-        />
-      </div>
-    </header>
+      {drawerOpen && (
+        <>
+          <div className="alert-overlay" onClick={() => setDrawerOpen(false)} />
+          <AlertDrawer
+            alerts={alerts}
+            alertCount={alertCount}
+            markAllRead={markAllRead}
+            onClose={() => setDrawerOpen(false)}
+          />
+        </>
+      )}
+    </>
   );
 }
