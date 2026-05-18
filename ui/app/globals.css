@@ -825,6 +825,7 @@ body {
   inset: 0;
   z-index: 94;
 }
+
 .alert-drawer {
   position: fixed;
   top: 64px;
@@ -832,12 +833,48 @@ body {
   bottom: 0;
   width: 320px;
   z-index: 95;
-  background: white;
-  border-left: 1px solid #e2e8f0;
+  background: #0d1320; /* ← dark, was white */
+  border-left: none;
   display: flex;
   flex-direction: column;
   box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
   animation: slideInRight 0.18s ease-out;
+}
+
+.alert-list {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding-left: 0;
+  scrollbar-width: thin;
+  scrollbar-color: #1e3a5f transparent; /* ← dark scrollbar */
+}
+.alert-list::-webkit-scrollbar {
+  width: 4px;
+}
+.alert-list::-webkit-scrollbar-thumb {
+  background: #1e3a5f; /* ← dark, was #e2e8f0 */
+  border-radius: 99px;
+}
+
+/* Remove all padding from alert-row — the new AlertCard handles its own spacing */
+.alert-row {
+  padding: 0;
+  border-bottom: none;
+}
+.alert-row:last-child {
+  border-bottom: none;
+}
+
+/* Keep these unchanged — they're still used */
+.alert-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  font-size: 13px;
+  color: #475569; /* ← slightly lighter for dark bg */
+  font-family: var(--font-inter), sans-serif;
 }
 @keyframes slideInRight {
   from {
@@ -878,76 +915,6 @@ body {
 .alert-mark-read:disabled {
   opacity: 0.35;
   cursor: default;
-}
-.alert-list {
-  flex: 1;
-  overflow-y: auto;
-  scrollbar-width: thin;
-  scrollbar-color: #e2e8f0 transparent;
-}
-.alert-list::-webkit-scrollbar {
-  width: 4px;
-}
-.alert-list::-webkit-scrollbar-thumb {
-  background: #e2e8f0;
-  border-radius: 99px;
-}
-.alert-row {
-  padding: 12px 16px;
-  border-bottom: 1px solid #f1f5f9;
-}
-.alert-row:last-child {
-  border-bottom: none;
-}
-.alert-row-top {
-  display: flex;
-  align-items: baseline;
-  gap: 5px;
-  font-family: var(--font-inter), sans-serif;
-}
-.alert-ticker {
-  font-size: 12px;
-  font-weight: 700;
-  color: #0f172a;
-  flex-shrink: 0;
-}
-.alert-sep {
-  font-size: 11px;
-  color: #94a3b8;
-  flex-shrink: 0;
-}
-.alert-tf {
-  font-size: 11px;
-  color: #64748b;
-  flex-shrink: 0;
-}
-.alert-cond {
-  font-size: 12px;
-  color: #0f172a;
-  flex: 1;
-  min-width: 0;
-}
-.alert-row-time {
-  font-size: 10px;
-  color: #94a3b8;
-  flex-shrink: 0;
-  margin-left: auto;
-  font-family: var(--font-jetbrains-mono), monospace;
-}
-.alert-row-meta {
-  margin-top: 3px;
-  font-size: 11px;
-  color: #64748b;
-  font-family: var(--font-jetbrains-mono), monospace;
-}
-.alert-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 120px;
-  font-size: 13px;
-  color: #94a3b8;
-  font-family: var(--font-inter), sans-serif;
 }
 @media (max-width: 768px) {
   .alert-drawer {

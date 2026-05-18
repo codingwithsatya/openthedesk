@@ -43,7 +43,8 @@ except ImportError:
 _raw_client = anthropic.Anthropic(timeout=60.0)
 _raw_stream_client = anthropic.Anthropic(timeout=120.0)
 client = _ls_wrap(_raw_client) if _LS_ENABLED else _raw_client
-stream_client = _ls_wrap(_raw_stream_client) if _LS_ENABLED else _raw_stream_client
+stream_client = _ls_wrap(
+    _raw_stream_client) if _LS_ENABLED else _raw_stream_client
 
 # ── Model constants ──────────────────────────────────────────────
 SONNET = "claude-sonnet-4-6"
@@ -627,7 +628,8 @@ async def analyze(request: AnalyzeRequest):
             model=HAIKU,
             max_tokens=2048,
             system=_SHORT_TERM_SYSTEM,
-            messages=[{"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
+            messages=[
+                {"role": "user", "content": f"Market Data:\n{ctx}\n\n{options_context}"}],
         ))
         return r.content[0].text
 
@@ -699,6 +701,9 @@ class TVAlertPayload(BaseModel):
     condition: str
     price: str
     atr_level: str
+    setup: Optional[str] = None
+    grade: Optional[str] = None
+    direction: Optional[str] = None
     secret: Optional[str] = None
 
 
@@ -717,6 +722,12 @@ async def webhook_tv(
         "condition": payload.condition,
         "price": payload.price,
         "atr_level": payload.atr_level,
+        "setup": payload.setup,
+        "grade": payload.grade,
+        "direction": payload.direction,
+        "setup": payload.setup,
+        "grade": payload.grade,
+        "direction": payload.direction,
     }
     TV_ALERTS.insert(0, alert)
     if len(TV_ALERTS) > 50:

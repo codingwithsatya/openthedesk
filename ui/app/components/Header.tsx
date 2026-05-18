@@ -23,7 +23,7 @@ export default function Header({
   activePage = "desk",
 }: HeaderProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const { alerts, alertCount, markAllRead, markRead } = useAlerts();
+  const { alerts, alertCount, markAllRead, markRead, isUnread } = useAlerts();
 
   const spxPrice = marketData
     ? (marketData.spx.last ?? marketData.spx.close ?? 0).toFixed(2)
@@ -131,6 +131,7 @@ export default function Header({
             alertCount={alertCount}
             markAllRead={markAllRead}
             markRead={markRead}
+            isUnread={isUnread}
             onClose={() => setDrawerOpen(false)}
           />
         </>
