@@ -486,6 +486,35 @@ def format_options_context(snapshot: dict) -> str:
 
 
 # ─────────────────────────────────────────────
+# MARKET INTERNALS — TRIN, ADD, VOLD
+# ─────────────────────────────────────────────
+
+def get_market_internals() -> dict:
+    """Fetch live TRIN, ADD, VOLD from Tradier."""
+    try:
+        data = _get("/markets/quotes", {
+            "symbols": "$TRIN,$ADD,$VOLD",
+            "greeks": "false"
+        })
+        quotes = data.get("quotes", {}).get("quote", [])
+        if isinstance(quotes, dict):
+            quotes = [quotes]
+        result = {}
+        for q in quotes:
+            sym = q.get("symbol", "")
+            last = q.get("last") or q.get("close")
+            if sym == "$TRIN":
+                result["trin"] = round(float(last), 2) if last else None
+            elif sym == "$ADD":
+                result["add"] = int(float(last)) if last else None
+            elif sym == "$VOLD":
+                result["vold"] = round(float(last), 2) if last else None
+        return result
+    except Exception:
+        return {"trin": None, "add": None, "vold": None}
+
+
+# ─────────────────────────────────────────────
 # TEST — run python tradier.py to verify
 # ─────────────────────────────────────────────
 

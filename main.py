@@ -15,7 +15,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from context import fetch_live_context
 from market_data import get_market_summary
-from tradier import get_0dte_snapshot, format_options_context
+from tradier import get_0dte_snapshot, format_options_context, get_market_internals
 from analyzer import get_ticker_analysis
 import time
 
@@ -705,6 +705,9 @@ class TVAlertPayload(BaseModel):
     grade: Optional[str] = None
     direction: Optional[str] = None
     secret: Optional[str] = None
+    trin: Optional[float] = None
+    add: Optional[int] = None
+    vold: Optional[float] = None
 
 
 @app.post("/webhook/tv")
@@ -714,6 +717,7 @@ async def webhook_tv(
 ):
     if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
+    internals = get_market_internals()
     alert = {
         "id": str(uuid.uuid4()),
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -725,9 +729,9 @@ async def webhook_tv(
         "setup": payload.setup,
         "grade": payload.grade,
         "direction": payload.direction,
-        "setup": payload.setup,
-        "grade": payload.grade,
-        "direction": payload.direction,
+        "trin": internals.get("trin"),
+        "add": internals.get("add"),
+        "vold": internals.get("vold"),
     }
     TV_ALERTS.insert(0, alert)
     if len(TV_ALERTS) > 50:

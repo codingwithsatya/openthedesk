@@ -12,6 +12,9 @@ export interface TVAlert {
   setup?: string;
   grade?: string;
   direction?: string;
+  trin?: number | null;
+  add?: number | null;
+  vold?: number | null;
 }
 
 const LS_KEY = "tv_alerts_read";
@@ -344,6 +347,39 @@ function AlertCard({
             </span>
           )}
         </div>}
+
+        {/* Market internals row — unread only, when data present */}
+        {isUnread && (alert.trin != null || alert.add != null || alert.vold != null) && (
+          <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
+            {alert.trin != null && (
+              <span style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono, monospace)",
+                color: alert.trin > 1.2 ? "#f87171" : alert.trin < 0.8 ? "#4ade80" : "#94a3b8",
+              }}>
+                TRIN {alert.trin.toFixed(2)}
+              </span>
+            )}
+            {alert.add != null && (
+              <span style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono, monospace)",
+                color: alert.add > 200 ? "#4ade80" : alert.add < -200 ? "#f87171" : "#94a3b8",
+              }}>
+                ADD {alert.add > 0 ? "+" : ""}{alert.add}
+              </span>
+            )}
+            {alert.vold != null && (
+              <span style={{
+                fontSize: 10,
+                fontFamily: "var(--font-mono, monospace)",
+                color: "#94a3b8",
+              }}>
+                VOLD {alert.vold.toFixed(2)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
