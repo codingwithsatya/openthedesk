@@ -277,7 +277,7 @@ async def chat(request: ChatRequest):
 
     # Long-form commands need more tokens
     _LONG_COMMANDS = {"PTR-FULL", "TRADE REVIEW", "EOD", "WEEKLY REVIEW",
-                      "PREMARKET", "BLUNT FEEDBACK"}
+                      "PREMARKET", "BLUNT FEEDBACK", "OPEN THE DESK"}
     cmd_upper = request.message.strip().upper().split("\n")[0]
     max_tok = 4096 if any(cmd_upper.startswith(c) for c in _LONG_COMMANDS) else 2048
 
