@@ -702,7 +702,7 @@
         <h1>AI engineer learning notes</h1>
         <p>Updated after each session — your running reference</p>
       </div>
-      <span class="badge">Month 4 — Week 16 Starting</span>
+      <span class="badge">Month 5 — Week 18 In Progress</span>
     </div>
 
     <div class="view-tabs">
@@ -716,12 +716,12 @@
       <div class="stat-row">
         <div class="stat-card">
           <div class="stat-label">Weeks complete</div>
-          <div class="stat-val">15 / 15</div>
-          <div class="stat-sub">Month 4 · Week 16 starting</div>
+          <div class="stat-val">18 / 18</div>
+          <div class="stat-sub">Month 5 · Week 19 next</div>
         </div>
         <div class="stat-card">
           <div class="stat-label">Milestones hit</div>
-          <div class="stat-val">100</div>
+          <div class="stat-val">122</div>
           <div class="stat-sub">Theory + code + deploy</div>
         </div>
         <div class="stat-card">
@@ -765,6 +765,28 @@
         </div>
       </div>
 
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">OpenTheDesk Frontend — live</div>
+          <div class="live-url-text">https://openthedesk.vercel.app</div>
+        </div>
+      </div>
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">OpenTheDesk Analyzer — live</div>
+          <div class="live-url-text">https://openthedesk.vercel.app/analyzer</div>
+        </div>
+      </div>
+      <div class="live-url">
+        <div class="live-dot"></div>
+        <div>
+          <div class="live-label">OpenTheDesk Backend — live</div>
+          <div class="live-url-text">https://ai-engineer-journey-production.up.railway.app</div>
+        </div>
+      </div>
+
       <div class="week-tabs">
         <button class="tab active" onclick="showWeek('w1', this)">Week 1 ✓</button>
         <button class="tab" onclick="showWeek('w2', this)">Week 2 ✓</button>
@@ -781,7 +803,10 @@
         <button class="tab" onclick="showWeek('w13', this)">Week 13 ✓</button>
         <button class="tab" onclick="showWeek('w14', this)">Week 14 ✓</button>
         <button class="tab" onclick="showWeek('w15', this)">Week 15 ✓</button>
-        <button class="tab active" onclick="showWeek('w16', this)">Week 16 →</button>
+        <button class="tab" onclick="showWeek('w16', this)">Week 16 ✓</button>
+        <button class="tab" onclick="showWeek('w17', this)">Week 17 ✓</button>
+        <button class="tab" onclick="showWeek('w18', this)">Week 18 ✓</button>
+        <button class="tab" onclick="showWeek('w19', this)">Week 19 →</button>
       </div>
 
       <!-- WEEK 1 -->
@@ -3009,19 +3034,19 @@
         <div class="progress-bar" style="width:100%"></div>
       </div>
       <div class="progress-label">Week 15 complete — OpenTheDesk Analyzer live with real options chain, greeks, IV rank,
-        Saty system 🎉</div>
+        full Saty system 🎉</div>
     </div>
     <div class="divider"></div>
     <div class="section">
-      <div class="section-title">Core concepts</div>
+      <div class="section-title">Core concepts learned</div>
       <div class="concept-list">
         <div class="concept">
           <div class="concept-dot done"></div>
           <div>
             <div class="concept-text">Saty Ribbon — correct EMAs: 8/21/34 (not 8/21/48)</div>
-            <div class="concept-sub">Pine Script uses 8/21/34 for ribbon state. 48 EMA is candle bias only. 13/48
-              crossover = conviction arrow. Fixed in analyzer.py — ribbon_state, conviction_state, candle_bias all
-              correct now.</div>
+            <div class="concept-sub">Pine Script Saty Pivot Ribbon Pro uses 8/21/34 for ribbon state. 48 EMA = candle
+              bias only (price vs 48). 13/48 crossover = conviction arrow. Fixed in analyzer.py — ribbon_state uses
+              8/21/34, conviction_state uses 13/48, candle_bias uses price vs 48.</div>
           </div>
         </div>
         <div class="concept">
@@ -3029,136 +3054,334 @@
           <div>
             <div class="concept-text">Phase Oscillator — implemented in Python</div>
             <div class="concept-sub">Formula: ((price - ema_21) / (3.0 × ATR)) × 100. Zones: Extreme Up >100,
-              Distribution 61.8–100, Neutral Up 23.6–61.8, Neutral ±23.6, Neutral Down -61.8, Accumulation -100, Extreme
-              Down <-100. Bollinger compression: bband_up vs ema_21 + 2×ATR.</div></div>
-          </div>
-          <div class="concept">
-            <div class="concept-dot done"></div>
-            <div>
-              <div class="concept-text">Multi-timeframe ATR — Day/Multiday/Swing/Position</div>
-              <div class="concept-sub">trading_mode param maps to yfinance history: day=1y/1d, multiday=2y/1wk,
-                swing=5y/1mo, position=10y/3mo. Same Wilder formula, different timeframe bars. ATR levels + extension
-                levels (to 3.0×ATR) all recalculated per mode.</div>
-            </div>
-          </div>
-          <div class="concept">
-            <div class="concept-dot done"></div>
-            <div>
-              <div class="concept-text">Real options chain — Tradier /markets/options path fix</div>
-              <div class="concept-sub">Bug: analyzer.py used /options/expirations (302 redirect to docs). Fix:
-                /markets/options/expirations. Now returns real expiry dates, real strikes, real greeks (delta, theta)
-                from Tradier. yfinance used as fallback if Tradier fails.</div>
-            </div>
-          </div>
-          <div class="concept">
-            <div class="concept-dot done"></div>
-            <div>
-              <div class="concept-text">Options chain selection logic</div>
-              <div class="concept-sub">trading_mode → min days out: day=7, multiday=21, swing=35, position=60. Pick
-                first expiry meeting threshold. Target call: spot + 0.5×ATR. Target put: spot - 0.5×ATR. Spread legs:
-                2×ATR distance. in_budget = mid between $1.50–$4.00.</div>
-            </div>
-          </div>
-          <div class="concept">
-            <div class="concept-dot done"></div>
-            <div>
-              <div class="concept-text">Claude debit spread logic — automatic based on IV</div>
-              <div class="concept-sub">If in_budget=False OR iv_rank >60 → Claude recommends debit spread, not naked
-                option. IV environment: LOW <30%, MODERATE 30–50%, HIGH 50–70%, EXTREME ≥70%. NVDA IV rank 89.9 →
-                  correctly flagged EXTREME → spread recommended at $664/contract.</div>
-              </div>
-            </div>
-            <div class="concept">
-              <div class="concept-dot done"></div>
-              <div>
-                <div class="concept-text">Tradier 302 redirect — sandbox vs production token</div>
-                <div class="concept-sub">Tradier returns HTML docs page (200 with text/html) when token hits wrong
-                  endpoint. Root cause: /options/expirations is wrong. Correct path: /markets/options/expirations. Same
-                  issue affects /markets/options/chains — must always use /markets/ prefix for all market data
-                  endpoints.</div>
-              </div>
-            </div>
-            <div class="concept">
-              <div class="concept-dot done"></div>
-              <div>
-                <div class="concept-text">NaN JSON serialization fix</div>
-                <div class="concept-sub">yfinance returns Python float('nan') for missing fields. json.dumps raises
-                  ValueError on nan. Fix: sanitize() function recursively replaces nan/inf with None before returning.
-                  Applied to all dicts in get_ticker_analysis().</div>
-              </div>
-            </div>
+              Distribution 61.8–100, Neutral Up 23.6–61.8, Neutral ±23.6, Neutral Down, Accumulation -100–-61.8, Extreme
+              Down. Compression: Bollinger Band inside 2×ATR = coiling for breakout.</div>
           </div>
         </div>
-        <div class="divider"></div>
-        <div class="section">
-          <div class="section-title">Files built / updated</div>
-          <div class="cards">
-            <div class="card">
-              <h3>analyzer.py</h3>
-              <p>Full ticker analysis engine. EMAs 8/13/21/34/48/200. ATR-14 Wilder. Phase Oscillator. Compression. 52W
-                high/low. Relative volume. Fundamentals. Real options chain via Tradier with greeks. Multi-timeframe
-                support.</p>
-            </div>
-            <div class="card">
-              <h3>main.py — /analyze</h3>
-              <p>POST ticker + trading_mode → parallel Haiku (short-term options plan) + Sonnet (long-term stock
-                verdict). Real options context injected into Haiku. IV rank drives naked vs spread recommendation.</p>
-            </div>
-            <div class="card">
-              <h3>main.py — /screener</h3>
-              <p>15 tickers in parallel. Filters MIXED ribbon. Sorts by |change_pct|. Returns US + India setups with
-                ribbon badge, price, ATR.</p>
-            </div>
-            <div class="card">
-              <h3>/analyzer page</h3>
-              <p>Separate Next.js route. Header nav link. Ticker search. Result card with 52W badge + volume badge. Two
-                Claude panels side by side. Screener on load. Click row → auto-analyze.</p>
-            </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Multi-timeframe ATR — Day/Multiday/Swing/Position modes</div>
+            <div class="concept-sub">trading_mode param maps to yfinance history: day=1y/1d, multiday=2y/1wk,
+              swing=5y/1mo, position=10y/3mo. Same Wilder ATR formula, different timeframe bars. All fibonacci ATR
+              levels + extensions to 3.0×ATR recalculated per mode.</div>
           </div>
         </div>
-        <div class="divider"></div>
-        <div class="section">
-          <div class="section-title">Code patterns</div>
-          <div class="concept-list">
-            <div class="concept">
-              <div class="concept-dot done"></div>
-              <div>
-                <div class="concept-text">Phase Oscillator Python</div>
-                <div class="code-block">po_val = round(((price - ema_21) / (3.0 * atr)) * 100, 1)
-                  # Compression: bband vs 2×ATR threshold
-                  std_21 = float(closes.rolling(21).std(ddof=1).iloc[-1])
-                  bband_up = ema_21 + 2.0 * std_21
-                  threshold_up = ema_21 + 2.0 * atr
-                  compression = (bband_up - threshold_up) <= 0</div>
-                </div>
-              </div>
-              <div class="concept">
-                <div class="concept-dot done"></div>
-                <div>
-                  <div class="concept-text">Tradier options chain — correct path</div>
-                  <div class="code-block"># WRONG — 302 redirect to docs:
-                    _tradier_get("/options/expirations", ...)
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Tradier /markets/ path — the critical fix</div>
+            <div class="concept-sub">Bug: /options/expirations returns 302 redirect to docs page (even with valid
+              token). Fix: always use /markets/options/expirations and /markets/options/chains. This unlocked real
+              expiry dates, real strikes, real greeks (delta, theta) from Tradier for the analyzer.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Options chain selection logic</div>
+            <div class="concept-sub">Expiry: trading_mode → min days: day=7, multiday=21, swing=35, position=60. Strike:
+              target_call = spot + 0.5×ATR, target_put = spot - 0.5×ATR. Spread legs: 2×ATR away. in_budget = mid
+              $1.50–$4.00. IV environment: LOW/MODERATE/HIGH/EXTREME.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Claude debit spread auto-logic based on IV</div>
+            <div class="concept-sub">If in_budget=False OR iv_rank >60 → Claude recommends debit spread automatically.
+              NVDA IV rank 89.9 (EXTREME) → correctly flagged → spread $664/contract recommended. Theta decay stated in
+              dollars ($20/day). Risk/reward calculated exactly.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">0DTE best call/put delta + budget filter</div>
+            <div class="concept-sub">Bug: best_strike() was picking delta 0.92 ITM strike at $68 premium. Fix: filter
+              delta 0.20–0.40 first → budget $2–$5 second → closest to ATR target third. Fallback to wider range if no
+              contracts found. Now shows 7530C at $4.10, delta 0.25.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">NaN JSON serialization — sanitize() pattern</div>
+            <div class="concept-sub">yfinance returns Python float('nan') for missing fundamentals. json.dumps raises
+              ValueError on nan. Fix: sanitize() function recursively replaces nan/inf with None. Always called before
+              returning any dict from get_ticker_analysis(). Essential for /screener endpoint stability.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Files built this week</div>
+      <div class="cards">
+        <div class="card">
+          <h3>analyzer.py</h3>
+          <p>Full ticker analysis engine. EMAs 8/13/21/34/48/200. ATR-14 Wilder. Phase Oscillator + compression. 52W
+            positioning. Relative volume. Fundamentals (PE, EPS, revenue, beta, D/E, short interest). Real Tradier
+            options chain with greeks. Multi-timeframe support. sanitize() for NaN safety.</p>
+        </div>
+        <div class="card">
+          <h3>main.py — /analyze</h3>
+          <p>POST ticker + trading_mode → parallel Haiku (short-term options plan, max_tokens=2048) + Sonnet (long-term
+            stock verdict, max_tokens=1536) via asyncio.gather. Real options context injected into Haiku. IV rank drives
+            naked vs spread recommendation automatically.</p>
+        </div>
+        <div class="card">
+          <h3>main.py — /screener</h3>
+          <p>15 tickers in parallel via asyncio.gather. Filters MIXED ribbon state. Sorts by |change_pct|. Returns US
+            setups + India setups. India tickers show null price during closed NSE hours (normal behavior).</p>
+        </div>
+        <div class="card">
+          <h3>/analyzer page (Next.js)</h3>
+          <p>Separate route from desk. Header nav with Desk/Analyzer tabs. Ticker search bar. Result card: ribbon badge,
+            52W badge, volume badge, ATR levels strip, two Claude panels side by side. Screener on load — click row
+            auto-analyzes. Mobile responsive.</p>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Key code patterns</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Phase Oscillator + compression in Python</div>
+            <div class="code-block">po_val = round(((price - ema_21) / (3.0 * atr)) * 100, 1)
+              std_21 = float(closes.rolling(21).std(ddof=1).iloc[-1])
+              bband_up = ema_21 + 2.0 * std_21
+              threshold_up = ema_21 + 2.0 * atr
+              compression = (bband_up - threshold_up) &lt;= 0</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Tradier correct paths</div>
+            <div class="code-block"># WRONG — 302 redirect:
+              _tradier_get("/options/expirations", ...)
 
-                    # CORRECT — always use /markets/ prefix:
-                    _tradier_get("/markets/options/expirations", {
-                    "symbol": ticker, "includeAllRoots": "true"
-                    })
-                    _tradier_get("/markets/options/chains", {
-                    "symbol": ticker, "expiration": expiry, "greeks": "true"
-                    })</div>
-                </div>
+              # CORRECT — always /markets/ prefix:
+              _tradier_get("/markets/options/expirations", {
+              "symbol": ticker, "includeAllRoots": "true"
+              })
+              _tradier_get("/markets/options/chains", {
+              "symbol": ticker, "expiration": expiry, "greeks": "true"
+              })</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Multi-timeframe history</div>
+            <div class="code-block">_HISTORY_PARAMS = {
+              "day": {"period": "1y", "interval": "1d"},
+              "multiday": {"period": "2y", "interval": "1wk"},
+              "swing": {"period": "5y", "interval": "1mo"},
+              "position": {"period": "10y", "interval": "3mo"},
+              }
+              hist = tk.history(**_HISTORY_PARAMS[trading_mode])</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">0DTE best strike selection</div>
+            <div class="code-block"># 1. Delta filter (Saty entry zone 0.20-0.40)
+              filtered_calls = [o for o in all_calls
+              if o.get("delta") and 0.20 &lt;= o["delta"] &lt;= 0.40]
+              # 2. Budget filter ($2-$5)
+              budget_calls = [o for o in filtered_calls
+              if o.get("mid") and 2.0 &lt;= o["mid"] &lt;= 5.0]
+              # 3. Closest to ATR target (cascade fallback)
+              best_call = best_strike(
+              budget_calls or filtered_calls or all_calls, call_target)</div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Session milestones</div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">analyzer.py — all EMAs, ATR-14 Wilder, Phase Oscillator, compression, fundamentals,
+          options chain</div><span class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">/analyze endpoint — parallel Haiku + Sonnet, real options data injected, max_tokens
+          fixed</div><span class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">/screener endpoint — 15 tickers parallel, ribbon filter, sort by |change_pct|</div>
+        <span class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">/analyzer Next.js page — search, result card, dual Claude panels, screener section
+        </div><span class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Saty ribbon fixed — 8/21/34 (not 48), conviction 13/48, candle bias price vs 48
+        </div><span class="milestone-tag tag-theory">theory</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Phase Oscillator + Bollinger compression implemented in Python</div><span
+          class="milestone-tag tag-code">code</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Tradier /markets/ path bug fixed — real delta + theta greeks now live</div><span
+          class="milestone-tag tag-debug">debug</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">0DTE best call/put fixed — delta 0.20-0.40 filter + $2-$5 budget filter</div><span
+          class="milestone-tag tag-debug">debug</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">NVDA swing: IV 89.9 EXTREME → spread $664/contract, theta $20/day — correct output
+        </div><span class="milestone-tag tag-deploy">deploy</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">OPENTHEDESK_ARCHITECTURE.md created — full project context document for Claude
+          Project</div><span class="milestone-tag tag-git">git</span>
+      </div>
+      <div class="milestone-row">
+        <div class="check done">✓</div>
+        <div class="milestone-label">Deployed — openthedesk.vercel.app/analyzer live</div><span
+          class="milestone-tag tag-deploy">deploy</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- WEEK 16 -->
+  <div id="w16" class="week-content">
+    <div class="section">
+      <div class="section-title">Progress</div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar" style="width:100%"></div>
+      </div>
+      <div class="progress-label">Week 16 complete — 3-layer reliability system live · Month 4 complete 🎉</div>
+    </div>
+    <div class="divider"></div>
+    <div class="section">
+      <div class="section-title">Core concepts learned</div>
+      <div class="concept-list">
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Exponential backoff retry pattern</div>
+            <div class="concept-sub">with_retry(fn, max_attempts=3) catches anthropic.OverloadedError and
+              APIStatusError(529). Sleeps 2^attempt seconds between retries: 1s then 2s before the 3rd attempt. Shared
+              utility used across all endpoints — no duplication. Mid-stream failures still raise since you can't
+              restart a partial stream.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Two Anthropic clients — timeout separation</div>
+            <div class="concept-sub">client = Anthropic(timeout=60.0) for non-streaming (/chat, /analyze). stream_client
+              = Anthropic(timeout=120.0) for streaming (/analyze-chart, /premarket). Both go through LangSmith wrapping
+              if enabled. Prevents hung calls from blocking Railway workers forever.</div>
+          </div>
+        </div>
+        <div class="concept">
+          <div class="concept-dot done"></div>
+          <div>
+            <div class="concept-text">Railway keep-alive background task</div>
+            <div class="concept-sub">_keep_alive() coroutine loops every 600s. Checks datetime.now(ET).weekday() < 5 and
+                9 <=hour < 16 before pinging. Hits http://localhost:{PORT}/ping via httpx.AsyncClient. Spawned at
+                startup via @app.on_event("startup"). Prevents Railway idle cold-starts during market hours.</div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-dot done"></div>
+            <div>
+              <div class="concept-text">Claude Code workflow — findings table first</div>
+              <div class="concept-sub">Give Claude Code a detailed prompt listing every file + every issue. It reads the
+                whole repo, produces a findings table (issue #, location, current state, proposed fix), waits for
+                approval, then fixes everything. 8 issues found and fixed across main.py in one session. Show findings →
+                approve → execute is the right pattern.</div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-dot done"></div>
+            <div>
+              <div class="concept-text">Claude Chat vs Claude Code — when to use each</div>
+              <div class="concept-sub">Claude Chat = theory, architecture, planning, debugging a snippet. Claude Code =
+                building features across files, refactoring, running commands, fixing multiple bugs at once. Workflow:
+                learn concept in Chat → build it in Claude Code → debrief in Chat. Claude Code has full repo context,
+                can run bash, edit files, verify output.</div>
+            </div>
+          </div>
+          <div class="concept">
+            <div class="concept-dot done"></div>
+            <div>
+              <div class="concept-text">Stripe skipped — right call for this stage</div>
+              <div class="concept-sub">Stripe makes sense when you have paying users who aren't you. OpenTheDesk is a
+                personal trading tool — adding billing to a solo tool is wasted complexity. Deferred to when OpenTheDesk
+                goes multi-user (Month 5/6 decision). Production hardening shipped instead — more valuable engineering
+                work at this stage.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div class="section">
+        <div class="section-title">Code patterns</div>
+        <div class="concept-list">
+          <div class="concept">
+            <div class="concept-dot done"></div>
+            <div>
+              <div class="concept-text">with_retry utility</div>
+              <div class="code-block">def with_retry(fn, max_attempts=3):
+                for attempt in range(max_attempts):
+                try:
+                return fn()
+                except (anthropic.OverloadedError,
+                anthropic.APIStatusError) as e:
+                if attempt < max_attempts - 1: time.sleep(2 ** attempt) # 1s, 2s, 4s else: raise</div>
               </div>
-              <div class="concept">
-                <div class="concept-dot done"></div>
-                <div>
-                  <div class="concept-text">Multi-timeframe history params</div>
-                  <div class="code-block">_HISTORY_PARAMS = {
-                    "day": {"period": "1y", "interval": "1d"},
-                    "multiday": {"period": "2y", "interval": "1wk"},
-                    "swing": {"period": "5y", "interval": "1mo"},
-                    "position": {"period": "10y", "interval": "3mo"},
-                    }
-                    hist = tk.history(**_HISTORY_PARAMS[trading_mode])</div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Two clients with separate timeouts</div>
+                <div class="code-block">_raw_client = anthropic.Anthropic(timeout=60.0)
+                  _raw_stream_client = anthropic.Anthropic(timeout=120.0)
+                  # Both wrapped with LangSmith if enabled
+                  client = _ls_wrap(_raw_client) if _LS_ENABLED else _raw_client
+                  stream_client = _ls_wrap(_raw_stream_client) if _LS_ENABLED else _raw_stream_client</div>
+              </div>
+            </div>
+            <div class="concept">
+              <div class="concept-dot done"></div>
+              <div>
+                <div class="concept-text">Railway keep-alive startup task</div>
+                <div class="code-block">@app.on_event("startup")
+                  async def startup():
+                  asyncio.create_task(_keep_alive())
+
+                  async def _keep_alive():
+                  port = int(os.environ.get("PORT", 8000))
+                  ET = ZoneInfo("America/New_York")
+                  async with httpx.AsyncClient() as http:
+                  while True:
+                  await asyncio.sleep(600) # 10 min
+                  now = datetime.now(ET)
+                  if now.weekday() < 5 and 9 <=now.hour < 16: await http.get(f"http://localhost:{port}/ping")</div>
                 </div>
               </div>
             </div>
@@ -3168,510 +3391,977 @@
             <div class="section-title">Session milestones</div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">analyzer.py — yfinance + Tradier, all EMAs, ATR, PO, compression,
-                fundamentals</div><span class="milestone-tag tag-code">code</span>
+              <div class="milestone-label">with_retry() shared utility — wraps all 5 Claude call sites, catches 529 +
+                OverloadedError</div><span class="milestone-tag tag-code">code</span>
             </div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">/analyze — parallel Haiku + Sonnet, real options chain injected</div><span
-                class="milestone-tag tag-code">code</span>
+              <div class="milestone-label">Two Anthropic clients — 60s timeout (chat/analyze) + 120s (streaming)</div>
+              <span class="milestone-tag tag-code">code</span>
             </div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">/screener — 15 tickers parallel, ribbon filter, sort by change%</div><span
-                class="milestone-tag tag-code">code</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check done">✓</div>
-              <div class="milestone-label">/analyzer Next.js page — search, result card, dual Claude panels, screener
+              <div class="milestone-label">Railway keep-alive — /ping endpoint + background task, market hours only
               </div><span class="milestone-tag tag-code">code</span>
             </div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">Saty ribbon fixed — 8/21/34, conviction 13/48, candle bias vs 48</div><span
-                class="milestone-tag tag-theory">theory</span>
+              <div class="milestone-label">Claude Code — 8-issue findings table, approved, all fixed in one session
+              </div><span class="milestone-tag tag-debug">debug</span>
             </div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">Phase Oscillator + compression implemented in Python</div><span
-                class="milestone-tag tag-code">code</span>
+              <div class="milestone-label">Deployed + verified — /ping returns alive + timestamp from Railway</div><span
+                class="milestone-tag tag-deploy">deploy</span>
             </div>
             <div class="milestone-row">
               <div class="check done">✓</div>
-              <div class="milestone-label">Tradier /markets/ path bug fixed — real greeks live (delta, theta)</div><span
-                class="milestone-tag tag-debug">debug</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check done">✓</div>
-              <div class="milestone-label">NVDA swing: IV rank 89.9 → spread recommended, $664/contract, theta $20/day
-              </div><span class="milestone-tag tag-deploy">deploy</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check done">✓</div>
-              <div class="milestone-label">Deployed to Railway + Vercel — openthedesk.vercel.app/analyzer live</div>
-              <span class="milestone-tag tag-deploy">deploy</span>
+              <div class="milestone-label">Month 4 complete — production hardening, auth, model routing, observability
+                all live</div><span class="milestone-tag tag-deploy">deploy</span>
             </div>
           </div>
         </div>
 
-        <!-- WEEK 16 -->
-        <div id="w16" class="week-content active">
+        <!-- WEEK 17 -->
+        <div id="w17" class="week-content">
           <div class="section">
             <div class="section-title">Progress</div>
             <div class="progress-bar-wrap">
-              <div class="progress-bar" style="width:0%"></div>
+              <div class="progress-bar" style="width:100%"></div>
             </div>
-            <div class="progress-label">Week 16 starting — Stripe billing + production hardening + Month 4 wrap-up</div>
+            <div class="progress-label">Week 17 complete — TradingView webhook system + Pine Script alert engine live 🎉
+            </div>
           </div>
           <div class="divider"></div>
           <div class="section">
-            <div class="section-title">What we're building</div>
+            <div class="section-title">Core concepts learned</div>
             <div class="concept-list">
               <div class="concept">
-                <div class="concept-dot active"></div>
+                <div class="concept-dot done"></div>
                 <div>
-                  <div class="concept-text">Stripe billing integration</div>
-                  <div class="concept-sub">Add Stripe subscription to OpenTheDesk. Free tier: limited /analyze calls per
-                    day. Pro tier: unlimited analyzer + screener + priority queue. Clerk user ID links to Stripe
-                    customer. Usage metered per endpoint.</div>
+                  <div class="concept-text">Server-Sent Events (SSE) — instant push vs polling</div>
+                  <div class="concept-sub">SSE keeps an open HTTP connection. Server pushes `data: {json}\n\n` instantly
+                    when an event fires. Frontend uses EventSource API. 1s heartbeat timeout replaces 30s polling —
+                    alerts appear in ~1s instead of up to 30s. Per-client asyncio.Queue in ALERT_SUBSCRIBERS set.
+                    Snapshot copy `set(ALERT_SUBSCRIBERS)` on broadcast prevents RuntimeError on concurrent disconnect.
+                  </div>
                 </div>
               </div>
               <div class="concept">
-                <div class="concept-dot active"></div>
+                <div class="concept-dot done"></div>
                 <div>
-                  <div class="concept-text">API retry logic — 529 overloaded handling</div>
-                  <div class="concept-sub">Anthropic returns 529 during high load. Add exponential backoff retry (3
-                    attempts, 1s/2s) in _haiku() and _sonnet() inside /analyze. Prevents Railway 500 errors during API
-                    overload events.</div>
+                  <div class="concept-text">TradingView webhook auth — header vs body secret</div>
+                  <div class="concept-sub">TradingView doesn't support custom headers in webhook UI. Workaround: accept
+                    secret from X-TV-Secret header OR from JSON body field "secret". Auth passes if either matches
+                    TV_WEBHOOK_SECRET env var. Generate secret with `python3 -c "import secrets;
+                    print(secrets.token_hex(32))"`.</div>
                 </div>
               </div>
               <div class="concept">
-                <div class="concept-dot active"></div>
+                <div class="concept-dot done"></div>
                 <div>
-                  <div class="concept-text">Production hardening</div>
-                  <div class="concept-sub">Error handling at scale. Rate limiting per user (slowapi or custom
-                    middleware). Input validation (ticker sanitization). Security: API key headers, CORS lockdown for
-                    production. Load test /analyze endpoint.</div>
+                  <div class="concept-text">Pine Script — exact Saty ATR formula</div>
+                  <div class="concept-sub">Must use `session=session.extended` in ticker.new() to match Saty's ATR.
+                    Regular session only gives ~1pt delta. `ticker_ext = ticker.new(syminfo.prefix, syminfo.ticker,
+                    session=session.extended)`. Then `request.security(ticker_ext, "D", close[1],
+                    lookahead=barmerge.lookahead_on)`. This is why our levels were clustering wrong before.</div>
                 </div>
               </div>
               <div class="concept">
-                <div class="concept-dot active"></div>
+                <div class="concept-dot done"></div>
                 <div>
-                  <div class="concept-text">Month 4 portfolio wrap-up</div>
-                  <div class="concept-sub">Polish README for openthedesk repo. Add live demo GIF. Document all
-                    endpoints. Clean up legacy/ folder. Month 4 complete = full AI SaaS with auth (Clerk) + billing
-                    (Stripe) + observability (LangSmith) + production deployment.</div>
+                  <div class="concept-text">Pine Script — A+/A grade system</div>
+                  <div class="concept-sub">Every setup has a core condition + grade filter. A+ = all conditions met
+                    (conviction + volume + PO zone). A = core only. `plotshape` size: A+ = size.normal, A = size.small.
+                    Uppercase text = A+ (GG▲), lowercase = A (gg▲). Webhook payload includes setup, grade, direction
+                    fields for backend filtering.</div>
+                </div>
+              </div>
+              <div class="concept">
+                <div class="concept-dot done"></div>
+                <div>
+                  <div class="concept-text">Pine Script — 6 setup conditions</div>
+                  <div class="concept-sub">GG: ribbon + trigger crossover + PO neutral. DIV: PO crosses ±100 + price at
+                    full ATR + PO turning. FLAG: ribbon 5+ bars + first 13 EMA touch + quiet volume. VOMY: ribbon cross
+                    + 13/48 conviction. TWEEZER: matching wicks 2 bars + 50% reclaim. TARGETS: within 5% of GG
+                    Open/Complete. STOPS: price reverses through trigger.</div>
+                </div>
+              </div>
+              <div class="concept">
+                <div class="concept-dot done"></div>
+                <div>
+                  <div class="concept-text">React SSE dedup pattern</div>
+                  <div class="concept-sub">SSE auto-reconnects on drop. On reconnect, initial GET /alerts loads existing
+                    alerts. New SSE message might duplicate one already loaded. Fix: `prev.some(a => a.id === alert.id)`
+                    dedup guard before prepending. Prevents double entries without needing server-side dedup.</div>
+                </div>
+              </div>
+              <div class="concept">
+                <div class="concept-dot done"></div>
+                <div>
+                  <div class="concept-text">Alert mark-read — auto vs manual</div>
+                  <div class="concept-sub">Bug: bell onClick was calling markAllRead() automatically — so by the time
+                    you saw the drawer, everything was read. Fix: removed auto-markAllRead from drawer open. Badge now
+                    stays red until you click individual row (markRead) or "Mark all read" button. markRead uses indexOf
+                    in newest-first array — clickIdx < seenIdx means alert is newer than baseline.</div>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-          <div class="divider"></div>
-          <div class="section">
-            <div class="section-title">Session milestones</div>
-            <div class="milestone-row">
-              <div class="check pending">○</div>
-              <div class="milestone-label">Retry logic — 529 handling in /analyze with exponential backoff</div><span
-                class="milestone-tag tag-code">next</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check pending">○</div>
-              <div class="milestone-label">Stripe — subscription billing, free vs pro tiers</div><span
-                class="milestone-tag tag-code">next</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check pending">○</div>
-              <div class="milestone-label">Rate limiting — per-user API call limits</div><span
-                class="milestone-tag tag-code">next</span>
-            </div>
-            <div class="milestone-row">
-              <div class="check pending">○</div>
-              <div class="milestone-label">README polish + live demo — Month 4 portfolio complete</div><span
-                class="milestone-tag tag-git">git</span>
-            </div>
-          </div>
-        </div>
+            <div class="divider"></div>
+            <div class="section">
+              <div class="section-title">Code patterns</div>
+              <div class="concept-list">
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">SSE broadcast pattern</div>
+                    <div class="code-block">ALERT_SUBSCRIBERS: set[asyncio.Queue] = set()
 
-      </div>
-      <div id="roadmap" class="view-content">
-        <div class="salary-row">
-          <div class="sal-card">
-            <div class="sal-label">Entry-level salary</div>
-            <div class="sal-val">$95–130K</div>
-            <div class="sal-sub">Base, on hire</div>
-          </div>
-          <div class="sal-card">
-            <div class="sal-label">Mid-level (1–2 yrs)</div>
-            <div class="sal-val">$160–200K</div>
-            <div class="sal-sub">After first role</div>
-          </div>
-          <div class="sal-card">
-            <div class="sal-label">Specialist</div>
-            <div class="sal-val">$200–300K+</div>
-            <div class="sal-sub">Agents, fine-tuning</div>
-          </div>
-          <div class="sal-card">
-            <div class="sal-label">Daily commitment</div>
-            <div class="sal-val">2 hrs</div>
-            <div class="sal-sub">Weekdays only</div>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-done">1</div>
-            <div class="month-title">Foundations</div>
-            <div class="month-sub">Weeks 1–4 · Apr 2026 ✓</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card done">
-              <div class="wk-label">Week 1 ✓</div>
-              <div class="wk-title">AI concepts + Python setup</div>
-              <div class="wk-tags"><span class="rtag rtag-amber">theory</span><span class="rtag rtag-green">code</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 2 ✓</div>
-              <div class="wk-title">Chatbot + FastAPI + Next.js + deploy</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 3 ✓</div>
-              <div class="wk-title">Prompt mastery + AI Code Reviewer</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 4 ✓</div>
-              <div class="wk-title">Batch analyzer + cost optimization</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
-                  class="rtag rtag-amber">caching</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-done">2</div>
-            <div class="month-title">RAG + vector databases</div>
-            <div class="month-sub">Weeks 5–8 · May 2026 ✓</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card done">
-              <div class="wk-label">Week 5 ✓</div>
-              <div class="wk-title">Embeddings + pgvector + ingestion</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
-                  class="rtag rtag-teal">pgvector</span></div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 6 ✓</div>
-              <div class="wk-title">RAG UI + full stack deploy</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 7 ✓</div>
-              <div class="wk-title">Hybrid search + reranking</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
-                  class="rtag rtag-purple">Cohere</span></div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 8 ✓</div>
-              <div class="wk-title">Multi-doc + README + deploy</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-done">3</div>
-            <div class="month-title">AI agents + tool use — OpenTheDesk</div>
-            <div class="month-sub">Weeks 9–12 · May 2026 ✓</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card done">
-              <div class="wk-label">Week 9 ✓</div>
-              <div class="wk-title">Google Doc KB + terminal agent</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 10 ✓</div>
-              <div class="wk-title">Chart vision + streaming</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
-                  class="rtag rtag-purple">vision</span></div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 11 ✓</div>
-              <div class="wk-title">Live market data + PREMARKET</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
-                  class="rtag rtag-teal">yfinance</span></div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 12 ✓</div>
-              <div class="wk-title">ATR levels panel + README + deploy</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-active">4</div>
-            <div class="month-title">Production AI apps — Auth, billing, observability</div>
-            <div class="month-sub">Weeks 13–16 · Jun 2026</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card done">
-              <div class="wk-label">Week 13 ✓</div>
-              <div class="wk-title">Tradier live options + auto ATR + Claude Code cleanup</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 14 ✓</div>
-              <div class="wk-title">Auth + model routing + UI redesign + flow + LangSmith</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card done">
-              <div class="wk-label">Week 15 ✓</div>
-              <div class="wk-title">Analyzer — real options chain + greeks + Saty system</div>
-              <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span class="rtag rtag-teal">live</span>
-              </div>
-            </div>
-            <div class="week-card current">
-              <div class="wk-label">Week 16</div>
-              <div class="wk-title">Stripe billing + retry logic + Month 4 wrap-up</div>
-              <div class="wk-tags"><span class="rtag rtag-amber">next</span><span class="rtag rtag-purple">Stripe</span>
-              </div>
-            </div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card">
-              <div class="wk-label">Week 13</div>
-              <div class="wk-title">Auth, billing + observability</div>
-              <div class="wk-tags"><span class="rtag rtag-blue">Clerk</span><span class="rtag rtag-green">Stripe</span>
-              </div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Week 14</div>
-              <div class="wk-title">Cost optimization + performance</div>
-              <div class="wk-tags"><span class="rtag rtag-amber">caching</span><span
-                  class="rtag rtag-purple">batching</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Week 15–16</div>
-              <div class="wk-title">Ship full AI SaaS product</div>
-              <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-coral">live
-                  users</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-future">5</div>
-            <div class="month-title">Specialization</div>
-            <div class="month-sub">Weeks 17–20 · Aug 2026</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card">
-              <div class="wk-label">Option A</div>
-              <div class="wk-title">Fine-tuning + evals</div>
-              <div class="wk-tags"><span class="rtag rtag-purple">ML</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Option B</div>
-              <div class="wk-title">Multimodal AI (vision + audio)</div>
-              <div class="wk-tags"><span class="rtag rtag-blue">vision</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Option C</div>
-              <div class="wk-title">Advanced agents + automation</div>
-              <div class="wk-tags"><span class="rtag rtag-teal">CrewAI</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Option D/E</div>
-              <div class="wk-title">AI infra or data/ML pipelines</div>
-              <div class="wk-tags"><span class="rtag rtag-coral">Ollama</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="month-row">
-          <div class="month-header">
-            <div class="month-num m-future">6</div>
-            <div class="month-title">Interview prep + job search</div>
-            <div class="month-sub">Weeks 21–24 · Sep 2026</div>
-          </div>
-          <div class="weeks-grid">
-            <div class="week-card">
-              <div class="wk-label">Week 21</div>
-              <div class="wk-title">System design + coding prep</div>
-              <div class="wk-tags"><span class="rtag rtag-amber">interviews</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Week 22</div>
-              <div class="wk-title">Portfolio + resume polish</div>
-              <div class="wk-tags"><span class="rtag rtag-blue">LinkedIn</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Week 23</div>
-              <div class="wk-title">Job search + networking</div>
-              <div class="wk-tags"><span class="rtag rtag-teal">outreach</span></div>
-            </div>
-            <div class="week-card">
-              <div class="wk-label">Week 24</div>
-              <div class="wk-title">Final polish + negotiate offers</div>
-              <div class="wk-tags"><span class="rtag rtag-green">hired</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="section">
-          <div class="section-title">3 portfolio projects</div>
-          <div class="projects-grid">
-            <div class="proj-card">
-              <div class="proj-num">Project 1 · Month 2</div>
-              <div class="proj-name">Smart document analyzer</div>
-              <div class="proj-desc">Users upload PDFs, AI answers questions from them. Shows embeddings + retrieval +
-                production UX.</div>
-              <div class="proj-stack"><span class="rtag rtag-blue">Next.js</span><span
-                  class="rtag rtag-teal">pgvector</span><span class="rtag rtag-green">FastAPI</span></div>
-            </div>
-            <div class="proj-card">
-              <div class="proj-num">Project 2 · Month 3</div>
-              <div class="proj-name">Options research agent</div>
-              <div class="proj-desc">MCP server + LangGraph agent analyzing options chains, Greeks, IV rank, and unusual
-                flow. Human-in-the-loop. Next.js dashboard.</div>
-              <div class="proj-stack"><span class="rtag rtag-purple">LangGraph</span><span
-                  class="rtag rtag-coral">MCP</span><span class="rtag rtag-blue">Next.js</span></div>
-            </div>
-            <div class="proj-card">
-              <div class="proj-num">Project 3 · Month 4</div>
-              <div class="proj-name">Full AI SaaS product</div>
-              <div class="proj-desc">Complete product with auth, Stripe billing, and real users. Proves you can ship
-                beyond prototypes.</div>
-              <div class="proj-stack"><span class="rtag rtag-blue">Clerk</span><span
-                  class="rtag rtag-green">Stripe</span><span class="rtag rtag-teal">Supabase</span></div>
-            </div>
-          </div>
-        </div>
-        <div class="divider"></div>
-        <div class="section">
-          <div class="section-title">Key milestones</div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">First Claude API call from Python</div>
-            <div class="ms-when">Week 1 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Full stack AI chatbot on GitHub</div>
-            <div class="ms-when">Week 2 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Chatbot deployed live — Vercel + Railway</div>
-            <div class="ms-when">Week 2 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">AI Code Reviewer shipped + deployed</div>
-            <div class="ms-when">Week 3 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Batch analyzer + prompt caching live</div>
-            <div class="ms-when">Week 4 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">RAG pipeline — ingest + retrieve + Claude Q&A working</div>
-            <div class="ms-when">Week 5 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Smart Document Analyzer — full stack deployed</div>
-            <div class="ms-when">Week 6 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Advanced RAG — hybrid search + reranking deployed</div>
-            <div class="ms-when">Week 7 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Knowledge base polish + Month 2 wrap-up</div>
-            <div class="ms-when">Week 8 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">OpenTheDesk — live at openthedesk.vercel.app</div>
-            <div class="ms-when">Week 9 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">OpenTheDesk — chart vision production ready</div>
-            <div class="ms-when">Week 10 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">OpenTheDesk — live market data + PREMARKET endpoint</div>
-            <div class="ms-when">Week 11 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">OpenTheDesk — pre-market levels panel + Month 3 complete</div>
-            <div class="ms-when">Week 12 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Tradier live options + ATR-14 Wilder + skeleton UI + Claude Code cleanup</div>
-            <div class="ms-when">Week 13 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot future"></div>
-            <div class="ms-text">Options research agent working + documented</div>
-            <div class="ms-when">End of Week 12</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Auth + model routing + UI redesign + flow + LangSmith live</div>
-            <div class="ms-when">Week 14 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot done"></div>
-            <div class="ms-text">Analyzer — real options chain, greeks, IV rank, Saty PO, multi-timeframe ATR</div>
-            <div class="ms-when">Week 15 ✓</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot future"></div>
-            <div class="ms-text">Full SaaS with Stripe billing live</div>
-            <div class="ms-when">End of Week 16</div>
-          </div>
-          <div class="ms-row">
-            <div class="ms-dot future"></div>
-            <div class="ms-text">Job offers and negotiation</div>
-            <div class="ms-when">Week 24</div>
-          </div>
-        </div>
-      </div>
+                      # In webhook endpoint — after storing alert:
+                      for q in set(ALERT_SUBSCRIBERS): # snapshot copy
+                      q.put_nowait(alert)
 
-    </div>
-    <script>
-      function showView(id, btn) {
-        document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        btn.classList.add('active');
-      }
-      function showWeek(id, btn) {
-        document.querySelectorAll('.week-content').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-        document.getElementById(id).classList.add('active');
-        btn.classList.add('active');
-      }
-    </script>
+                      # SSE stream endpoint:
+                      async def generate():
+                      queue = asyncio.Queue()
+                      ALERT_SUBSCRIBERS.add(queue)
+                      try:
+                      while True:
+                      try:
+                      alert = await asyncio.wait_for(queue.get(), timeout=1.0)
+                      yield f"data: {json.dumps(alert)}\n\n"
+                      except asyncio.TimeoutError:
+                      yield "data: ping\n\n"
+                      finally:
+                      ALERT_SUBSCRIBERS.discard(queue)</div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Frontend EventSource with dedup</div>
+                    <div class="code-block">useEffect(() => {
+                      const es = new EventSource(`${base}/alerts/stream`)
+                      es.onmessage = (e) => {
+                      if (e.data === 'ping') return
+                      const alert = JSON.parse(e.data)
+                      setAlerts(prev => {
+                      if (prev.some(a => a.id === alert.id)) return prev
+                      return [alert, ...prev] // prepend newest
+                      })
+                      }
+                      return () => es.close() // cleanup on unmount
+                      }, [])</div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Pine Script exact Saty ATR</div>
+                    <div class="code-block">// CRITICAL: session.extended matches Saty's ATR calculation
+                      ticker_ext = ticker.new(syminfo.prefix, syminfo.ticker,
+                      session=session.extended)
+                      pdc = request.security(ticker_ext, "D", close[1],
+                      gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+                      atr14 = request.security(ticker_ext, "D", ta.atr(14)[1],
+                      gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="divider"></div>
+            <div class="section">
+              <div class="section-title">Session milestones</div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">POST /webhook/tv — secret auth (header + body), UUID, timestamp, 50-alert
+                  store</div><span class="milestone-tag tag-code">code</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">GET /alerts/stream — SSE with 1s heartbeat, instant push, per-client queue
+                </div><span class="milestone-tag tag-code">code</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">Bell icon + alert drawer — white icon, red badge, slide-in panel, relative
+                  timestamps</div><span class="milestone-tag tag-code">code</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">Mark read per row + Mark all read — badge stays until explicit action</div>
+                <span class="milestone-tag tag-debug">debug</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">Pine Script — exact Saty ATR (session.extended), 6 setups, A+/A grades,
+                  shapes</div><span class="milestone-tag tag-code">code</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">24 TradingView alerts created — GG/DIV/FLAG/VOMY/TWEEZER/TARGET/STOP all
+                  live</div><span class="milestone-tag tag-deploy">deploy</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">pine/openthedesk_webhook.pine committed to repo — version controlled</div>
+                <span class="milestone-tag tag-git">git</span>
+              </div>
+              <div class="milestone-row">
+                <div class="check done">✓</div>
+                <div class="milestone-label">Full chain verified: TradingView → Railway → SSE → OpenTheDesk bell (~1s)
+                </div><span class="milestone-tag tag-deploy">deploy</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- WEEK 18 -->
+          <div id="w18" class="week-content">
+            <div class="section">
+              <div class="section-title">Progress</div>
+              <div class="progress-bar-wrap">
+                <div class="progress-bar" style="width:60%"></div>
+              </div>
+              <div class="progress-label">Week 18 in progress — alert card redesign + internals snapshot live 🎉</div>
+            </div>
+            <div class="divider"></div>
+            <div class="section">
+              <div class="section-title">Core concepts learned</div>
+              <div class="concept-list">
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Backend was missing setup/grade/direction fields</div>
+                    <div class="concept-sub">TVAlertPayload only stored ticker/timeframe/condition/price/atr_level.
+                      Added setup, grade, direction as Optional[str] fields. Alert dict updated to store all three. Root
+                      cause of all badge color failures — frontend code was correct the whole time, data was missing.
+                    </div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Market internals as context, not a gate</div>
+                    <div class="concept-sub">Saty confirmed internals should never block trades — only inform. Changed
+                      approach: fetch TRIN/ADD/VOLD from Tradier at the moment each alert fires, store snapshot on the
+                      alert. Display on unread card as a third row. Never used to upgrade/downgrade grade or block
+                      signal.</div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Per-alert mark-read with Set</div>
+                    <div class="concept-sub">Old system used lastSeenId baseline — clicking one alert marked all above
+                      it as read. Replaced with readIds: Set&lt;string&gt; stored as JSON array in localStorage (key:
+                      tv_alerts_read, capped at 100). markRead(id) adds one id. markAllRead() adds all current ids.
+                      alertCount = alerts.filter(a => !readIds.has(a.id)).length.</div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Unread vs read card states</div>
+                    <div class="concept-sub">Unread = full card: accent bar + setup badge + grade badge + price row +
+                      ATR level + internals row. Read = compact single line: ticker + timeframe + condition + time only.
+                      Dramatically reduces visual noise in the drawer after you've seen an alert.</div>
+                  </div>
+                </div>
+                <div class="concept">
+                  <div class="concept-dot done"></div>
+                  <div>
+                    <div class="concept-text">Alert card color system</div>
+                    <div class="concept-sub">Accent bar (4px, alignSelf:stretch) = green for BULL, red for BEAR, gray
+                      for TARGET/STOP/DIV. Setup badge = dark green bg (#0f2d1a) + bright green text (#4ade80) for BULL,
+                      dark red (#3d0f0f) + red text (#f87171) for BEAR. Grade badge = blue A+ vs gray A. TRIN color:
+                      >1.2 red, <0.8 green. ADD color:>+200 green, <-200 red.</div></div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Pine Script shape system finalized</div>
+                      <div class="concept-sub">Universal rule: ghost (color.new(X, 70)) = A grade, solid = A+ grade.
+                        Vomy changed from circle to arrowup/arrowdown — only remaining unused Pine shape. Each setup has
+                        unique silhouette: triangle=GG, arrow=Vomy, diamond=Flag, label=DIV, square=Tweezer. Size.normal
+                        for all A grades (not size.small) — transparency alone encodes grade.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">Code patterns</div>
+                <div class="concept-list">
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">get_market_internals() — Tradier</div>
+                      <div class="code-block">def get_market_internals() -> dict:
+                        try:
+                        data = _get("/markets/quotes", {
+                        "symbols": "$TRIN,$ADD,$VOLD",
+                        "greeks": "false"
+                        })
+                        quotes = data.get("quotes", {}).get("quote", [])
+                        if isinstance(quotes, dict): quotes = [quotes]
+                        result = {}
+                        for q in quotes:
+                        sym = q.get("symbol", "")
+                        last = q.get("last") or q.get("close")
+                        if sym == "$TRIN": result["trin"] = round(float(last), 2) if last else None
+                        elif sym == "$ADD": result["add"] = int(float(last)) if last else None
+                        elif sym == "$VOLD": result["vold"] = round(float(last), 2) if last else None
+                        return result
+                        except Exception:
+                        return {"trin": None, "add": None, "vold": None}</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Per-alert read state with Set</div>
+                      <div class="code-block">const [readIds, setReadIds] = useState&lt;Set&lt;string&gt;&gt;(new Set())
+
+                        // Load from localStorage on mount
+                        useEffect(() => {
+                        const stored = JSON.parse(localStorage.getItem("tv_alerts_read") ?? "[]")
+                        setReadIds(new Set(stored))
+                        }, [])
+
+                        // markRead — add single id, cap at 100
+                        const markRead = useCallback((id: string) => {
+                        setReadIds(prev => {
+                        const next = new Set(prev)
+                        next.add(id)
+                        const arr = [...next].slice(-100)
+                        localStorage.setItem("tv_alerts_read", JSON.stringify(arr))
+                        return new Set(arr)
+                        })
+                        }, [])</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">Session milestones</div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Alert card redesign — accent bar, colored badges, unread/read states
+                  </div><span class="milestone-tag tag-code">code</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Per-alert mark-read — Set&lt;string&gt; replaces lastSeenId baseline
+                  </div><span class="milestone-tag tag-debug">debug</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Backend fix — setup/grade/direction stored from webhook payload</div>
+                  <span class="milestone-tag tag-debug">debug</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">get_market_internals() — TRIN/ADD/VOLD fetched on every alert, stored as
+                    snapshot</div><span class="milestone-tag tag-code">code</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Internals row on unread cards — color-coded TRIN/ADD/VOLD display</div>
+                  <span class="milestone-tag tag-code">code</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Pine Script shape system — ghost=A, solid=A+, Vomy→arrow, all shapes
+                    unique</div><span class="milestone-tag tag-theory">theory</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check done">✓</div>
+                  <div class="milestone-label">Deployed to production — Railway + Vercel</div><span
+                    class="milestone-tag tag-deploy">deploy</span>
+                </div>
+                <div class="milestone-row">
+                  <div class="check pending">○</div>
+                  <div class="milestone-label">Live test internals tomorrow at market open — verify TRIN/ADD/VOLD
+                    populate on real alert</div><span class="milestone-tag tag-theory">verify</span>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">What's next — Journal system (Week 19)</div>
+                <div class="concept-list">
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Journal UI built — in-memory, coming soon in production</div>
+                      <div class="concept-sub">/journal page built with Chart.js (react-chartjs-2 via npm). Full layout:
+                        sidebar filters, 5-stat bar, 3 charts (cumulative P&L line, P&L by setup bars, win % by hour
+                        bars), trade table with colored badges, expandable rows, chat entry bar. In-memory backend
+                        (JOURNAL_ENTRIES list + seed data). Marked "coming soon" in production — Supabase swap + chat
+                        extraction needed before going live.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Next: Supabase swap + chat entry extraction</div>
+                      <div class="concept-sub">Replace JOURNAL_ENTRIES in-memory list with Supabase table. Add Claude
+                        extraction in /chat to detect "I took a trade" intent → Haiku extracts structured fields → POST
+                        /journal/entry. Then flip journal from coming-soon to live.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">OpenTheDesk agent — build in OpenTheDesk project workspace</div>
+                      <div class="concept-sub">Agent for OpenTheDesk (LangGraph-based, autonomous trade analysis, tool
+                        use) should be built in the OpenTheDesk project — not here. That workspace has full repo
+                        context, main.py, tradier.py, all architecture docs. Ask there for agent work.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- WEEK 19 -->
+            <div id="w19" class="week-content">
+              <div class="section">
+                <div class="section-title">Progress</div>
+                <div class="progress-bar-wrap">
+                  <div class="progress-bar" style="width:0%"></div>
+                </div>
+                <div class="progress-label">Week 19 starting — Journal system with Supabase</div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">Journal system — full design</div>
+                <div class="concept-list">
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Why Supabase over Google Docs</div>
+                      <div class="concept-sub">Google Docs = good for freeform notes, terrible for structured data.
+                        Supabase = queryable, filterable, user-specific via Clerk userId, can calculate stats (win rate
+                        by setup, avg P&L by time of day, best setup). Already in the stack. Free tier handles this
+                        easily.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Database schema — trade_journal table</div>
+                      <div class="concept-sub">id (uuid PK), user_id (text, Clerk userId), date (date), ticker (text,
+                        default SPX), setup (text: GG/FLAG/VOMY/DIV/TWEEZER), direction (text: BULL/BEAR), entry_price
+                        (numeric), exit_price (numeric), contracts (int default 1), pnl (numeric), grade (text: A/A+/B),
+                        process_grade (text: how well rules followed), notes (text), internals (jsonb: {trin,add,vold}
+                        at entry time), created_at (timestamptz).</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Two entry modes</div>
+                      <div class="concept-sub">1. Chat command — "I took GG Bear at 7390, exited 7378, 1 contract, made
+                        $240" → Claude extracts structured fields via Haiku → POST /journal/entry → Supabase. Fast, no
+                        context switching during trading. 2. Manual form in /journal tab — full form with all fields,
+                        for end-of-day detailed entries with longer notes.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Claude extraction prompt pattern</div>
+                      <div class="concept-sub">User says anything about a trade in chat → detect JOURNAL intent → Haiku
+                        extracts: {ticker, setup, direction, entry_price, exit_price, contracts, pnl, grade, notes} as
+                        JSON → validate → store. If fields missing, Claude asks only for what's needed. Example: "took
+                        GG bear 7390 exit 7378" → entry=7390, exit=7378, pnl auto-calculated as
+                        (7390-7378)×contracts×100.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">/journal tab UI — three sections</div>
+                      <div class="concept-sub">1. Stats row — total trades, win rate %, avg P&L, best setup, current
+                        streak. 2. Trade table — date, setup badge, direction, entry, exit, P&L (green/red), grade
+                        badge. Sortable, filterable by setup/direction/date/win-loss. 3. Expandable row — click any
+                        trade to see full notes + internals snapshot at entry + Claude process grade breakdown.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">P&L auto-calculation</div>
+                      <div class="concept-sub">SPX options: pnl = (exit_price - entry_price) × contracts × 100. Bear
+                        trades: pnl = (entry_price - exit_price) × contracts × 100. If user gives dollar pnl directly,
+                        use that. Store both premium P&L and point move for reference. Show running account total on
+                        stats row.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">AI insights on journal — weekly review</div>
+                      <div class="concept-sub">WEEKLY REVIEW command fetches last 5 trading days from Supabase → sends
+                        to Sonnet → returns: best setup this week, worst setup, time-of-day performance (morning vs
+                        afternoon), process grade trend, specific pattern to fix. Much more powerful than reviewing a
+                        Google Doc manually.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot active"></div>
+                    <div>
+                      <div class="concept-text">Build order — 4 steps</div>
+                      <div class="concept-sub">Step 1: Supabase table + RLS policies (user_id = Clerk userId). Step 2:
+                        Backend — POST /journal/entry + GET /journal/entries + GET /journal/stats endpoints. Step 3:
+                        Claude extraction in /chat — detect trade journal intent, extract fields, store. Step 4:
+                        /journal Next.js page — stats row + table + expandable rows.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">Key decisions made</div>
+                <div class="concept-list">
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Supabase over Google Docs</div>
+                      <div class="concept-sub">Structured queryable data beats append-only doc. Stats, filters, AI
+                        analysis all require a real DB. Google Doc stays as a free-form scratchpad for rules/context,
+                        not trade log.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">user_id from Clerk, not hardcoded</div>
+                      <div class="concept-sub">Journal is user-specific from day one. Even though it's currently solo
+                        use, building with user_id means multi-user works automatically later. Clerk JWT → extract
+                        userId → filter all queries by it.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Chat-first entry, form as backup</div>
+                      <div class="concept-sub">During live trading you don't want to fill a form. "Exit 7378 profit
+                        $240" in chat should just work. Form is for end-of-day detailed retrospective entries with
+                        longer notes.</div>
+                    </div>
+                  </div>
+                  <div class="concept">
+                    <div class="concept-dot done"></div>
+                    <div>
+                      <div class="concept-text">Internals snapshot on entry</div>
+                      <div class="concept-sub">When a journal entry is created from chat, fetch live TRIN/ADD/VOLD at
+                        that moment and store in internals jsonb field. Builds a historical record of what market
+                        character looked like on each trade. Powerful for pattern analysis later.</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="roadmap" class="view-content">
+              <div class="salary-row">
+                <div class="sal-card">
+                  <div class="sal-label">Entry-level salary</div>
+                  <div class="sal-val">$95–130K</div>
+                  <div class="sal-sub">Base, on hire</div>
+                </div>
+                <div class="sal-card">
+                  <div class="sal-label">Mid-level (1–2 yrs)</div>
+                  <div class="sal-val">$160–200K</div>
+                  <div class="sal-sub">After first role</div>
+                </div>
+                <div class="sal-card">
+                  <div class="sal-label">Specialist</div>
+                  <div class="sal-val">$200–300K+</div>
+                  <div class="sal-sub">Agents, fine-tuning</div>
+                </div>
+                <div class="sal-card">
+                  <div class="sal-label">Daily commitment</div>
+                  <div class="sal-val">2 hrs</div>
+                  <div class="sal-sub">Weekdays only</div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-done">1</div>
+                  <div class="month-title">Foundations</div>
+                  <div class="month-sub">Weeks 1–4 · Apr 2026 ✓</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card done">
+                    <div class="wk-label">Week 1 ✓</div>
+                    <div class="wk-title">AI concepts + Python setup</div>
+                    <div class="wk-tags"><span class="rtag rtag-amber">theory</span><span
+                        class="rtag rtag-green">code</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 2 ✓</div>
+                    <div class="wk-title">Chatbot + FastAPI + Next.js + deploy</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 3 ✓</div>
+                    <div class="wk-title">Prompt mastery + AI Code Reviewer</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 4 ✓</div>
+                    <div class="wk-title">Batch analyzer + cost optimization</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-amber">caching</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-done">2</div>
+                  <div class="month-title">RAG + vector databases</div>
+                  <div class="month-sub">Weeks 5–8 · May 2026 ✓</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card done">
+                    <div class="wk-label">Week 5 ✓</div>
+                    <div class="wk-title">Embeddings + pgvector + ingestion</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">pgvector</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 6 ✓</div>
+                    <div class="wk-title">RAG UI + full stack deploy</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 7 ✓</div>
+                    <div class="wk-title">Hybrid search + reranking</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-purple">Cohere</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 8 ✓</div>
+                    <div class="wk-title">Multi-doc + README + deploy</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-done">3</div>
+                  <div class="month-title">AI agents + tool use — OpenTheDesk</div>
+                  <div class="month-sub">Weeks 9–12 · May 2026 ✓</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card done">
+                    <div class="wk-label">Week 9 ✓</div>
+                    <div class="wk-title">Google Doc KB + terminal agent</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 10 ✓</div>
+                    <div class="wk-title">Chart vision + streaming</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-purple">vision</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 11 ✓</div>
+                    <div class="wk-title">Live market data + PREMARKET</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">yfinance</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 12 ✓</div>
+                    <div class="wk-title">ATR levels panel + README + deploy</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-done">4</div>
+                  <div class="month-title">Production AI apps — Auth, billing, observability</div>
+                  <div class="month-sub">Weeks 13–16 · May 2026 ✓</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card done">
+                    <div class="wk-label">Week 13 ✓</div>
+                    <div class="wk-title">Tradier live options + auto ATR + Claude Code cleanup</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 14 ✓</div>
+                    <div class="wk-title">Auth + model routing + UI redesign + flow + LangSmith</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 15 ✓</div>
+                    <div class="wk-title">Analyzer — real options chain, greeks, Saty system, delta filter</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 16 ✓</div>
+                    <div class="wk-title">3-layer reliability — retry + keep-alive + timeouts</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card">
+                    <div class="wk-label">Week 13</div>
+                    <div class="wk-title">Auth, billing + observability</div>
+                    <div class="wk-tags"><span class="rtag rtag-blue">Clerk</span><span
+                        class="rtag rtag-green">Stripe</span></div>
+                  </div>
+                  <div class="week-card">
+                    <div class="wk-label">Week 14</div>
+                    <div class="wk-title">Cost optimization + performance</div>
+                    <div class="wk-tags"><span class="rtag rtag-amber">caching</span><span
+                        class="rtag rtag-purple">batching</span></div>
+                  </div>
+                  <div class="week-card">
+                    <div class="wk-label">Week 15–16</div>
+                    <div class="wk-title">Ship full AI SaaS product</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">project</span><span class="rtag rtag-coral">live
+                        users</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-active">5</div>
+                  <div class="month-title">Specialization — OpenTheDesk extensions</div>
+                  <div class="month-sub">Weeks 17–20 · May 2026</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card done">
+                    <div class="wk-label">Week 17 ✓</div>
+                    <div class="wk-title">TradingView webhooks + SSE + Pine Script alerts</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card done">
+                    <div class="wk-label">Week 18 ✓</div>
+                    <div class="wk-title">Alert card redesign + internals snapshot + Pine shape system + Journal UI
+                      built</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">shipped</span><span
+                        class="rtag rtag-teal">live</span></div>
+                  </div>
+                  <div class="week-card current">
+                    <div class="wk-label">Week 19</div>
+                    <div class="wk-title">Journal system — Supabase + chat entry + agent for OpenTheDesk</div>
+                    <div class="wk-tags"><span class="rtag rtag-amber">next</span><span
+                        class="rtag rtag-teal">Supabase</span><span class="rtag rtag-purple">agent</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="month-row">
+                <div class="month-header">
+                  <div class="month-num m-future">6</div>
+                  <div class="month-title">Interview prep + job search</div>
+                  <div class="month-sub">Weeks 21–24 · Sep 2026</div>
+                </div>
+                <div class="weeks-grid">
+                  <div class="week-card">
+                    <div class="wk-label">Week 21</div>
+                    <div class="wk-title">System design + coding prep</div>
+                    <div class="wk-tags"><span class="rtag rtag-amber">interviews</span></div>
+                  </div>
+                  <div class="week-card">
+                    <div class="wk-label">Week 22</div>
+                    <div class="wk-title">Portfolio + resume polish</div>
+                    <div class="wk-tags"><span class="rtag rtag-blue">LinkedIn</span></div>
+                  </div>
+                  <div class="week-card">
+                    <div class="wk-label">Week 23</div>
+                    <div class="wk-title">Job search + networking</div>
+                    <div class="wk-tags"><span class="rtag rtag-teal">outreach</span></div>
+                  </div>
+                  <div class="week-card">
+                    <div class="wk-label">Week 24</div>
+                    <div class="wk-title">Final polish + negotiate offers</div>
+                    <div class="wk-tags"><span class="rtag rtag-green">hired</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">3 portfolio projects</div>
+                <div class="projects-grid">
+                  <div class="proj-card">
+                    <div class="proj-num">Project 1 · Month 2</div>
+                    <div class="proj-name">Smart document analyzer</div>
+                    <div class="proj-desc">Users upload PDFs, AI answers questions from them. Shows embeddings +
+                      retrieval + production UX.</div>
+                    <div class="proj-stack"><span class="rtag rtag-blue">Next.js</span><span
+                        class="rtag rtag-teal">pgvector</span><span class="rtag rtag-green">FastAPI</span></div>
+                  </div>
+                  <div class="proj-card">
+                    <div class="proj-num">Project 2 · Month 3</div>
+                    <div class="proj-name">Options research agent</div>
+                    <div class="proj-desc">MCP server + LangGraph agent analyzing options chains, Greeks, IV rank, and
+                      unusual flow. Human-in-the-loop. Next.js dashboard.</div>
+                    <div class="proj-stack"><span class="rtag rtag-purple">LangGraph</span><span
+                        class="rtag rtag-coral">MCP</span><span class="rtag rtag-blue">Next.js</span></div>
+                  </div>
+                  <div class="proj-card">
+                    <div class="proj-num">Project 3 · Month 4</div>
+                    <div class="proj-name">Full AI SaaS product</div>
+                    <div class="proj-desc">Complete product with auth, Stripe billing, and real users. Proves you can
+                      ship beyond prototypes.</div>
+                    <div class="proj-stack"><span class="rtag rtag-blue">Clerk</span><span
+                        class="rtag rtag-green">Stripe</span><span class="rtag rtag-teal">Supabase</span></div>
+                  </div>
+                </div>
+              </div>
+              <div class="divider"></div>
+              <div class="section">
+                <div class="section-title">Key milestones</div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">First Claude API call from Python</div>
+                  <div class="ms-when">Week 1 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Full stack AI chatbot on GitHub</div>
+                  <div class="ms-when">Week 2 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Chatbot deployed live — Vercel + Railway</div>
+                  <div class="ms-when">Week 2 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">AI Code Reviewer shipped + deployed</div>
+                  <div class="ms-when">Week 3 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Batch analyzer + prompt caching live</div>
+                  <div class="ms-when">Week 4 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">RAG pipeline — ingest + retrieve + Claude Q&A working</div>
+                  <div class="ms-when">Week 5 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Smart Document Analyzer — full stack deployed</div>
+                  <div class="ms-when">Week 6 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Advanced RAG — hybrid search + reranking deployed</div>
+                  <div class="ms-when">Week 7 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Knowledge base polish + Month 2 wrap-up</div>
+                  <div class="ms-when">Week 8 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">OpenTheDesk — live at openthedesk.vercel.app</div>
+                  <div class="ms-when">Week 9 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">OpenTheDesk — chart vision production ready</div>
+                  <div class="ms-when">Week 10 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">OpenTheDesk — live market data + PREMARKET endpoint</div>
+                  <div class="ms-when">Week 11 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">OpenTheDesk — pre-market levels panel + Month 3 complete</div>
+                  <div class="ms-when">Week 12 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Tradier live options + ATR-14 Wilder + skeleton UI + Claude Code cleanup</div>
+                  <div class="ms-when">Week 13 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot future"></div>
+                  <div class="ms-text">Options research agent working + documented</div>
+                  <div class="ms-when">End of Week 12</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Auth + model routing + UI redesign + flow + LangSmith live</div>
+                  <div class="ms-when">Week 14 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Analyzer — real options chain + greeks + Saty PO + multi-timeframe ATR + delta
+                    filter</div>
+                  <div class="ms-when">Week 15 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">3-layer reliability — retry backoff + Railway keep-alive + timeouts deployed
+                  </div>
+                  <div class="ms-when">Week 16 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">TradingView webhook system — /webhook/tv + SSE + bell UI + Pine Script + 24
+                    alerts</div>
+                  <div class="ms-when">Week 17 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot done"></div>
+                  <div class="ms-text">Alert card redesign + internals snapshot + per-alert mark-read + Pine shape
+                    system</div>
+                  <div class="ms-when">Week 18 ✓</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot future"></div>
+                  <div class="ms-text">Journal system — Supabase table + chat entry + /journal tab + weekly AI review
+                  </div>
+                  <div class="ms-when">Week 19</div>
+                </div>
+                <div class="ms-row">
+                  <div class="ms-dot future"></div>
+                  <div class="ms-text">Job offers and negotiation</div>
+                  <div class="ms-when">Week 24</div>
+                </div>
+              </div>
+            </div>
+
+          </div>
+          <script>
+            function showView(id, btn) {
+              document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+              document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
+              document.getElementById(id).classList.add('active');
+              btn.classList.add('active');
+            }
+            function showWeek(id, btn) {
+              document.querySelectorAll('.week-content').forEach(el => el.classList.remove('active'));
+              document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+              document.getElementById(id).classList.add('active');
+              btn.classList.add('active');
+            }
+          </script>
 </body>
 
 </html>

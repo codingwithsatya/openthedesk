@@ -11,7 +11,7 @@ interface HeaderProps {
   onRefresh: () => void;
   onClearSession: () => void;
   marketData: MarketData | null;
-  activePage?: "desk" | "analyzer";
+  activePage?: "desk" | "analyzer" | "journal";
 }
 
 export default function Header({
@@ -66,6 +66,7 @@ export default function Header({
           <div style={{ display: "flex", gap: 2, marginLeft: activePage === "desk" ? 8 : 0 }}>
             {navLink("/", "Desk", activePage === "desk")}
             {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
+            {navLink("/journal", "Journal", activePage === "journal")}
           </div>
         </div>
 

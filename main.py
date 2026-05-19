@@ -214,6 +214,12 @@ def ping():
     return {"status": "alive", "ts": datetime.now(timezone.utc).isoformat()}
 
 
+_LIVE_DATA_COMMANDS = {
+    "IN TRADE", "PTR-FAST", "PTR-FULL",
+    "TRADE IDEA", "TRADE REVIEW", "EOD", "OPEN THE DESK",
+}
+
+
 @app.post("/chat")
 async def chat(request: ChatRequest):
     global LIVE_CONTEXT, FLOW_CONTEXT
@@ -224,15 +230,60 @@ async def chat(request: ChatRequest):
 
     history = sessions[request.session_id]
 
-    # Add user message
-    history.append({"role": "user", "content": request.message})
+    # Inject live market snapshot for trade-relevant commands
+    live_injection = ""
+    cmd = request.message.strip().upper().split("\n")[0]
+    if any(cmd.startswith(k) for k in _LIVE_DATA_COMMANDS):
+        try:
+            mkt = get_market_summary()
+            internals = get_market_internals()
+            spx = mkt.get("spx", {})
+            vix = mkt.get("vix", {})
+            atr = mkt.get("atr_levels", {})
+            trin = internals.get("trin")
+            add_val = internals.get("add")
+            vold = internals.get("vold")
+            level_map = [
+                ("Full ATR ↑",    "full_atr_call"),
+                ("GG Complete ↑", "gg_comp_call"),
+                ("GG Open ↑",     "gg_open_call"),
+                ("Call Trigger",  "call_trigger"),
+                ("Put Trigger",   "put_trigger"),
+                ("GG Open ↓",     "gg_open_put"),
+                ("GG Complete ↓", "gg_comp_put"),
+                ("Full ATR ↓",    "full_atr_put"),
+            ]
+            level_lines = "\n".join(
+                f"  {label}: {atr.get(key, 'N/A'):.2f}"
+                for label, key in level_map
+                if atr.get(key)
+            )
+            live_injection = (
+                f"\n\n[LIVE DATA @ {datetime.now(ZoneInfo('America/New_York')).strftime('%H:%M ET')}]"
+                f"\nSPX: {spx.get('last') or spx.get('close')} | VIX: {vix.get('vix')}"
+                f"\nPDC: {atr.get('PDC')} | ATR: {atr.get('ATR'):.1f}"
+                f"\nATR Levels:\n{level_lines}"
+                f"\nTRIN: {trin} | ADD: {add_val} | VOLD: {vold}"
+            )
+        except Exception:
+            pass
+
+    # Add user message (with live data appended if applicable)
+    user_content = request.message + live_injection if live_injection else request.message
+    history.append({"role": "user", "content": user_content})
 
     model = route_model(request.message)
     prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
 
+    # Long-form commands need more tokens
+    _LONG_COMMANDS = {"PTR-FULL", "TRADE REVIEW", "EOD", "WEEKLY REVIEW",
+                      "PREMARKET", "BLUNT FEEDBACK"}
+    cmd_upper = request.message.strip().upper().split("\n")[0]
+    max_tok = 4096 if any(cmd_upper.startswith(c) for c in _LONG_COMMANDS) else 2048
+
     response = with_retry(lambda: client.messages.create(
         model=model,
-        max_tokens=2048,
+        max_tokens=max_tok,
         system=[{
             "type": "text",
             "text": prompt,
@@ -769,6 +820,203 @@ async def alerts_stream():
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Journal ──────────────────────────────────────────────────────────────────
+
+class JournalEntryPayload(BaseModel):
+    date: str
+    ticker: str = "SPX"
+    setup: str
+    direction: str
+    entry_price: float
+    exit_price: float
+    contracts: int = 1
+    pnl: Optional[float] = None
+    grade: str = "A"
+    process_grade: str = "A"
+    notes: Optional[str] = None
+
+
+def _calc_pnl(direction: str, entry: float, exit_p: float, contracts: int) -> float:
+    if direction.upper() == "BULL":
+        return (exit_p - entry) * contracts * 100
+    return (entry - exit_p) * contracts * 100
+
+
+JOURNAL_ENTRIES: list[dict] = [
+    {
+        "id": "seed-001", "created_at": "2026-05-12T09:47:00-04:00",
+        "date": "2026-05-12", "ticker": "SPX", "setup": "GG", "direction": "BULL",
+        "entry_price": 7382.50, "exit_price": 7410.00, "contracts": 2,
+        "pnl": 5500.0, "grade": "A+", "process_grade": "A+",
+        "notes": "Clean GG bull at open, ribbon aligned, vol above avg",
+        "internals": {"trin": 0.72, "add": 312, "vold": 1.24},
+    },
+    {
+        "id": "seed-002", "created_at": "2026-05-12T10:23:00-04:00",
+        "date": "2026-05-12", "ticker": "SPX", "setup": "FLAG", "direction": "BULL",
+        "entry_price": 7412.00, "exit_price": 7398.50, "contracts": 1,
+        "pnl": -1350.0, "grade": "A", "process_grade": "A+",
+        "notes": "Flag entry was clean but market reversed on high TRIN",
+        "internals": {"trin": 1.31, "add": -108, "vold": 0.88},
+    },
+    {
+        "id": "seed-003", "created_at": "2026-05-13T09:52:00-04:00",
+        "date": "2026-05-13", "ticker": "SPX", "setup": "VOMY", "direction": "BULL",
+        "entry_price": 7388.00, "exit_price": 7419.50, "contracts": 2,
+        "pnl": 6300.0, "grade": "A+", "process_grade": "A+",
+        "notes": "Vomy with PO zero-cross, ADD +480 confirmation, added second contract",
+        "internals": {"trin": 0.61, "add": 480, "vold": 1.67},
+    },
+    {
+        "id": "seed-004", "created_at": "2026-05-14T10:15:00-04:00",
+        "date": "2026-05-14", "ticker": "SPX", "setup": "GG", "direction": "BEAR",
+        "entry_price": 7435.00, "exit_price": 7419.00, "contracts": 1,
+        "pnl": 1600.0, "grade": "A", "process_grade": "A",
+        "notes": "GG bear at put trigger, quick scalp, exited early",
+        "internals": {"trin": 1.18, "add": -220, "vold": 0.92},
+    },
+    {
+        "id": "seed-005", "created_at": "2026-05-14T11:42:00-04:00",
+        "date": "2026-05-14", "ticker": "SPX", "setup": "DIV", "direction": "BULL",
+        "entry_price": 7395.00, "exit_price": 7381.00, "contracts": 1,
+        "pnl": -1400.0, "grade": "A", "process_grade": "B",
+        "notes": "DIV setup valid but traded against a strong bearish trend day, process error",
+        "internals": {"trin": 1.44, "add": -390, "vold": 0.71},
+    },
+    {
+        "id": "seed-006", "created_at": "2026-05-15T09:38:00-04:00",
+        "date": "2026-05-15", "ticker": "SPX", "setup": "GG", "direction": "BULL",
+        "entry_price": 7401.00, "exit_price": 7428.50, "contracts": 2,
+        "pnl": 5500.0, "grade": "A+", "process_grade": "A+",
+        "notes": "Best trade of the week — GG A+ at open, full target",
+        "internals": {"trin": 0.68, "add": 520, "vold": 1.51},
+    },
+    {
+        "id": "seed-007", "created_at": "2026-05-16T10:55:00-04:00",
+        "date": "2026-05-16", "ticker": "SPX", "setup": "TWEEZER", "direction": "BEAR",
+        "entry_price": 7420.00, "exit_price": 7408.50, "contracts": 1,
+        "pnl": 1150.0, "grade": "A", "process_grade": "A",
+        "notes": "Tweezer bear at GG open call, partial fill, good execution",
+        "internals": {"trin": 1.09, "add": -145, "vold": 1.02},
+    },
+    {
+        "id": "seed-008", "created_at": "2026-05-19T11:20:00-04:00",
+        "date": "2026-05-19", "ticker": "SPX", "setup": "FLAG", "direction": "BEAR",
+        "entry_price": 7430.00, "exit_price": 7438.50, "contracts": 1,
+        "pnl": -850.0, "grade": "A", "process_grade": "A",
+        "notes": "Flag bear invalidated by news spike, stopped correctly",
+        "internals": {"trin": 0.95, "add": 88, "vold": 1.12},
+    },
+]
+
+
+@app.post("/journal/entry")
+async def create_journal_entry(payload: JournalEntryPayload):
+    pnl = payload.pnl if payload.pnl is not None else _calc_pnl(
+        payload.direction, payload.entry_price, payload.exit_price, payload.contracts
+    )
+    internals = get_market_internals()
+    entry = {
+        "id": str(uuid.uuid4()),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "date": payload.date,
+        "ticker": payload.ticker,
+        "setup": payload.setup,
+        "direction": payload.direction,
+        "entry_price": payload.entry_price,
+        "exit_price": payload.exit_price,
+        "contracts": payload.contracts,
+        "pnl": round(pnl, 2),
+        "grade": payload.grade,
+        "process_grade": payload.process_grade,
+        "notes": payload.notes,
+        "internals": internals,
+    }
+    JOURNAL_ENTRIES.insert(0, entry)
+    return {"status": "created", "id": entry["id"], "pnl": entry["pnl"]}
+
+
+@app.get("/journal/entries")
+def get_journal_entries(limit: int = 50):
+    limit = min(limit, 200)
+    sliced = JOURNAL_ENTRIES[:limit]
+    return {"entries": sliced, "count": len(sliced)}
+
+
+@app.get("/journal/stats")
+def get_journal_stats():
+    entries = JOURNAL_ENTRIES
+    if not entries:
+        return {
+            "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0,
+            "total_pnl": 0.0, "avg_winner": 0.0, "avg_loser": 0.0,
+            "best_setup": None, "pnl_by_setup": {}, "pnl_by_hour": {},
+            "equity_curve": [],
+        }
+
+    wins   = [e for e in entries if (e.get("pnl") or 0) > 0]
+    losses = [e for e in entries if (e.get("pnl") or 0) <= 0]
+
+    avg_winner = sum(e["pnl"] for e in wins)   / len(wins)   if wins   else 0.0
+    avg_loser  = sum(e["pnl"] for e in losses) / len(losses) if losses else 0.0
+
+    pnl_by_setup: dict[str, dict] = {}
+    for e in entries:
+        s = e.get("setup", "OTHER")
+        if s not in pnl_by_setup:
+            pnl_by_setup[s] = {"wins": 0, "losses": 0, "total_pnl": 0.0}
+        pnl = e.get("pnl") or 0
+        if pnl > 0:
+            pnl_by_setup[s]["wins"] += 1
+        else:
+            pnl_by_setup[s]["losses"] += 1
+        pnl_by_setup[s]["total_pnl"] = round(pnl_by_setup[s]["total_pnl"] + pnl, 2)
+
+    best_setup = None
+    best_wr = -1.0
+    for s, data in pnl_by_setup.items():
+        total = data["wins"] + data["losses"]
+        if total >= 3:
+            wr = data["wins"] / total
+            if wr > best_wr:
+                best_wr = wr
+                best_setup = s
+
+    pnl_by_hour: dict[str, dict] = {}
+    for e in entries:
+        try:
+            hr = str(datetime.fromisoformat(e.get("created_at", "")).hour)
+        except Exception:
+            hr = "unknown"
+        if hr not in pnl_by_hour:
+            pnl_by_hour[hr] = {"wins": 0, "losses": 0}
+        if (e.get("pnl") or 0) > 0:
+            pnl_by_hour[hr]["wins"] += 1
+        else:
+            pnl_by_hour[hr]["losses"] += 1
+
+    sorted_entries = sorted(entries, key=lambda e: e.get("created_at", ""))
+    equity_curve: list[float] = []
+    running = 0.0
+    for e in sorted_entries:
+        running += e.get("pnl") or 0
+        equity_curve.append(round(running, 2))
+
+    return {
+        "total_trades": len(entries),
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": round(len(wins) / len(entries) * 100, 1),
+        "total_pnl": round(sum(e.get("pnl") or 0 for e in entries), 2),
+        "avg_winner": round(avg_winner, 2),
+        "avg_loser": round(avg_loser, 2),
+        "best_setup": best_setup,
+        "pnl_by_setup": pnl_by_setup,
+        "pnl_by_hour": pnl_by_hour,
+        "equity_curve": equity_curve,
+    }
 
 
 if __name__ == "__main__":
