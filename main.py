@@ -269,7 +269,8 @@ async def chat(request: ChatRequest):
             pass
 
     # Add user message (with live data appended if applicable)
-    user_content = request.message + live_injection if live_injection else request.message
+    user_content = request.message + \
+        live_injection if live_injection else request.message
     history.append({"role": "user", "content": user_content})
 
     model = route_model(request.message)
@@ -279,7 +280,8 @@ async def chat(request: ChatRequest):
     _LONG_COMMANDS = {"PTR-FULL", "TRADE REVIEW", "EOD", "WEEKLY REVIEW",
                       "PREMARKET", "BLUNT FEEDBACK", "OPEN THE DESK"}
     cmd_upper = request.message.strip().upper().split("\n")[0]
-    max_tok = 4096 if any(cmd_upper.startswith(c) for c in _LONG_COMMANDS) else 2048
+    max_tok = 4096 if any(cmd_upper.startswith(c)
+                          for c in _LONG_COMMANDS) else 2048
 
     response = with_retry(lambda: client.messages.create(
         model=model,
@@ -759,6 +761,7 @@ class TVAlertPayload(BaseModel):
     trin: Optional[float] = None
     add: Optional[int] = None
     vold: Optional[float] = None
+    signal: Optional[str] = None  # ENTRY, WATCH, SCALE, EXIT
 
 
 @app.post("/webhook/tv")
@@ -956,11 +959,11 @@ def get_journal_stats():
             "equity_curve": [],
         }
 
-    wins   = [e for e in entries if (e.get("pnl") or 0) > 0]
+    wins = [e for e in entries if (e.get("pnl") or 0) > 0]
     losses = [e for e in entries if (e.get("pnl") or 0) <= 0]
 
-    avg_winner = sum(e["pnl"] for e in wins)   / len(wins)   if wins   else 0.0
-    avg_loser  = sum(e["pnl"] for e in losses) / len(losses) if losses else 0.0
+    avg_winner = sum(e["pnl"] for e in wins) / len(wins) if wins else 0.0
+    avg_loser = sum(e["pnl"] for e in losses) / len(losses) if losses else 0.0
 
     pnl_by_setup: dict[str, dict] = {}
     for e in entries:
@@ -972,7 +975,8 @@ def get_journal_stats():
             pnl_by_setup[s]["wins"] += 1
         else:
             pnl_by_setup[s]["losses"] += 1
-        pnl_by_setup[s]["total_pnl"] = round(pnl_by_setup[s]["total_pnl"] + pnl, 2)
+        pnl_by_setup[s]["total_pnl"] = round(
+            pnl_by_setup[s]["total_pnl"] + pnl, 2)
 
     best_setup = None
     best_wr = -1.0

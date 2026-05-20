@@ -15,6 +15,7 @@ export interface TVAlert {
   trin?: number | null;
   add?: number | null;
   vold?: number | null;
+  signal?: string;
 }
 
 const LS_KEY = "tv_alerts_read";
@@ -39,21 +40,45 @@ function getCardStyle(alert: TVAlert) {
   const setup = alert.setup?.toUpperCase();
 
   if (setup === "STOP") {
-    return { badgeBg: "#1e293b", badgeColor: "#94a3b8", badgeBorder: "1px solid #334155" };
+    return {
+      badgeBg: "#1e293b",
+      badgeColor: "#94a3b8",
+      badgeBorder: "1px solid #334155",
+    };
   }
   if (setup === "TARGET") {
-    return { badgeBg: "#1e293b", badgeColor: "#94a3b8", badgeBorder: "1px solid #334155" };
+    return {
+      badgeBg: "#1e293b",
+      badgeColor: "#94a3b8",
+      badgeBorder: "1px solid #334155",
+    };
   }
   if (setup === "DIV") {
-    return { badgeBg: "#1e293b", badgeColor: "#94a3b8", badgeBorder: "1px solid #334155" };
+    return {
+      badgeBg: "#1e293b",
+      badgeColor: "#94a3b8",
+      badgeBorder: "1px solid #334155",
+    };
   }
   if (dir === "BULL") {
-    return { badgeBg: "#0d3320", badgeColor: "#22ff7a", badgeBorder: "1px solid #166534" };
+    return {
+      badgeBg: "#0d3320",
+      badgeColor: "#22ff7a",
+      badgeBorder: "1px solid #166534",
+    };
   }
   if (dir === "BEAR") {
-    return { badgeBg: "#5c1a1a", badgeColor: "#ff6b6b", badgeBorder: "1px solid #991b1b" };
+    return {
+      badgeBg: "#5c1a1a",
+      badgeColor: "#ff6b6b",
+      badgeBorder: "1px solid #991b1b",
+    };
   }
-  return { badgeBg: "#1e293b", badgeColor: "#94a3b8", badgeBorder: "1px solid #334155" };
+  return {
+    badgeBg: "#1e293b",
+    badgeColor: "#94a3b8",
+    badgeBorder: "1px solid #334155",
+  };
 }
 
 function formatAtrLevel(raw: string): string {
@@ -114,17 +139,14 @@ export function useAlerts() {
     return () => es.close();
   }, []);
 
-  const markRead = useCallback(
-    (id: string) => {
-      setReadIds((prev) => {
-        const next = new Set(prev);
-        next.add(id);
-        saveReadIds(next);
-        return next;
-      });
-    },
-    [],
-  );
+  const markRead = useCallback((id: string) => {
+    setReadIds((prev) => {
+      const next = new Set(prev);
+      next.add(id);
+      saveReadIds(next);
+      return next;
+    });
+  }, []);
 
   const markAllRead = useCallback(() => {
     setReadIds((prev) => {
@@ -193,16 +215,22 @@ function AlertCard({
       }}
     >
       {/* Accent bar */}
-      <div style={{
-        width: 4,
-        flexShrink: 0,
-        alignSelf: "stretch",
-        marginLeft: "-1px",
-        background: dir === "BEAR" || setup === "STOP" ? "#ef4444"
-          : dir === "BULL" ? "#22c55e"
-          : setup === "TARGET" ? "#475569"
-          : "#334155",
-      }} />
+      <div
+        style={{
+          width: 4,
+          flexShrink: 0,
+          alignSelf: "stretch",
+          marginLeft: "-1px",
+          background:
+            dir === "BEAR" || setup === "STOP"
+              ? "#ef4444"
+              : dir === "BULL"
+                ? "#22c55e"
+                : setup === "TARGET"
+                  ? "#475569"
+                  : "#334155",
+        }}
+      />
 
       {/* Card body */}
       <div
@@ -236,7 +264,12 @@ function AlertCard({
             }}
           >
             <span
-              style={{ fontSize: 13, fontWeight: 600, color: isUnread ? "#f1f5f9" : "#64748b", flexShrink: 0 }}
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: isUnread ? "#f1f5f9" : "#64748b",
+                flexShrink: 0,
+              }}
             >
               {alert.ticker}
             </span>
@@ -261,9 +294,11 @@ function AlertCard({
 
             {/* Setup + direction badge */}
             <span
-              title={alert.setup && alert.direction
-                ? `${alert.setup} ${alert.direction}`
-                : alert.condition}
+              title={
+                alert.setup && alert.direction
+                  ? `${alert.setup} ${alert.direction}`
+                  : alert.condition
+              }
               style={{
                 fontSize: 11,
                 fontWeight: 600,
@@ -301,6 +336,45 @@ function AlertCard({
                 {alert.grade}
               </span>
             )}
+
+            {/* Signal badge */}
+            {alert.signal && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  padding: "1px 6px",
+                  borderRadius: 3,
+                  background:
+                    alert.signal === "ENTRY"
+                      ? "#14532d"
+                      : alert.signal === "EXIT"
+                        ? "#7f1d1d"
+                        : alert.signal === "SCALE"
+                          ? "#1e3a5f"
+                          : "#1e293b",
+                  color:
+                    alert.signal === "ENTRY"
+                      ? "#4ade80"
+                      : alert.signal === "EXIT"
+                        ? "#f87171"
+                        : alert.signal === "SCALE"
+                          ? "#60a5fa"
+                          : "#94a3b8",
+                  border: `1px solid ${
+                    alert.signal === "ENTRY"
+                      ? "#166534"
+                      : alert.signal === "EXIT"
+                        ? "#991b1b"
+                        : alert.signal === "SCALE"
+                          ? "#2d5a8e"
+                          : "#334155"
+                  }`,
+                }}
+              >
+                {alert.signal}
+              </span>
+            )}
           </div>
 
           <span
@@ -317,69 +391,96 @@ function AlertCard({
         </div>
 
         {/* Price row — hidden for read alerts */}
-        {isUnread && <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
-          <span
-            style={{
-              fontSize: 16,
-              fontWeight: 600,
-              color: "#f1f5f9",
-              fontFamily: "var(--font-mono, monospace)",
-              letterSpacing: "-0.3px",
-              flexShrink: 0,
-            }}
-          >
-            {Number(alert.price).toLocaleString("en-US", {
-              minimumFractionDigits: 2,
-              maximumFractionDigits: 2,
-            })}
-          </span>
-          {alert.atr_level && !alert.atr_level.includes("%") && (
+        {isUnread && (
+          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
             <span
               style={{
-                fontSize: 11,
-                color: "#60a5fa",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                fontSize: 16,
+                fontWeight: 600,
+                color: "#f1f5f9",
+                fontFamily: "var(--font-mono, monospace)",
+                letterSpacing: "-0.3px",
+                flexShrink: 0,
               }}
             >
-              → {formatAtrLevel(alert.atr_level)}
+              {Number(alert.price).toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
             </span>
-          )}
-        </div>}
-
-        {/* Market internals row — unread only, when data present */}
-        {isUnread && (alert.trin != null || alert.add != null || alert.vold != null) && (
-          <div style={{ display: "flex", gap: 8, marginTop: 4, alignItems: "center" }}>
-            {alert.trin != null && (
-              <span style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono, monospace)",
-                color: alert.trin > 1.2 ? "#f87171" : alert.trin < 0.8 ? "#4ade80" : "#94a3b8",
-              }}>
-                TRIN {alert.trin.toFixed(2)}
-              </span>
-            )}
-            {alert.add != null && (
-              <span style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono, monospace)",
-                color: alert.add > 200 ? "#4ade80" : alert.add < -200 ? "#f87171" : "#94a3b8",
-              }}>
-                ADD {alert.add > 0 ? "+" : ""}{alert.add}
-              </span>
-            )}
-            {alert.vold != null && (
-              <span style={{
-                fontSize: 10,
-                fontFamily: "var(--font-mono, monospace)",
-                color: "#94a3b8",
-              }}>
-                VOLD {alert.vold.toFixed(2)}
+            {alert.atr_level && !alert.atr_level.includes("%") && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "#60a5fa",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                → {formatAtrLevel(alert.atr_level)}
               </span>
             )}
           </div>
         )}
+
+        {/* Market internals row — unread only, when data present */}
+        {isUnread &&
+          (alert.trin != null || alert.add != null || alert.vold != null) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                marginTop: 4,
+                alignItems: "center",
+              }}
+            >
+              {alert.trin != null && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono, monospace)",
+                    color:
+                      alert.trin > 1.2
+                        ? "#f87171"
+                        : alert.trin < 0.8
+                          ? "#4ade80"
+                          : "#94a3b8",
+                  }}
+                >
+                  TRIN {alert.trin.toFixed(2)}
+                </span>
+              )}
+              {alert.add != null && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono, monospace)",
+                    color:
+                      alert.add > 200
+                        ? "#4ade80"
+                        : alert.add < -200
+                          ? "#f87171"
+                          : "#94a3b8",
+                  }}
+                >
+                  ADD {alert.add > 0 ? "+" : ""}
+                  {alert.add}
+                </span>
+              )}
+              {alert.vold != null && (
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontFamily: "var(--font-mono, monospace)",
+                    color: "#94a3b8",
+                  }}
+                >
+                  VOLD {alert.vold.toFixed(2)}
+                </span>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
