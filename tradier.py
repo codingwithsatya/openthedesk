@@ -490,26 +490,24 @@ def format_options_context(snapshot: dict) -> str:
 # ─────────────────────────────────────────────
 
 def get_market_internals() -> dict:
-    """Fetch live TRIN, ADD, VOLD from Tradier."""
+    """
+    Fetch market internals using yfinance.
+    TRIN (ARMS Index): ^TRIN
+    VIX as proxy context: ^VIX (already have this but useful cross-check)
+    ADD and VOLD are not available via free APIs — return None for these.
+
+    Returns dict with keys: trin, add, vold
+    """
     try:
-        data = _get("/markets/quotes", {
-            "symbols": "$TRIN,$ADD,$VOLD",
-            "greeks": "false"
-        })
-        quotes = data.get("quotes", {}).get("quote", [])
-        if isinstance(quotes, dict):
-            quotes = [quotes]
-        result = {}
-        for q in quotes:
-            sym = q.get("symbol", "")
-            last = q.get("last") or q.get("close")
-            if sym == "$TRIN":
-                result["trin"] = round(float(last), 2) if last else None
-            elif sym == "$ADD":
-                result["add"] = int(float(last)) if last else None
-            elif sym == "$VOLD":
-                result["vold"] = round(float(last), 2) if last else None
-        return result
+        import yfinance as yf
+        ticker = yf.Ticker("^TRIN")
+        info = ticker.fast_info
+        trin_val = round(float(info.last_price), 2) if info.last_price else None
+        return {
+            "trin": trin_val,
+            "add": None,   # not available via free API
+            "vold": None,  # not available via free API
+        }
     except Exception:
         return {"trin": None, "add": None, "vold": None}
 

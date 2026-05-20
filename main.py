@@ -162,8 +162,8 @@ def build_system_prompt(live_context: str, flow_context: str = "") -> str:
 
     SHORTCUT COMMANDS — respond in exact format when triggered:
     - "Open the Desk" → Full session opener with TD number, account, gap to $3,000, Phase 2 rules, session ready
-    - "PTR-FAST" → 3-gate quick check, all must be YES or SKIP IT
-    - "PTR-FULL" → 12-point full audit
+    - "PTR-FAST" → 3-gate quick check, all must be YES or SKIP IT. Internals (TRIN/ADD/VOLD) are context only — if data is None/unavailable, show as unavailable and still evaluate Gate 2 based on ribbon, ATR levels and setup quality. Never fail PTR-FAST purely because internals are null.
+    - "PTR-FULL" → 12-point full audit. Internals (TRIN/ADD/VOLD) are context only — never a hard gate. If internals data shows None or unavailable, mark that row as unavailable and continue. Never FAIL any gate purely because internals are null.
     - "PREMARKET" → 5-step morning plan
     - "TRADE IDEA" → 6-point analysis
     - "IN TRADE" → Real-time management
@@ -180,6 +180,28 @@ def build_system_prompt(live_context: str, flow_context: str = "") -> str:
 
     Always read the live context fully before responding to anything.
     Never give trade recommendations — only diagnosis, analysis, and coaching.
+
+    MARKET INTERNALS RULE — applies to ALL commands (PTR-FAST, PTR-FULL, IN TRADE, TRADE IDEA, PREMARKET, EOD):
+    - TRIN, ADD, VOLD, TICK are CONTEXT indicators — they inform the read, they NEVER block or fail a trade
+    - Confirmed by Saty Mahajan (the system author): internals should not stop you from taking valid setups
+    - If internals data is None or unavailable → display as "N/A — data unavailable" and continue the analysis
+    - A valid A+ setup with null internals = still a valid A+ setup — do not downgrade
+    - A valid A setup with null internals = still a valid A setup
+    - Internals ADD conviction when present and aligned, but their ABSENCE is never a disqualifier
+    - PTR-FAST Gate 2: show internals as informational context, not as a binary pass/fail gate
+    - PTR-FULL Gate 4: show internals row by row as context, continue audit regardless of availability
+    - IN TRADE: show internals snapshot if available, skip gracefully if null
+    - When internals ARE available and misaligned with setup direction → note as caution flag, not a block
+    - Example: GG Bear setup with TRIN 0.7 (bullish) → note "TRIN suggests buying pressure — trade with awareness" not "FAIL"
+
+    TARGET LEVELS RULE — applies to IN TRADE, PTR-FULL, TRADE REVIEW:
+    - T1 = GG Open level (first target, scale out 50%)
+    - T2 = GG Complete level (second target, scale out remaining)
+    - T3 = Full ATR level (full extension target, exit all)
+    - When price approaches within 1pt of any target level → immediately flag it in the response
+    - Example: "Price at 7429, Full ATR Call is 7430.62 — T3 approaching, consider full exit"
+    - Always show distance to next target in points when IN TRADE command is run
+
     Human-in-the-loop always — you analyze, Satya decides."""
 
 
@@ -312,15 +334,11 @@ async def chat(request: ChatRequest):
 
 @app.post("/analyze-chart")
 async def analyze_chart(
-    file: UploadFile = File(...),
+    files: list[UploadFile] = File(...),
     context: str = "TRADE IDEA",
     session_id: str = "default"
 ):
     global LIVE_CONTEXT
-
-    image_data = await file.read()
-    base64_image = base64.standard_b64encode(image_data).decode("utf-8")
-    media_type = file.content_type or "image/jpeg"
 
     if session_id not in sessions:
         sessions[session_id] = []
@@ -329,20 +347,19 @@ async def analyze_chart(
     model = route_model(context)
     prompt = build_system_prompt(LIVE_CONTEXT, FLOW_CONTEXT)
 
-    user_message = {
-        "role": "user",
-        "content": [
-            {
-                "type": "image",
-                "source": {
-                    "type": "base64",
-                    "media_type": media_type,
-                    "data": base64_image
-                }
-            },
-            {
-                "type": "text",
-                "text": f"""{context}
+    content = []
+    for f in files:
+        image_data = await f.read()
+        b64 = base64.standard_b64encode(image_data).decode("utf-8")
+        mt = f.content_type or "image/jpeg"
+        content.append({
+            "type": "image",
+            "source": {"type": "base64", "media_type": mt, "data": b64}
+        })
+
+    chart_count = len(files)
+    if chart_count == 1:
+        analysis_instruction = f"""{context}
 
                     Analyze this Saty Mahajan system chart carefully.
 
@@ -352,7 +369,7 @@ async def analyze_chart(
                     2. The CANDLE color — gray/white candles can appear INSIDE a green ribbon during compression
 
                     Green/teal/blue cloud = GREEN ribbon = calls eligible
-                    Red/orange cloud = RED ribbon = puts eligible  
+                    Red/orange cloud = RED ribbon = puts eligible
                     White/thin/nearly invisible cloud = WHITE ribbon = chop, no trade
 
                     Do NOT confuse gray compression candles with red ribbon.
@@ -364,8 +381,26 @@ async def analyze_chart(
                     3. Internals panel — TRIN, VOLD, ADD, TICK, VIX, PCC
                     4. Phase Oscillator state
                     5. Setup structure and final verdict"""
-            }
-        ]
+    else:
+        analysis_instruction = f"""Analyze these {chart_count} charts as a MULTI-TIMEFRAME analysis.
+
+                    For each chart identify: timeframe, ribbon state (cloud color not candle),
+                    ATR level proximity, Phase Oscillator zone, volume character.
+
+                    Then give a unified read:
+                    - Higher timeframe bias (trend direction)
+                    - Lower timeframe entry trigger (what to wait for)
+                    - Confluence: do all timeframes agree?
+                    - Trade bias: BULL / BEAR / NO TRADE
+                    - Key levels to watch
+
+                    Context: {context}"""
+
+    content.append({"type": "text", "text": analysis_instruction})
+
+    user_message = {
+        "role": "user",
+        "content": content,
     }
 
     history.append(user_message)

@@ -1,9 +1,10 @@
 "use client";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Message, modelLabel } from "../types";
 import QuickActions from "./QuickActions";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+const SESSION_ID = "satya";
 
 interface ChatPanelProps {
   messages: Message[];
@@ -44,6 +45,9 @@ export default function ChatPanel({
 }: ChatPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputRef    = useRef<string>("");
+  const [dragOver, setDragOver] = useState(false);
+  const [chartContext, setChartContext] = useState<string>("TRADE IDEA");
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
   // We use an uncontrolled approach for the textarea to avoid prop-drilling input state
   // The textarea value is read directly on submit
 
@@ -76,47 +80,50 @@ export default function ChatPanel({
     e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
   };
 
-  const handleChartUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || loading) return;
-    e.target.value = "";
-    const context = textareaRef.current?.value.trim() || "PTR-FAST";
-    if (textareaRef.current) {
-      textareaRef.current.value = "";
-      textareaRef.current.style.height = "44px";
-    }
+  function handleChartFiles(files: File[]) {
+    if (!files.length || loading) return;
+    setPendingFiles(files);
+  }
 
-    const { routeModel } = await import("../types");
-    const chartModel = routeModel(context);
+  async function uploadPendingFiles() {
+    if (!pendingFiles.length || loading) return;
+    const files = pendingFiles;
+    const context = chartContext;
+    setPendingFiles([]);
 
-    setMessages((prev) => [...prev, { role: "user", content: `[Chart: ${file.name}] ${context}` }]);
+    const label = files.length === 1
+      ? `[Chart: ${files[0].name}]`
+      : `[${files.length} Charts: ${files.map(f => f.name).join(", ")}]`;
+
+    setMessages(prev => [...prev, { role: "user", content: `${label} ${context}` }]);
     setLoading(true);
+
     try {
       const form = new FormData();
-      const compressed = await compressImage(file);
-      form.append("file", compressed, "chart.jpg");
+      for (const file of files) {
+        const compressed = await compressImage(file);
+        form.append("files", compressed, file.name.replace(/\.[^.]+$/, ".jpg"));
+      }
       form.append("context", context);
-      form.append("session_id", "satya");
+      form.append("session_id", SESSION_ID);
+
       const res = await fetch(`${API}/analyze-chart`, { method: "POST", body: form });
       const reader = res.body!.getReader();
       const decoder = new TextDecoder();
       let reply = "";
-      setMessages((prev) => [...prev, { role: "assistant", content: "", model: chartModel }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "", model: "claude-sonnet-4-6" }]);
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
         reply += decoder.decode(value);
-        setMessages((prev) => [
-          ...prev.slice(0, -1),
-          { role: "assistant", content: reply, model: chartModel },
-        ]);
+        setMessages(prev => [...prev.slice(0, -1), { role: "assistant", content: reply, model: "claude-sonnet-4-6" }]);
       }
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ Chart analysis failed." }]);
+      setMessages(prev => [...prev, { role: "assistant", content: "⚠️ Chart analysis failed." }]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
   return (
     <div className="chat">
@@ -173,7 +180,64 @@ export default function ChatPanel({
       <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} />
 
       {/* Input */}
-      <div className="input-area">
+      <div
+        className="input-area"
+        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={(e) => {
+          e.preventDefault();
+          setDragOver(false);
+          const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
+          if (files.length) handleChartFiles(files);
+        }}
+        style={{ outline: dragOver ? "2px dashed #3b82f6" : undefined }}
+      >
+        {pendingFiles.length > 0 && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 8,
+            padding: "6px 12px", borderTop: "1px solid #f1f5f9",
+            background: "#f8fafc", flexWrap: "wrap",
+          }}>
+            <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>
+              📊 {pendingFiles.length} chart{pendingFiles.length > 1 ? "s" : ""} — analyze as:
+            </span>
+            {["TRADE IDEA", "IN TRADE", "PREMARKET", "PTR-FAST"].map(ctx => (
+              <button
+                key={ctx}
+                onClick={() => setChartContext(ctx)}
+                style={{
+                  padding: "3px 10px", borderRadius: 99, fontSize: 11,
+                  fontWeight: 500, cursor: "pointer", border: "1px solid",
+                  borderColor: chartContext === ctx ? "#1d4ed8" : "#e2e8f0",
+                  background: chartContext === ctx ? "#eff6ff" : "white",
+                  color: chartContext === ctx ? "#1d4ed8" : "#64748b",
+                }}
+              >
+                {ctx}
+              </button>
+            ))}
+            <button
+              onClick={() => uploadPendingFiles()}
+              style={{
+                marginLeft: "auto", padding: "4px 14px", borderRadius: 99,
+                fontSize: 11, fontWeight: 600, cursor: "pointer",
+                background: "#1d4ed8", color: "white", border: "none",
+              }}
+            >
+              Analyze →
+            </button>
+            <button
+              onClick={() => setPendingFiles([])}
+              style={{
+                padding: "4px 10px", borderRadius: 99, fontSize: 11,
+                cursor: "pointer", background: "transparent",
+                color: "#94a3b8", border: "1px solid #e2e8f0",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        )}
         <div className="input-row">
           <label htmlFor="chart-upload" className="chart-btn" title="Upload chart for analysis">
             📊
@@ -181,8 +245,13 @@ export default function ChatPanel({
               id="chart-upload"
               type="file"
               accept="image/*"
+              multiple
               style={{ display: "none" }}
-              onChange={handleChartUpload}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                if (files.length) handleChartFiles(files);
+                e.target.value = "";
+              }}
             />
           </label>
           <textarea
@@ -193,6 +262,17 @@ export default function ChatPanel({
             placeholder="Message the desk... or press / for commands"
             disabled={loading}
             rows={1}
+            onPaste={(e) => {
+              const items = Array.from(e.clipboardData?.items ?? []);
+              const imageFiles = items
+                .filter(item => item.type.startsWith("image/"))
+                .map(item => item.getAsFile())
+                .filter((f): f is File => f !== null);
+              if (imageFiles.length > 0) {
+                e.preventDefault();
+                handleChartFiles(imageFiles);
+              }
+            }}
           />
           <button
             className="send-btn"
