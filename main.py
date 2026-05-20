@@ -786,6 +786,7 @@ async def webhook_tv(
         "trin": internals.get("trin"),
         "add": internals.get("add"),
         "vold": internals.get("vold"),
+        "signal": payload.signal,
     }
     TV_ALERTS.insert(0, alert)
     if len(TV_ALERTS) > 50:
