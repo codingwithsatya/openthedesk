@@ -803,6 +803,9 @@ class TVAlertPayload(BaseModel):
     vold: Optional[float] = None
     signal: Optional[str] = None  # ENTRY, WATCH, SCALE, EXIT
 
+    class Config:
+        extra = "allow"
+
 
 class InternalsPayload(BaseModel):
     type: Optional[str] = None
@@ -817,41 +820,50 @@ class InternalsPayload(BaseModel):
 
 
 @app.post("/webhook/tv")
-async def webhook_tv(
-    payload: TVAlertPayload,
-    x_tv_secret: str = Header(None),
-):
-    if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
+async def webhook_tv(request: Request):
+    try:
+        body = await request.body()
+        data = json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    x_tv_secret = request.headers.get("x-tv-secret")
+    secret = data.get("secret") or x_tv_secret
+    if secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
     internals = get_market_internals()
     if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
         internals = {k: INTERNALS_CACHE.get(k)
                      for k in ["trin", "add", "vold"]}
+
     alert = {
         "id": str(uuid.uuid4()),
         "ts": datetime.now(timezone.utc).isoformat(),
-        "ticker": payload.ticker,
-        "timeframe": payload.timeframe,
-        "condition": payload.condition,
-        "price": payload.price,
-        "atr_level": payload.atr_level,
-        "setup": payload.setup,
-        "grade": payload.grade,
-        "direction": payload.direction,
+        "ticker": data.get("ticker"),
+        "timeframe": data.get("timeframe"),
+        "condition": data.get("condition"),
+        "price": data.get("price"),
+        "atr_level": data.get("atr_level"),
+        "setup": data.get("setup"),
+        "grade": data.get("grade"),
+        "direction": data.get("direction"),
         "trin": internals.get("trin"),
         "add": internals.get("add"),
         "vold": internals.get("vold"),
-        "signal": payload.signal,
+        "signal": data.get("signal"),
     }
-    if payload.signal == "ENTRY" and payload.direction in ("BULL", "BEAR"):
+
+    if data.get("signal") == "ENTRY" and data.get("direction") in ("BULL", "BEAR"):
         try:
             mkt = get_market_summary()
             levels = mkt.get("atr_levels", {})
-            entry_price = float(payload.price)
+            entry_price = float(data.get("price", 0))
             pdc = float(levels.get("PDC", entry_price))
-            sl_distance = abs(entry_price - pdc) * 0.20
+            atr = float(levels.get("ATR", 70))
+            sl_distance = max(abs(entry_price - pdc) * 0.20, atr * 0.08)
 
-            if payload.direction == "BULL":
+            if data.get("direction") == "BULL":
                 t1 = levels.get("gg_open_call")
                 t2 = levels.get("gg_50_call")
                 t3 = levels.get("gg_complete_call")
@@ -869,11 +881,11 @@ async def webhook_tv(
 
             alert["trade_plan"] = {
                 "entry": entry_price,
-                "direction": payload.direction,
+                "direction": data.get("direction"),
                 "t1": t1, "t1_pts": pts(t1), "t1_label": "38.2% — Scale 50%",
                 "t2": t2, "t2_pts": pts(t2), "t2_label": "50% Mid — Scale 25%",
                 "t3": t3, "t3_pts": pts(t3), "t3_label": "61.8% GR — Exit All",
-                "sl": sl,  "sl_pts": round(sl_distance, 2),
+                "sl": sl, "sl_pts": round(sl_distance, 2),
             }
         except Exception:
             pass
