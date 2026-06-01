@@ -102,9 +102,8 @@ print(
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
-
-# Market internals cache — populated by POST /webhook/internals (TradingView heartbeat)
-INTERNALS_CACHE: dict = {"trin": None, "add": None, "vold": None, "pcc": None, "ts": None}
+INTERNALS_CACHE: dict = {"trin": None, "add": None,
+                         "vold": None, "pcc": None, "ts": None}
 
 # TradingView webhook alert buffer — newest first, capped at 50
 TV_ALERTS: list[dict] = []
@@ -263,7 +262,8 @@ async def chat(request: ChatRequest):
             mkt = get_market_summary()
             internals = get_market_internals()
             if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
-                internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
+                internals = {k: INTERNALS_CACHE.get(
+                    k) for k in ["trin", "add", "vold"]}
             spx = mkt.get("spx", {})
             vix = mkt.get("vix", {})
             atr = mkt.get("atr_levels", {})
@@ -822,7 +822,8 @@ async def webhook_tv(
         raise HTTPException(status_code=401, detail="Unauthorized")
     internals = get_market_internals()
     if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
-        internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
+        internals = {k: INTERNALS_CACHE.get(k)
+                     for k in ["trin", "add", "vold"]}
     alert = {
         "id": str(uuid.uuid4()),
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -852,13 +853,16 @@ async def webhook_tv(
                 t2 = levels.get("gg_50_call")
                 t3 = levels.get("gg_complete_call")
                 sl = round(entry_price - sl_distance, 2)
-                def pts(v): return round(float(v) - entry_price, 2) if v else None
+
+                def pts(v): return round(
+                    float(v) - entry_price, 2) if v else None
             else:
                 t1 = levels.get("gg_open_put")
                 t2 = levels.get("gg_50_put")
                 t3 = levels.get("gg_complete_put")
                 sl = round(entry_price + sl_distance, 2)
-                def pts(v): return round(entry_price - float(v), 2) if v else None
+                def pts(v): return round(
+                    entry_price - float(v), 2) if v else None
 
             alert["trade_plan"] = {
                 "entry": entry_price,
@@ -887,11 +891,25 @@ async def webhook_internals(
     if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
     global INTERNALS_CACHE
+
+    def _safe_float(v):
+        try:
+            return round(float(v), 4) if v else None
+        except (ValueError, TypeError):
+            return None
+
+    def _safe_int(v):
+        try:
+            return int(float(v)) if v else None
+        except (ValueError, TypeError):
+            return None
+
+    vold_raw = _safe_float(payload.vold)
     INTERNALS_CACHE = {
-        "trin": float(payload.trin) if payload.trin else None,
-        "add":  int(float(payload.add)) if payload.add else None,
-        "vold": float(payload.vold) if payload.vold else None,
-        "pcc":  float(payload.pcc) if payload.pcc else None,
+        "trin": _safe_float(payload.trin),
+        "add":  _safe_int(payload.add),
+        "vold": round(vold_raw / 1e9, 2) if vold_raw else None,
+        "pcc":  _safe_float(payload.pcc),
         "ts":   datetime.now(timezone.utc).isoformat(),
     }
     return {"status": "ok", "cached": INTERNALS_CACHE}
@@ -1029,7 +1047,8 @@ async def create_journal_entry(payload: JournalEntryPayload):
     )
     internals = get_market_internals()
     if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
-        internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
+        internals = {k: INTERNALS_CACHE.get(k)
+                     for k in ["trin", "add", "vold"]}
     entry = {
         "id": str(uuid.uuid4()),
         "created_at": datetime.now(timezone.utc).isoformat(),
