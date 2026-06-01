@@ -103,6 +103,9 @@ print(
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
 
+# Market internals cache — populated by POST /webhook/internals (TradingView heartbeat)
+INTERNALS_CACHE: dict = {"trin": None, "add": None, "vold": None, "pcc": None, "ts": None}
+
 # TradingView webhook alert buffer — newest first, capped at 50
 TV_ALERTS: list[dict] = []
 
@@ -259,6 +262,8 @@ async def chat(request: ChatRequest):
         try:
             mkt = get_market_summary()
             internals = get_market_internals()
+            if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
+                internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
             spx = mkt.get("spx", {})
             vix = mkt.get("vix", {})
             atr = mkt.get("atr_levels", {})
@@ -799,6 +804,15 @@ class TVAlertPayload(BaseModel):
     signal: Optional[str] = None  # ENTRY, WATCH, SCALE, EXIT
 
 
+class InternalsPayload(BaseModel):
+    type: str
+    trin: Optional[str] = None
+    add: Optional[str] = None
+    vold: Optional[str] = None
+    pcc: Optional[str] = None
+    secret: Optional[str] = None
+
+
 @app.post("/webhook/tv")
 async def webhook_tv(
     payload: TVAlertPayload,
@@ -807,6 +821,8 @@ async def webhook_tv(
     if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
     internals = get_market_internals()
+    if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
+        internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
     alert = {
         "id": str(uuid.uuid4()),
         "ts": datetime.now(timezone.utc).isoformat(),
@@ -861,6 +877,29 @@ async def webhook_tv(
     for q in set(ALERT_SUBSCRIBERS):
         q.put_nowait(alert)
     return {"status": "received", "id": alert["id"]}
+
+
+@app.post("/webhook/internals")
+async def webhook_internals(
+    payload: InternalsPayload,
+    x_tv_secret: str = Header(None),
+):
+    if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    global INTERNALS_CACHE
+    INTERNALS_CACHE = {
+        "trin": float(payload.trin) if payload.trin else None,
+        "add":  int(float(payload.add)) if payload.add else None,
+        "vold": float(payload.vold) if payload.vold else None,
+        "pcc":  float(payload.pcc) if payload.pcc else None,
+        "ts":   datetime.now(timezone.utc).isoformat(),
+    }
+    return {"status": "ok", "cached": INTERNALS_CACHE}
+
+
+@app.get("/internals")
+def get_internals():
+    return INTERNALS_CACHE
 
 
 @app.get("/alerts")
@@ -989,6 +1028,8 @@ async def create_journal_entry(payload: JournalEntryPayload):
         payload.direction, payload.entry_price, payload.exit_price, payload.contracts
     )
     internals = get_market_internals()
+    if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
+        internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
     entry = {
         "id": str(uuid.uuid4()),
         "created_at": datetime.now(timezone.utc).isoformat(),
