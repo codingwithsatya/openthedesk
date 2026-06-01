@@ -7,7 +7,7 @@ import httpx
 import anthropic
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, Header, HTTPException, UploadFile, File
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
