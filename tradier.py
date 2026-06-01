@@ -498,18 +498,7 @@ def get_market_internals() -> dict:
 
     Returns dict with keys: trin, add, vold
     """
-    try:
-        import yfinance as yf
-        ticker = yf.Ticker("^TRIN")
-        info = ticker.fast_info
-        trin_val = round(float(info.last_price), 2) if info.last_price else None
-        return {
-            "trin": trin_val,
-            "add": None,   # not available via free API
-            "vold": None,  # not available via free API
-        }
-    except Exception:
-        return {"trin": None, "add": None, "vold": None}
+    return {"trin": None, "add": None, "vold": None}
 
 
 # ─────────────────────────────────────────────
