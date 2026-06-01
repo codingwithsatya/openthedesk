@@ -805,12 +805,15 @@ class TVAlertPayload(BaseModel):
 
 
 class InternalsPayload(BaseModel):
-    type: str
+    type: Optional[str] = None
     trin: Optional[str] = None
     add: Optional[str] = None
     vold: Optional[str] = None
     pcc: Optional[str] = None
     secret: Optional[str] = None
+
+    class Config:
+        extra = "allow"
 
 
 @app.post("/webhook/tv")
