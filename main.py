@@ -823,6 +823,38 @@ async def webhook_tv(
         "vold": internals.get("vold"),
         "signal": payload.signal,
     }
+    if payload.signal == "ENTRY" and payload.direction in ("BULL", "BEAR"):
+        try:
+            mkt = get_market_summary()
+            levels = mkt.get("atr_levels", {})
+            entry_price = float(payload.price)
+            pdc = float(levels.get("PDC", entry_price))
+            sl_distance = abs(entry_price - pdc) * 0.20
+
+            if payload.direction == "BULL":
+                t1 = levels.get("gg_open_call")
+                t2 = levels.get("gg_50_call")
+                t3 = levels.get("gg_complete_call")
+                sl = round(entry_price - sl_distance, 2)
+                def pts(v): return round(float(v) - entry_price, 2) if v else None
+            else:
+                t1 = levels.get("gg_open_put")
+                t2 = levels.get("gg_50_put")
+                t3 = levels.get("gg_complete_put")
+                sl = round(entry_price + sl_distance, 2)
+                def pts(v): return round(entry_price - float(v), 2) if v else None
+
+            alert["trade_plan"] = {
+                "entry": entry_price,
+                "direction": payload.direction,
+                "t1": t1, "t1_pts": pts(t1), "t1_label": "38.2% — Scale 50%",
+                "t2": t2, "t2_pts": pts(t2), "t2_label": "50% Mid — Scale 25%",
+                "t3": t3, "t3_pts": pts(t3), "t3_label": "61.8% GR — Exit All",
+                "sl": sl,  "sl_pts": round(sl_distance, 2),
+            }
+        except Exception:
+            pass
+
     TV_ALERTS.insert(0, alert)
     if len(TV_ALERTS) > 50:
         TV_ALERTS.pop()
