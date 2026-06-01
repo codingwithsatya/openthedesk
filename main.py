@@ -7,7 +7,7 @@ import httpx
 import anthropic
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, Header, HTTPException, UploadFile, File
+from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
@@ -888,11 +888,19 @@ async def webhook_tv(
 
 @app.post("/webhook/internals")
 async def webhook_internals(
-    payload: InternalsPayload,
+    request: Request,
     x_tv_secret: str = Header(None),
 ):
-    if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
+    try:
+        body = await request.body()
+        data = json.loads(body)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body")
+
+    secret = data.get("secret") or x_tv_secret
+    if secret != TV_WEBHOOK_SECRET and x_tv_secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
+
     global INTERNALS_CACHE
 
     def _safe_float(v):
@@ -907,12 +915,12 @@ async def webhook_internals(
         except (ValueError, TypeError):
             return None
 
-    vold_raw = _safe_float(payload.vold)
+    vold_raw = _safe_float(data.get("vold"))
     INTERNALS_CACHE = {
-        "trin": _safe_float(payload.trin),
-        "add":  _safe_int(payload.add),
+        "trin": _safe_float(data.get("trin")),
+        "add":  _safe_int(data.get("add")),
         "vold": round(vold_raw / 1e9, 2) if vold_raw else None,
-        "pcc":  _safe_float(payload.pcc),
+        "pcc":  _safe_float(data.get("pcc")),
         "ts":   datetime.now(timezone.utc).isoformat(),
     }
     return {"status": "ok", "cached": INTERNALS_CACHE}
