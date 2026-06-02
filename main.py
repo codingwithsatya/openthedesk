@@ -811,9 +811,9 @@ async def _handle_internals(data: dict) -> dict:
         "source":      "tradingview",
     }
 
-    internals_event = {"type": "internals", "data": INTERNALS_CACHE}
-    for q in set(ALERT_SUBSCRIBERS):
-        q.put_nowait(internals_event)
+    # internals_event = {"type": "internals", "data": INTERNALS_CACHE}
+    # for q in set(ALERT_SUBSCRIBERS):
+    #     q.put_nowait(internals_event)
 
     return {"status": "ok", "cached": INTERNALS_CACHE}
 
@@ -829,9 +829,9 @@ async def _handle_trade_alert(data: dict) -> dict:
         except (ValueError, TypeError):
             return None
 
-    signal    = (data.get("signal") or "").upper()
+    signal = (data.get("signal") or "").upper()
     direction = (data.get("direction") or "").upper()
-    setup     = data.get("setup", "")
+    setup = data.get("setup", "")
 
     internals_snapshot = None
     internals_age = None
@@ -871,10 +871,10 @@ async def _handle_trade_alert(data: dict) -> dict:
 
     if signal == "ENTRY" and direction in ("BULL", "BEAR") and not is_atr_backup:
         entry = alert["entry"] or _sf(data.get("price"))
-        t1    = alert["t1"]
-        t2    = alert["t2"]
-        t3    = alert["t3"]
-        sl    = alert["sl"]
+        t1 = alert["t1"]
+        t2 = alert["t2"]
+        t3 = alert["t3"]
+        sl = alert["sl"]
 
         if entry and t1:
             def _pts(target):
