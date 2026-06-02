@@ -1,0 +1,284 @@
+// © OpenTheDesk — built for Satya Pramod
+// OpenTheDesk — ATR Levels v3 Clean
+// Purpose:
+// - Saty ATR levels only
+// - Right-side level labels
+// - Info table
+// - Optional T1/T2/T3/STOP shapes
+// - Optional target/stop alerts only
+//
+// IMPORTANT:
+// Manual Planner v3.3.1 is now the setup classifier + webhook source.
+// This script should NOT send GG / VOMY / iVOMY / FLAG / DIV alerts.
+//@version=5
+
+indicator('OpenTheDesk — ATR Levels v3 Clean', shorttitle='OTD ATR Clean', overlay=true)
+
+// ═══════════════════════════════════════════════════════════════
+// INPUTS
+// ═══════════════════════════════════════════════════════════════
+
+show_mid           = input.bool(true,  'Show 50% + 78.6% Levels')
+show_extensions    = input.bool(false, 'Show Extension Levels (2ATR)')
+show_info          = input.bool(true,  'Show Info Table')
+show_right_labels  = input.bool(true,  'Show Right-Side Level Labels')
+use_options_lbl    = input.bool(true,  'Use Options Labels (Calls/Puts)')
+level_size         = input.int(2,      'Line Width', minval=1, maxval=5)
+
+show_target_shapes = input.bool(false, 'Show Target/Stop Shapes')
+enable_alerts      = input.bool(false, 'Enable ATR Target/Stop Alerts')
+target_cooldown    = input.int(10,     'Target Cooldown (bars)', minval=1)
+
+// ═══════════════════════════════════════════════════════════════
+// ATR + PDC — exact Saty formula
+// session.extended is critical
+// ═══════════════════════════════════════════════════════════════
+
+ticker_ext = ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended)
+
+pdc = request.security(ticker_ext, 'D', close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+atr14 = request.security(ticker_ext,'D',ta.atr(14)[1],gaps=barmerge.gaps_off,lookahead=barmerge.lookahead_on)
+
+call_trigger  = pdc + atr14 * 0.236
+gg_open_call  = pdc + atr14 * 0.382
+mid_atr_call  = pdc + atr14 * 0.500
+gg_comp_call  = pdc + atr14 * 0.618
+ext_786_call  = pdc + atr14 * 0.786
+full_atr_call = pdc + atr14 * 1.000
+
+put_trigger   = pdc - atr14 * 0.236
+gg_open_put   = pdc - atr14 * 0.382
+mid_atr_put   = pdc - atr14 * 0.500
+gg_comp_put   = pdc - atr14 * 0.618
+ext_786_put   = pdc - atr14 * 0.786
+full_atr_put  = pdc - atr14 * 1.000
+
+today_range = request.security(ticker_ext, 'D', high - low, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+
+tr_pct   = today_range / atr14 * 100
+tr_color = tr_pct <= 70 ? color.green : tr_pct >= 90 ? color.red : color.orange
+
+// ═══════════════════════════════════════════════════════════════
+// SESSION BOUNDARY
+// ═══════════════════════════════════════════════════════════════
+
+is_new_day = dayofweek != dayofweek[1] or (hour == 9 and minute < 3 and hour[1] == 16)
+
+var bool in_session = false
+
+if is_new_day or (hour == 9 and minute >= 30 and not in_session)
+    in_session := true
+
+if hour == 16 and minute >= 15
+    in_session := false
+
+show_level = in_session or barstate.islast
+
+// ═══════════════════════════════════════════════════════════════
+// LEVEL PLOTS
+// ═══════════════════════════════════════════════════════════════
+
+plot(show_level ? full_atr_call : na, '+1 ATR', color=#ffffff66, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? gg_comp_call : na, '+61.8% GG★', color=#ffff00cc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? gg_open_call : na, '+38.2% GG', color=#00ff00cc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? call_trigger : na, 'Call Trigger', color=#00ffffcc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? pdc : na, 'Prev Close', color=#ffffffcc, linewidth=1, style=plot.style_stepline)
+plot(show_level ? put_trigger : na, 'Put Trigger', color=#00ffffcc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? gg_open_put : na, '-38.2% GG', color=#00ff00cc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? gg_comp_put : na, '-61.8% GG★', color=#ffff00cc, linewidth=level_size, style=plot.style_stepline)
+plot(show_level ? full_atr_put : na, '-1 ATR', color=#ffffff66, linewidth=level_size, style=plot.style_stepline)
+
+plot(show_level and show_mid ? mid_atr_call : na, '+50% Mid', color=#88888899, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_mid ? mid_atr_put : na, '-50% Mid', color=#88888899, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_mid ? ext_786_call : na, '+78.6%', color=#aa88ffb3, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_mid ? ext_786_put : na, '-78.6%', color=#aa88ffb3, linewidth=1, style=plot.style_stepline)
+
+plot(show_level and show_extensions ? pdc + atr14 * 2.0 : na, '+2 ATR', color=#88888866, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? pdc - atr14 * 2.0 : na, '-2 ATR', color=#88888866, linewidth=1, style=plot.style_stepline)
+
+// ═══════════════════════════════════════════════════════════════
+// EMAS FOR INFO TABLE ONLY
+// Ribbon state uses EMA 8/21/34
+// ═══════════════════════════════════════════════════════════════
+
+ema8  = ta.ema(close, 8)
+ema21 = ta.ema(close, 21)
+ema34 = ta.ema(close, 34)
+
+bullish = ema8 >= ema21 and ema21 >= ema34
+bearish = ema8 <= ema21 and ema21 <= ema34
+
+trend_color = bullish ? color.green : bearish ? color.red : color.orange
+
+long_lbl  = use_options_lbl ? 'Calls' : 'Long'
+short_lbl = use_options_lbl ? 'Puts' : 'Short'
+
+// ═══════════════════════════════════════════════════════════════
+// INFO TABLE
+// ═══════════════════════════════════════════════════════════════
+
+var tbl = table.new(position.top_right, 1, 5, border_width=1)
+
+if barstate.islast and show_info
+    table.cell(tbl,0,0,'OpenTheDesk — ATR Levels v3 Clean',bgcolor=trend_color,text_color=color.white,text_size=size.small)
+
+    table.cell(tbl,0,1,'Day Range ($' + str.tostring(today_range, '#.##') + ') is ' + str.tostring(tr_pct, '#.#') + '% of ATR ($' + str.tostring(atr14, '#.##') + ')', bgcolor=tr_color, text_color=color.white,text_size=size.small)
+
+    table.cell(tbl, 0, 2, long_lbl + ' > $' + str.tostring(call_trigger, '#.##') + ' | 50% $' + str.tostring(mid_atr_call, '#.##') + ' | GG Open $' + str.tostring(gg_open_call, '#.##'),bgcolor=color.new(#28c22e, 14), text_color=color.white,text_size=size.small)
+
+    table.cell(tbl,0,3, '★ GG Comp $' + str.tostring(gg_comp_call, '#.##') + ' | 78.6% $' + str.tostring(ext_786_call, '#.##') + ' | +1 ATR $' + str.tostring(full_atr_call, '#.##'), bgcolor=color.new(color.yellow, 20), text_color=color.black,text_size=size.small)
+
+    table.cell(tbl, 0, 4, short_lbl + ' < $' + str.tostring(put_trigger, '#.##') + ' | GG Open $' + str.tostring(gg_open_put, '#.##') + ' | GG Comp $' + str.tostring(gg_comp_put, '#.##'), bgcolor=color.new(#e80d0d, 18), text_color=color.white, text_size=size.small)
+
+// ═══════════════════════════════════════════════════════════════
+// RIGHT-SIDE LABELS
+// ═══════════════════════════════════════════════════════════════
+
+var label lbl_full_call = na
+var label lbl_gg_comp_c = na
+var label lbl_gg_open_c = na
+var label lbl_trig_c = na
+var label lbl_pdc = na
+var label lbl_trig_p = na
+var label lbl_gg_open_p = na
+var label lbl_gg_comp_p = na
+var label lbl_full_put = na
+var label lbl_mid_c = na
+var label lbl_mid_p = na
+var label lbl_786_c = na
+var label lbl_786_p = na
+
+labelOffset = 3
+
+if barstate.islast and show_right_labels
+    label.delete(lbl_full_call)
+    label.delete(lbl_gg_comp_c)
+    label.delete(lbl_gg_open_c)
+    label.delete(lbl_trig_c)
+    label.delete(lbl_pdc)
+    label.delete(lbl_trig_p)
+    label.delete(lbl_gg_open_p)
+    label.delete(lbl_gg_comp_p)
+    label.delete(lbl_full_put)
+    label.delete(lbl_mid_c)
+    label.delete(lbl_mid_p)
+    label.delete(lbl_786_c)
+    label.delete(lbl_786_p)
+
+    lbl_full_call := label.new(bar_index + labelOffset, full_atr_call, '+1 ATR ' + str.tostring(full_atr_call, '#.##'), color=color.new(color.white, 40), textcolor=color.white, style=label.style_label_left,size=size.small)
+
+    lbl_gg_comp_c := label.new(bar_index + labelOffset, gg_comp_call, '★ +61.8% GG Comp ★ ' + str.tostring(gg_comp_call, '#.##'), color=color.new(color.yellow, 20), textcolor=color.black, style=label.style_label_left,size=size.small)
+
+    lbl_gg_open_c := label.new(bar_index + labelOffset, gg_open_call, '+38.2% GG Open ' + str.tostring(gg_open_call, '#.##'), color=color.new(color.lime, 20), textcolor=color.black, style=label.style_label_left,size=size.small)
+
+    lbl_trig_c := label.new(bar_index + labelOffset, call_trigger, '▲ Call Trigger ' + str.tostring(call_trigger, '#.##'), color=color.new(#28c22e, 14),textcolor=color.white, style=label.style_label_left, size=size.small)
+
+    lbl_pdc := label.new( bar_index + labelOffset, pdc, '— PDC ' + str.tostring(pdc, '#.##'), color=color.new(color.white, 20), textcolor=color.black, style=label.style_label_left, size=size.small)
+
+    lbl_trig_p := label.new(bar_index + labelOffset, put_trigger, '▼ Put Trigger ' + str.tostring(put_trigger, '#.##'),color=color.new(#e80d0d, 18), textcolor=color.white, style=label.style_label_left,size=size.small)
+
+    lbl_gg_open_p := label.new(bar_index + labelOffset, gg_open_put, '-38.2% GG Open ' + str.tostring(gg_open_put, '#.##'),color=color.new(color.lime, 20),textcolor=color.black,style=label.style_label_left,size=size.small)
+
+    lbl_gg_comp_p := label.new(bar_index + labelOffset, gg_comp_put, '★ -61.8% GG Comp ★ ' + str.tostring(gg_comp_put, '#.##'), color=color.new(color.yellow, 20), textcolor=color.black, style=label.style_label_left, size=size.small)
+
+    lbl_full_put := label.new(bar_index + labelOffset, full_atr_put, '-1 ATR ' + str.tostring(full_atr_put, '#.##'), color=color.new(color.white, 40), textcolor=color.white, style=label.style_label_left,size=size.small)
+
+    if show_mid
+        lbl_mid_c := label.new(bar_index + labelOffset, mid_atr_call, '+50% Mid ' + str.tostring(mid_atr_call, '#.##'), color=color.new(color.gray, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+        lbl_mid_p := label.new(bar_index + labelOffset, mid_atr_put, '-50% Mid ' + str.tostring(mid_atr_put, '#.##'), color=color.new(color.gray, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+        lbl_786_c := label.new(bar_index + labelOffset, ext_786_call, '+78.6% ' + str.tostring(ext_786_call, '#.##'), color=color.new(color.purple, 30), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+        lbl_786_p := label.new(bar_index + labelOffset, ext_786_put, '-78.6% ' + str.tostring(ext_786_put, '#.##'), color=color.new(color.purple, 30), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+if barstate.islast and not show_right_labels
+    label.delete(lbl_full_call)
+    label.delete(lbl_gg_comp_c)
+    label.delete(lbl_gg_open_c)
+    label.delete(lbl_trig_c)
+    label.delete(lbl_pdc)
+    label.delete(lbl_trig_p)
+    label.delete(lbl_gg_open_p)
+    label.delete(lbl_gg_comp_p)
+    label.delete(lbl_full_put)
+    label.delete(lbl_mid_c)
+    label.delete(lbl_mid_p)
+    label.delete(lbl_786_c)
+    label.delete(lbl_786_p)
+
+// ═══════════════════════════════════════════════════════════════
+// OPTIONAL TARGET / STOP DETECTION
+// Clean mode only.
+// These are NOT setup signals.
+// Manual Planner should handle trade lifecycle alerts.
+// ═══════════════════════════════════════════════════════════════
+
+confirmed = barstate.isconfirmed
+is_3m = timeframe.period == '3'
+
+cloud_bull = ema8 >= ema21 and ema21 >= ema34
+cloud_bear = ema8 <= ema21 and ema21 <= ema34
+
+bull_t1_cross = confirmed and cloud_bull and ta.crossover(close, gg_open_call)
+bear_t1_cross = confirmed and cloud_bear and ta.crossunder(close, gg_open_put)
+
+bull_t2_cross = confirmed and cloud_bull and ta.crossover(close, gg_comp_call)
+bear_t2_cross = confirmed and cloud_bear and ta.crossunder(close, gg_comp_put)
+
+bull_t3_cross = confirmed and cloud_bull and ta.crossover(close, full_atr_call)
+bear_t3_cross = confirmed and cloud_bear and ta.crossunder(close, full_atr_put)
+
+bull_t1 = bull_t1_cross and nz(ta.barssince(bull_t1_cross[1]), 999) >= target_cooldown
+bear_t1 = bear_t1_cross and nz(ta.barssince(bear_t1_cross[1]), 999) >= target_cooldown
+
+bull_t2 = bull_t2_cross and nz(ta.barssince(bull_t2_cross[1]), 999) >= target_cooldown
+bear_t2 = bear_t2_cross and nz(ta.barssince(bear_t2_cross[1]), 999) >= target_cooldown
+
+bull_t3 = bull_t3_cross and nz(ta.barssince(bull_t3_cross[1]), 999) >= target_cooldown
+bear_t3 = bear_t3_cross and nz(ta.barssince(bear_t3_cross[1]), 999) >= target_cooldown
+
+bull_stop = confirmed and cloud_bull and ta.crossunder(close, call_trigger)
+bear_stop = confirmed and cloud_bear and ta.crossover(close, put_trigger)
+
+// ═══════════════════════════════════════════════════════════════
+// SHAPES — CLEAN MODE
+// No GG / VOMY / iVOMY / FLAG / DIV / TWEEZER shapes here.
+// ═══════════════════════════════════════════════════════════════
+
+plotshape(show_target_shapes and bull_t1, 'T1 Call Side', shape.cross, location.abovebar, color.silver, size=size.tiny, text='T1')
+
+plotshape(show_target_shapes and bear_t1,'T1 Put Side', shape.cross, location.belowbar, color.silver, size=size.tiny, text='T1')
+
+plotshape(show_target_shapes and bull_t2, 'T2 Call Side', shape.cross, location.abovebar, color.yellow, size=size.small, text='T2')
+
+plotshape(show_target_shapes and bear_t2, 'T2 Put Side', shape.cross, location.belowbar, color.yellow, size=size.small, text='T2')
+
+plotshape(show_target_shapes and bull_t3, 'T3 Call Side', shape.cross, location.abovebar, color.white, size=size.small, text='T3')
+
+plotshape(show_target_shapes and bear_t3, 'T3 Put Side', shape.cross, location.belowbar, color.white, size=size.small, text='T3')
+
+plotshape(show_target_shapes and bull_stop, 'Stop Call Side', shape.xcross, location.abovebar, color.red, size=size.small, text='SL')
+
+plotshape(show_target_shapes and bear_stop,'Stop Put Side',shape.xcross, location.belowbar, color.red, size=size.small, text='SL')
+
+// ═══════════════════════════════════════════════════════════════
+// ALERTS — CLEAN MODE
+//
+// Manual Planner v3.3.1 should be your main TradingView alert:
+// Condition: Manual Planner v3.3.1
+// Alert type: Any alert() function call
+// Frequency: Once Per Bar Close
+//
+// Keep these ATR alerts OFF unless you intentionally want backup
+// target/stop level alerts.
+// ═══════════════════════════════════════════════════════════════
+
+alertcondition(enable_alerts and is_3m and (bull_t1 or bear_t1), '🎯 OTD ATR T1 [3m]', '{"ticker":"{{ticker}}","timeframe":"3","condition":"ATR T1","price":"{{close}}","setup":"ATR_TARGET","signal":"TARGET","secret":"YOUR_SECRET"}')
+
+alertcondition(enable_alerts and is_3m and (bull_t2 or bear_t2), '🎯 OTD ATR T2 [3m]', '{"ticker":"{{ticker}}","timeframe":"3","condition":"ATR T2","price":"{{close}}","setup":"ATR_TARGET","signal":"TARGET","secret":"YOUR_SECRET"}')
+
+alertcondition(enable_alerts and is_3m and (bull_t3 or bear_t3), '🎯 OTD ATR T3 [3m]', '{"ticker":"{{ticker}}","timeframe":"3","condition":"ATR T3","price":"{{close}}","setup":"ATR_TARGET","signal":"TARGET","secret":"YOUR_SECRET"}')
+
+alertcondition(enable_alerts and is_3m and (bull_stop or bear_stop), '⚠️ OTD ATR STOP [3m]', '{"ticker":"{{ticker}}","timeframe":"3","condition":"ATR STOP","price":"{{close}}","setup":"ATR_STOP","signal":"STOP","secret":"YOUR_SECRET"}')

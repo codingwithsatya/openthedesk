@@ -1,0 +1,42 @@
+//@version=5
+indicator("OTD Internals Heartbeat v2.1", overlay=true)
+
+tvSecret = input.string("", "TradingView webhook secret")
+sendHeartbeat = input.bool(true, "Send internals heartbeat")
+onlyRTH = input.bool(true, "Only send during RTH")
+heartbeatSession = input.session("0930-1600", "Heartbeat session")
+heartbeatEveryBars = input.int(1, "Send every N bars", minval=1)
+
+// Visual status
+showStatusDot = input.bool(false, "Show internals status dot on chart?")
+showOnlyLastDot = input.bool(true, "Show only latest status dot?")
+
+trinSymbol = input.symbol("USI:TRIN", "TRIN symbol")
+addSymbol  = input.symbol("USI:ADD",  "ADD symbol")
+voldSymbol = input.symbol("USI:VOLD", "VOLD symbol")
+pccSymbol  = input.symbol("USI:PCC",  "PCC symbol")
+
+inSession = not na(time(timeframe.period, heartbeatSession))
+canSendSession = onlyRTH ? inSession : true
+canSendBar = bar_index % heartbeatEveryBars == 0
+
+trinVal = request.security(trinSymbol, timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+addVal  = request.security(addSymbol,  timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+voldVal = request.security(voldSymbol, timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+pccVal  = request.security(pccSymbol,  timeframe.period, close, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_off)
+
+hasInternals = not na(trinVal) and not na(addVal) and not na(voldVal) and not na(pccVal)
+
+trinStr = str.tostring(math.round(trinVal * 100.0) / 100.0)
+addStr  = str.tostring(math.round(addVal))
+voldStr = str.tostring(math.round(voldVal))
+pccStr  = str.tostring(math.round(pccVal * 100.0) / 100.0)
+
+// Optional chart status dot.
+// OFF by default so it does not clutter SPX chart.
+plotshape(showStatusDot and hasInternals and (showOnlyLastDot ? barstate.islast : true), title="Internals OK", style=shape.circle, location=location.top, color=color.lime, size=size.tiny, text="INT")
+
+plotshape(showStatusDot and not hasInternals and (showOnlyLastDot ? barstate.islast : true), title="Internals Missing", style=shape.circle, location=location.top, color=color.red, size=size.tiny, text="NO INT")
+
+if sendHeartbeat and canSendSession and canSendBar and barstate.isconfirmed and hasInternals
+    alert('{"type":"internals","signal":"INTERNALS","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","trin":' + trinStr + ',"add":' + addStr + ',"vold":' + voldStr + ',"pcc":' + pccStr + ',"secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)

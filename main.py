@@ -7,7 +7,7 @@ import httpx
 import anthropic
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, Header, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
@@ -788,35 +788,115 @@ async def screener():
 
 # ── TradingView webhook ──────────────────────────────────────────────────────
 
-class TVAlertPayload(BaseModel):
-    ticker: str
-    timeframe: str
-    condition: str
-    price: str
-    atr_level: str
-    setup: Optional[str] = None
-    grade: Optional[str] = None
-    direction: Optional[str] = None
-    secret: Optional[str] = None
-    trin: Optional[float] = None
-    add: Optional[int] = None
-    vold: Optional[float] = None
-    signal: Optional[str] = None  # ENTRY, WATCH, SCALE, EXIT
+async def _handle_internals(data: dict) -> dict:
+    """Handle OTD Internals Heartbeat payload — updates INTERNALS_CACHE only."""
+    global INTERNALS_CACHE
 
-    class Config:
-        extra = "allow"
+    def _sf(v):
+        try:
+            return round(float(v), 4) if v is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    INTERNALS_CACHE = {
+        "type":        "internals",
+        "signal":      "INTERNALS",
+        "ticker":      data.get("ticker", "SPX"),
+        "timeframe":   data.get("timeframe", "3"),
+        "trin":        _sf(data.get("trin")),
+        "add":         _sf(data.get("add")),
+        "vold":        _sf(data.get("vold")),
+        "pcc":         _sf(data.get("pcc")),
+        "received_at": datetime.now(timezone.utc).isoformat(),
+        "source":      "tradingview",
+    }
+
+    internals_event = {"type": "internals", "data": INTERNALS_CACHE}
+    for q in set(ALERT_SUBSCRIBERS):
+        q.put_nowait(internals_event)
+
+    return {"status": "ok", "cached": INTERNALS_CACHE}
 
 
-class InternalsPayload(BaseModel):
-    type: Optional[str] = None
-    trin: Optional[str] = None
-    add: Optional[str] = None
-    vold: Optional[str] = None
-    pcc: Optional[str] = None
-    secret: Optional[str] = None
+async def _handle_trade_alert(data: dict) -> dict:
+    """Handle Manual Planner v3.3.1 and ATR Clean backup alerts.
 
-    class Config:
-        extra = "allow"
+    Pine Script computes entry/t1/t2/t3/sl/trail_sl — use directly, no recalc.
+    """
+    def _sf(v):
+        try:
+            return float(v) if v is not None else None
+        except (ValueError, TypeError):
+            return None
+
+    signal    = (data.get("signal") or "").upper()
+    direction = (data.get("direction") or "").upper()
+    setup     = data.get("setup", "")
+
+    internals_snapshot = None
+    internals_age = None
+    if INTERNALS_CACHE.get("received_at"):
+        internals_snapshot = INTERNALS_CACHE.copy()
+        try:
+            received = datetime.fromisoformat(INTERNALS_CACHE["received_at"])
+            internals_age = round(
+                (datetime.now(timezone.utc) - received).total_seconds()
+            )
+        except Exception:
+            pass
+
+    alert = {
+        "id":                    str(uuid.uuid4()),
+        "ts":                    datetime.now(timezone.utc).isoformat(),
+        "ticker":                data.get("ticker"),
+        "timeframe":             data.get("timeframe"),
+        "condition":             data.get("condition"),
+        "price":                 data.get("price"),
+        "signal":                signal,
+        "setup":                 setup,
+        "grade":                 data.get("grade"),
+        "direction":             direction,
+        "atr_level":             data.get("atr_level"),
+        "entry":                 _sf(data.get("entry")),
+        "t1":                    _sf(data.get("t1")),
+        "t2":                    _sf(data.get("t2")),
+        "t3":                    _sf(data.get("t3")),
+        "sl":                    _sf(data.get("sl")),
+        "trail_sl":              _sf(data.get("trail_sl")),
+        "internals":             internals_snapshot,
+        "internals_age_seconds": internals_age,
+    }
+
+    is_atr_backup = setup in ("ATR_TARGET", "ATR_STOP")
+
+    if signal == "ENTRY" and direction in ("BULL", "BEAR") and not is_atr_backup:
+        entry = alert["entry"] or _sf(data.get("price"))
+        t1    = alert["t1"]
+        t2    = alert["t2"]
+        t3    = alert["t3"]
+        sl    = alert["sl"]
+
+        if entry and t1:
+            def _pts(target):
+                return round(abs(target - entry), 2) if target is not None else None
+
+            alert["trade_plan"] = {
+                "entry":    entry,
+                "direction": direction,
+                "t1":       t1,       "t1_pts":   _pts(t1),  "t1_label": "GG Open — Scale 50%",
+                "t2":       t2,       "t2_pts":   _pts(t2),  "t2_label": "GG Complete — Scale 25%",
+                "t3":       t3,       "t3_pts":   _pts(t3),  "t3_label": "Full Extension — Exit All",
+                "sl":       sl,       "sl_pts":   _pts(sl),
+                "trail_sl": alert["trail_sl"],
+            }
+
+    TV_ALERTS.insert(0, alert)
+    if len(TV_ALERTS) > 50:
+        TV_ALERTS.pop()
+    for q in set(ALERT_SUBSCRIBERS):
+        q.put_nowait(alert)
+
+    return {"status": "received", "id": alert["id"]}
 
 
 @app.post("/webhook/tv")
@@ -832,102 +912,10 @@ async def webhook_tv(request: Request):
     if secret != TV_WEBHOOK_SECRET:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    internals = get_market_internals()
-    if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
-        internals = {k: INTERNALS_CACHE.get(k)
-                     for k in ["trin", "add", "vold"]}
+    if data.get("type") == "internals" or data.get("signal") == "INTERNALS":
+        return await _handle_internals(data)
 
-    alert = {
-        "id": str(uuid.uuid4()),
-        "ts": datetime.now(timezone.utc).isoformat(),
-        "ticker": data.get("ticker"),
-        "timeframe": data.get("timeframe"),
-        "condition": data.get("condition"),
-        "price": data.get("price"),
-        "atr_level": data.get("atr_level"),
-        "setup": data.get("setup"),
-        "grade": data.get("grade"),
-        "direction": data.get("direction"),
-        "trin": internals.get("trin"),
-        "add": internals.get("add"),
-        "vold": internals.get("vold"),
-        "signal": data.get("signal"),
-    }
-
-    if data.get("signal") == "ENTRY" and data.get("direction") in ("BULL", "BEAR"):
-        try:
-            mkt = get_market_summary()
-            levels = mkt.get("atr_levels", {})
-            entry_price = float(data.get("price", 0))
-            pdc = float(levels.get("PDC", entry_price))
-            atr = float(levels.get("ATR", 70))
-            sl_distance = max(abs(entry_price - pdc) * 0.20, atr * 0.08)
-
-            if data.get("direction") == "BULL":
-                t1 = levels.get("gg_open_call")
-                t2 = levels.get("gg_50_call")
-                t3 = levels.get("gg_complete_call")
-                sl = round(entry_price - sl_distance, 2)
-
-                def pts(v): return round(
-                    float(v) - entry_price, 2) if v else None
-            else:
-                t1 = levels.get("gg_open_put")
-                t2 = levels.get("gg_50_put")
-                t3 = levels.get("gg_complete_put")
-                sl = round(entry_price + sl_distance, 2)
-                def pts(v): return round(
-                    entry_price - float(v), 2) if v else None
-
-            alert["trade_plan"] = {
-                "entry": entry_price,
-                "direction": data.get("direction"),
-                "t1": t1, "t1_pts": pts(t1), "t1_label": "38.2% — Scale 50%",
-                "t2": t2, "t2_pts": pts(t2), "t2_label": "50% Mid — Scale 25%",
-                "t3": t3, "t3_pts": pts(t3), "t3_label": "61.8% GR — Exit All",
-                "sl": sl, "sl_pts": round(sl_distance, 2),
-            }
-        except Exception:
-            pass
-
-    TV_ALERTS.insert(0, alert)
-    if len(TV_ALERTS) > 50:
-        TV_ALERTS.pop()
-    for q in set(ALERT_SUBSCRIBERS):
-        q.put_nowait(alert)
-    return {"status": "received", "id": alert["id"]}
-
-
-@app.post("/webhook/internals")
-async def webhook_internals(
-    payload: InternalsPayload,
-    x_tv_secret: str = Header(None),
-):
-    if x_tv_secret != TV_WEBHOOK_SECRET and payload.secret != TV_WEBHOOK_SECRET:
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    global INTERNALS_CACHE
-
-    def _safe_float(v):
-        try:
-            return round(float(v), 4) if v else None
-        except (ValueError, TypeError):
-            return None
-
-    def _safe_int(v):
-        try:
-            return int(float(v)) if v else None
-        except (ValueError, TypeError):
-            return None
-
-    vold_raw = _safe_float(payload.vold)
-    INTERNALS_CACHE = {
-        "trin": _safe_float(payload.trin),
-        "add":  _safe_int(payload.add),
-        "vold": round(vold_raw / 1e9, 2) if vold_raw else None,
-        "pcc":  _safe_float(payload.pcc),
-        "ts":   datetime.now(timezone.utc).isoformat(),
-    }
-    return {"status": "ok", "cached": INTERNALS_CACHE}
+    return await _handle_trade_alert(data)
 
 
 @app.get("/internals")
