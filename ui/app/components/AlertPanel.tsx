@@ -587,6 +587,78 @@ function AlertCard({
             </div>
           </div>
         )}
+
+        {/* Internals snapshot — unread only, sourced from alert.internals */}
+        {isUnread &&
+          alert.internals &&
+          (alert.internals.trin != null ||
+            alert.internals.add != null ||
+            alert.internals.vold != null) && (
+            <div
+              style={{
+                display: "flex",
+                gap: 12,
+                fontSize: 11,
+                color: "#9ca3af",
+                borderTop: "1px solid rgba(255,255,255,0.1)",
+                marginTop: 8,
+                paddingTop: 8,
+                alignItems: "center",
+              }}
+            >
+              {alert.internals.trin != null && (
+                <span
+                  style={{
+                    color:
+                      alert.internals.trin < 1.0
+                        ? "#4ade80"
+                        : alert.internals.trin > 1.2
+                          ? "#f87171"
+                          : "#d1d5db",
+                  }}
+                >
+                  TRIN {alert.internals.trin.toFixed(2)}
+                </span>
+              )}
+              {alert.internals.add != null && (
+                <span
+                  style={{
+                    color:
+                      alert.internals.add > 200
+                        ? "#4ade80"
+                        : alert.internals.add < -200
+                          ? "#f87171"
+                          : "#d1d5db",
+                  }}
+                >
+                  ADD {alert.internals.add > 0 ? "+" : ""}
+                  {Math.round(alert.internals.add)}
+                </span>
+              )}
+              {alert.internals.vold != null && (
+                <span
+                  style={{
+                    color:
+                      alert.internals.vold > 0
+                        ? "#4ade80"
+                        : alert.internals.vold < 0
+                          ? "#f87171"
+                          : "#d1d5db",
+                  }}
+                >
+                  VOLD {alert.internals.vold > 0 ? "+" : ""}
+                  {(alert.internals.vold / 1e9).toFixed(2)}B
+                </span>
+              )}
+              {alert.internals_age_seconds != null && (
+                <span style={{ marginLeft: "auto", color: "#6b7280" }}>
+                  {alert.internals_age_seconds < 60
+                    ? `${alert.internals_age_seconds}s ago`
+                    : `${Math.round(alert.internals_age_seconds / 60)}m ago`}
+                </span>
+              )}
+            </div>
+          )}
       </div>
     </div>
   );
