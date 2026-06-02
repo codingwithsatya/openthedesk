@@ -16,13 +16,30 @@ export interface TVAlert {
   add?: number | null;
   vold?: number | null;
   signal?: string;
+  type?: string;
+  trail_sl?: number | null;
+  internals?: {
+    trin: number | null;
+    add: number | null;
+    vold: number | null;
+    pcc: number | null;
+    received_at: string;
+  } | null;
+  internals_age_seconds?: number | null;
   trade_plan?: {
     entry: number;
     direction: string;
-    t1: number | null; t1_pts: number | null; t1_label: string;
-    t2: number | null; t2_pts: number | null; t2_label: string;
-    t3: number | null; t3_pts: number | null; t3_label: string;
-    sl: number; sl_pts: number;
+    t1: number | null;
+    t1_pts: number | null;
+    t1_label: string;
+    t2: number | null;
+    t2_pts: number | null;
+    t2_label: string;
+    t3: number | null;
+    t3_pts: number | null;
+    t3_label: string;
+    sl: number;
+    sl_pts: number;
   };
 }
 
@@ -138,6 +155,7 @@ export function useAlerts() {
       if (e.data === "ping") return;
       try {
         const alert: TVAlert = JSON.parse(e.data);
+        if (alert.type === "internal") return; // skip internal-only alerts
         setAlerts((prev) => {
           if (prev.some((a) => a.id === alert.id)) return prev;
           return [alert, ...prev];
@@ -492,44 +510,80 @@ function AlertCard({
 
         {/* Trade plan — unread ENTRY alerts only */}
         {isUnread && alert.trade_plan && (
-          <div style={{
-            marginTop: 8, padding: "8px 10px",
-            background: "#0f172a", borderRadius: 6,
-            border: "1px solid #1e293b",
-            fontSize: 11, fontFamily: "monospace",
-          }}>
-            <div style={{ color: "#64748b", marginBottom: 6, fontSize: 10, letterSpacing: 1 }}>
+          <div
+            style={{
+              marginTop: 8,
+              padding: "8px 10px",
+              background: "#0f172a",
+              borderRadius: 6,
+              border: "1px solid #1e293b",
+              fontSize: 11,
+              fontFamily: "monospace",
+            }}
+          >
+            <div
+              style={{
+                color: "#64748b",
+                marginBottom: 6,
+                fontSize: 10,
+                letterSpacing: 1,
+              }}
+            >
               TRADE PLAN
             </div>
-            <div style={{ display: "grid", gridTemplateColumns: "44px 1fr 52px", rowGap: 4 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "44px 1fr 52px",
+                rowGap: 4,
+              }}
+            >
               <span style={{ color: "#64748b" }}>ENTRY</span>
-              <span style={{ color: "#f1f5f9", fontWeight: 600 }}>{alert.trade_plan.entry.toFixed(2)}</span>
+              <span style={{ color: "#f1f5f9", fontWeight: 600 }}>
+                {alert.trade_plan.entry.toFixed(2)}
+              </span>
               <span />
 
               <span style={{ color: "#22c55e" }}>T1</span>
               <span style={{ color: "#f1f5f9" }}>
                 {alert.trade_plan.t1?.toFixed(2)}
-                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>{alert.trade_plan.t1_label}</span>
+                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>
+                  {alert.trade_plan.t1_label}
+                </span>
               </span>
-              <span style={{ color: "#22c55e" }}>+{alert.trade_plan.t1_pts}</span>
+              <span style={{ color: "#22c55e" }}>
+                +{alert.trade_plan.t1_pts}
+              </span>
 
               <span style={{ color: "#22c55e" }}>T2</span>
               <span style={{ color: "#f1f5f9" }}>
                 {alert.trade_plan.t2?.toFixed(2)}
-                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>{alert.trade_plan.t2_label}</span>
+                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>
+                  {alert.trade_plan.t2_label}
+                </span>
               </span>
-              <span style={{ color: "#22c55e" }}>+{alert.trade_plan.t2_pts}</span>
+              <span style={{ color: "#22c55e" }}>
+                +{alert.trade_plan.t2_pts}
+              </span>
 
               <span style={{ color: "#fbbf24" }}>T3</span>
               <span style={{ color: "#f1f5f9" }}>
                 {alert.trade_plan.t3?.toFixed(2)}
-                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>{alert.trade_plan.t3_label}</span>
+                <span style={{ color: "#475569", marginLeft: 6, fontSize: 10 }}>
+                  {alert.trade_plan.t3_label}
+                </span>
               </span>
-              <span style={{ color: "#fbbf24" }}>+{alert.trade_plan.t3_pts}</span>
+              <span style={{ color: "#fbbf24" }}>
+                +{alert.trade_plan.t3_pts}
+              </span>
 
               <span style={{ color: "#ef4444" }}>SL</span>
-              <span style={{ color: "#f1f5f9" }}>{alert.trade_plan.sl.toFixed(2)}</span>
-              <span style={{ color: "#ef4444" }}>-{alert.trade_plan.sl_pts}</span>
+              <span style={{ color: "#f1f5f9" }}>
+                {alert.trade_plan.sl.toFixed(2)}
+              </span>
+              <span style={{ color: "#ef4444" }}>
+                -{alert.trade_plan.sl_pts}
+              </span>
             </div>
           </div>
         )}
