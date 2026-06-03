@@ -821,7 +821,7 @@ async def _handle_internals(data: dict) -> dict:
 
 
 async def _handle_trade_alert(data: dict) -> dict:
-    """Handle Manual Planner v3.3.1 and ATR Clean backup alerts.
+    """Handle Manual Planner v3.3.2 and ATR Clean backup alerts.
 
     Pine Script computes entry/t1/t2/t3/sl/trail_sl — use directly, no recalc.
     """
@@ -834,6 +834,17 @@ async def _handle_trade_alert(data: dict) -> dict:
     signal = (data.get("signal") or "").upper()
     direction = (data.get("direction") or "").upper()
     setup = data.get("setup", "")
+    condition_str = (data.get("condition") or "").upper()
+
+    # display_type: consumed by frontend for card accent/border color
+    if signal in ("EXIT", "STOP") or "REVERSAL" in condition_str:
+        display_type = "stop"
+    elif signal == "ENTRY":
+        display_type = "entry"
+    elif signal in ("TRAIL", "TARGET"):
+        display_type = "update"
+    else:
+        display_type = None
 
     internals_snapshot = None
     internals_age = None
@@ -855,6 +866,7 @@ async def _handle_trade_alert(data: dict) -> dict:
         "condition":             data.get("condition"),
         "price":                 data.get("price"),
         "signal":                signal,
+        "display_type":          display_type,
         "setup":                 setup,
         "grade":                 data.get("grade"),
         "direction":             direction,

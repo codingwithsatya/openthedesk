@@ -1,16 +1,23 @@
 //@version=5
-indicator("OpenTheDesk Manual Planner v3.3.1 — Simplified Trade Manager", overlay=true, max_lines_count=150, max_labels_count=150)
+indicator("OpenTheDesk Manual Planner v3.3.2 — Cleaner Trade Manager", overlay=true, max_lines_count=150, max_labels_count=150)
 
 // =====================================================================
-// OPENTHEDESK MANUAL PLANNER v3.3.1 — SIMPLIFIED TRADE MANAGER
+// OPENTHEDESK MANUAL PLANNER v3.3.2 — CLEANER TRADE MANAGER
+//
+// Fixes from live testing:
+// - Daily reset so yesterday plans/targets do not carry forward
+// - Immediate SL trail after T1/T2/T3
+// - Minimum T1 distance filter to skip useless close targets
+// - Reset cooldown after stop so reversal is not blocked
+// - VOMY/iVOMY entry mode: Retest Only / Reclaim Close / Retest or Reclaim
+//
+// Keeps:
 // - GG = 38.2% GG Open → 61.8% GG Complete
-// - Flag Into Ribbon = 13/21 EMA pullback
-// - VOMY/iVOMY = transition + retest
-// - Brighter iVOMY / VOMY markers
-// - Transition debug markers
-// - VOMY/iVOMY priority before Flag/GG
+// - Flag Into Ribbon separate from GG
+// - VOMY/iVOMY transition + retest logic
+// - Bright iV/V markers
+// - Transition debug mode
 // - Opposite VOMY replacement
-// - Simple trailing SL
 // - Dynamic webhook alerts
 // =====================================================================
 
@@ -34,6 +41,8 @@ sessionMode = input.string("Normal", "Session Mode", options=["Normal", "Full Da
 normalSession = input.session("0840-1230", "Normal trade window")
 fullDaySession = input.session("0840-1600", "Full day backtest window")
 lateSession = input.session("1500-1600", "Late window")
+
+resetPlanOnNewDay = input.bool(true, "Reset active plan on new day")
 
 satyTradingType = input.string("Day", "Saty ATR Trading Type", options=["Day", "Multiday", "Swing", "Position", "Long-term"])
 satyAtrLength = input.int(14, "Saty ATR Length")
@@ -66,6 +75,7 @@ minTrendBars = input.int(5, "Minimum trend bars for Flag Into Ribbon", minval=1)
 
 transitionLookbackBars = input.int(12, "VOMY/iVOMY transition lookback bars", minval=3)
 retestWindowBars = input.int(24, "VOMY/iVOMY retest window bars", minval=3)
+vomyEntryMode = input.string("Retest or Reclaim", "VOMY/iVOMY Entry Mode", options=["Retest Only", "Reclaim Close", "Retest or Reclaim"])
 
 setupCooldownBars = input.int(8, "Minimum bars between new plans", minval=1)
 replaceSameDirectionPlans = input.bool(false, "Replace active same-direction plan?")
@@ -74,12 +84,16 @@ forceOppositeVomyReplace = input.bool(true, "Force opposite VOMY/iVOMY replaceme
 onlyOneActivePlan = input.bool(true, "Keep only one active plan?")
 resetCooldownOnInvalidation = input.bool(true, "Allow next setup immediately after invalidation")
 resetCooldownOnCompletion = input.bool(true, "Allow next setup immediately after T3 completion")
+resetCooldownOnStop = input.bool(true, "Allow next setup immediately after stop")
 
 targetMode = input.string("Next Saty Levels", "Target Mode", options=["Next Saty Levels", "Fixed Saty 38/50/61", "Points", "Risk/Reward"])
+minTargetDistancePts = input.float(4.0, "Minimum T1 distance points", step=0.25)
+
 manualStopPts = input.float(8.0, "Manual stop buffer points", step=0.25)
 manualT1Pts = input.float(10.0, "Manual T1 points", step=0.25)
 manualT2Pts = input.float(20.0, "Manual T2 points", step=0.25)
 manualT3Pts = input.float(30.0, "Manual T3 points", step=0.25)
+
 rr1 = input.float(1.0, "T1 R multiple", step=0.25)
 rr2 = input.float(2.0, "T2 R multiple", step=0.25)
 rr3 = input.float(3.0, "T3 R multiple", step=0.25)
@@ -319,14 +333,7 @@ flagBear =
      bearConfirm and
      bearBiasOk
 
-// =====================================================================
-// VOMY / iVOMY = transition + retest
-// Looser realistic logic:
-// - Price can lose/reclaim ribbon before ribbon fully folds.
-// - EMA8/EMA21 cross can also arm transition.
-// - Then we wait for retest/rejection.
-// =====================================================================
-
+// VOMY / iVOMY = transition + retest/reclaim
 barsSinceBull = ta.barssince(ribbonBull)
 barsSinceBear = ta.barssince(ribbonBear)
 
@@ -365,20 +372,48 @@ if vomyArm
 bullTransitionActive = not na(bullTransitionBar) and bar_index - bullTransitionBar <= retestWindowBars
 bearTransitionActive = not na(bearTransitionBar) and bar_index - bearTransitionBar <= retestWindowBars
 
-iVomyBull =
-     useVomyIvomy and
+iVomyRetest =
      bullTransitionActive and
      low <= ribbonTop and
      close > rFast and
-     bullConfirm and
+     bullConfirm
+
+vomyRetest =
+     bearTransitionActive and
+     high >= ribbonBottom and
+     close < rFast and
+     bearConfirm
+
+iVomyReclaim =
+     bullTransitionActive and
+     close > ribbonTop and
+     close > rFast and
+     bullConfirm
+
+vomyReclaim =
+     bearTransitionActive and
+     close < ribbonBottom and
+     close < rFast and
+     bearConfirm
+
+iVomyEntryOk =
+     vomyEntryMode == "Retest Only" ? iVomyRetest :
+     vomyEntryMode == "Reclaim Close" ? iVomyReclaim :
+     (iVomyRetest or iVomyReclaim)
+
+vomyEntryOk =
+     vomyEntryMode == "Retest Only" ? vomyRetest :
+     vomyEntryMode == "Reclaim Close" ? vomyReclaim :
+     (vomyRetest or vomyReclaim)
+
+iVomyBull =
+     useVomyIvomy and
+     iVomyEntryOk and
      vomyBullBiasOk
 
 vomyBear =
      useVomyIvomy and
-     bearTransitionActive and
-     high >= ribbonBottom and
-     close < rFast and
-     bearConfirm and
+     vomyEntryOk and
      vomyBearBiasOk
 
 if iVomyBull
@@ -447,7 +482,6 @@ rawBearSetup = vomyBear or ggBear or flagBear or btBear or orbBearRetest or reve
 candidateBullSetup = canDetectTf and inTradeWindow and barstate.isconfirmed and rawBullSetup
 candidateBearSetup = canDetectTf and inTradeWindow and barstate.isconfirmed and rawBearSetup
 
-// VOMY/iVOMY priority first.
 candidateSetupName =
      iVomyBull ? "iVOMY BULL" :
      vomyBear ? "VOMY BEAR" :
@@ -479,34 +513,68 @@ candidateGrade =
 
 // =====================================================================
 // 8. TARGET HELPERS
+// Minimum T1 distance prevents useless nearby targets.
+// Applies to Next Saty Levels for Flag / VOMY / iVOMY / BT / ORB.
+// GG keeps special 38→61 target logic in the plan creation block.
 // =====================================================================
 
 f_bullT1(entry) =>
-    entry < satyUpperTrigger ? satyUpperTrigger : entry < satyUpper382 ? satyUpper382 : entry < satyUpper500 ? satyUpper500 : entry < satyUpper618 ? satyUpper618 : entry < satyUpper786 ? satyUpper786 : satyUpper100
+    minTarget = entry + minTargetDistancePts
+
+    satyUpperTrigger > minTarget ? satyUpperTrigger :
+     satyUpper382 > minTarget ? satyUpper382 :
+     satyUpper500 > minTarget ? satyUpper500 :
+     satyUpper618 > minTarget ? satyUpper618 :
+     satyUpper786 > minTarget ? satyUpper786 :
+     satyUpper100
+
+f_bullNextAfter(level) =>
+    level < satyUpperTrigger ? satyUpperTrigger :
+     level < satyUpper382 ? satyUpper382 :
+     level < satyUpper500 ? satyUpper500 :
+     level < satyUpper618 ? satyUpper618 :
+     level < satyUpper786 ? satyUpper786 :
+     satyUpper100
 
 f_bullT2(entry) =>
     t1 = f_bullT1(entry)
-    t1 == satyUpperTrigger ? satyUpper382 : t1 == satyUpper382 ? satyUpper500 : t1 == satyUpper500 ? satyUpper618 : t1 == satyUpper618 ? satyUpper786 : satyUpper100
+    f_bullNextAfter(t1 + syminfo.mintick)
 
 f_bullT3(entry) =>
     t2 = f_bullT2(entry)
-    t2 == satyUpper382 ? satyUpper500 : t2 == satyUpper500 ? satyUpper618 : t2 == satyUpper618 ? satyUpper786 : satyUpper100
+    f_bullNextAfter(t2 + syminfo.mintick)
 
 f_bearT1(entry) =>
-    entry > satyLowerTrigger ? satyLowerTrigger : entry > satyLower382 ? satyLower382 : entry > satyLower500 ? satyLower500 : entry > satyLower618 ? satyLower618 : entry > satyLower786 ? satyLower786 : satyLower100
+    maxTarget = entry - minTargetDistancePts
+
+    satyLowerTrigger < maxTarget ? satyLowerTrigger :
+     satyLower382 < maxTarget ? satyLower382 :
+     satyLower500 < maxTarget ? satyLower500 :
+     satyLower618 < maxTarget ? satyLower618 :
+     satyLower786 < maxTarget ? satyLower786 :
+     satyLower100
+
+f_bearNextAfter(level) =>
+    level > satyLowerTrigger ? satyLowerTrigger :
+     level > satyLower382 ? satyLower382 :
+     level > satyLower500 ? satyLower500 :
+     level > satyLower618 ? satyLower618 :
+     level > satyLower786 ? satyLower786 :
+     satyLower100
 
 f_bearT2(entry) =>
     t1 = f_bearT1(entry)
-    t1 == satyLowerTrigger ? satyLower382 :  t1 == satyLower382 ? satyLower500 : t1 == satyLower500 ? satyLower618 : t1 == satyLower618 ? satyLower786 : satyLower100
+    f_bearNextAfter(t1 - syminfo.mintick)
 
 f_bearT3(entry) =>
     t2 = f_bearT2(entry)
-    t2 == satyLower382 ? satyLower500 : t2 == satyLower500 ? satyLower618 : t2 == satyLower618 ? satyLower786 : satyLower100
+    f_bearNextAfter(t2 - syminfo.mintick)
 
 f_atrLevelName(price, dir) =>
     string out = "custom"
     if dir == 1
-        out := price == satyUpperTrigger ? "call_trigger" : price == satyUpper382 ? "gg_open_call" :
+        out := price == satyUpperTrigger ? "call_trigger" :
+             price == satyUpper382 ? "gg_open_call" :
              price == satyUpper500 ? "mid_atr_call" :
              price == satyUpper618 ? "gg_comp_call" :
              price == satyUpper786 ? "ext_786_call" :
@@ -674,6 +742,35 @@ f_refreshPlanLabels() =>
             label.set_text(slLabel, trailState + "\n" + str.tostring(trailSL, format.mintick))
         if not na(statusLabel)
             label.set_x(statusLabel, lx)
+
+// =====================================================================
+// 9B. DAILY PLAN RESET
+// =====================================================================
+
+if resetPlanOnNewDay and isNewDay
+    f_deletePlan()
+
+    activeTrade := false
+    t1WasHit := false
+    t2WasHit := false
+    t3WasHit := false
+
+    tradeDir := 0
+    lastSetupBar := na
+
+    entryPrice := na
+    t1Price := na
+    t2Price := na
+    t3Price := na
+    slPrice := na
+    trailSL := na
+    lastTrailAlertSL := na
+
+    tradeStatus := "Waiting"
+    currentSetup := "None"
+    currentSetupKey := "None"
+    currentGrade := "A"
+    trailState := "SL"
 
 // =====================================================================
 // 10. NEW SETUP GATING
@@ -875,6 +972,9 @@ if activeTrade and not newSetup
         stopEvent := true
         activeTrade := false
 
+        if resetCooldownOnStop
+            lastSetupBar := na
+
         if hideTargetsOnStop
             f_clearPlanLinesKeepStatus()
 
@@ -892,10 +992,30 @@ if activeTrade and not newSetup
             t1Event := true
             tradeStatus := "T1 Hit"
 
+            if trailMode == "Prior Target"
+                if tradeDir == 1
+                    trailSL := math.max(trailSL, entryPrice)
+                    trailState := "SL BE"
+                if tradeDir == -1
+                    trailSL := math.min(trailSL, entryPrice)
+                    trailState := "SL BE"
+
+                trailEvent := true
+
         if t2Hit and not t2WasHit
             t2WasHit := true
             t2Event := true
             tradeStatus := "T2 Hit"
+
+            if trailMode == "Prior Target"
+                if tradeDir == 1
+                    trailSL := math.max(trailSL, t1Price)
+                    trailState := "SL T1"
+                if tradeDir == -1
+                    trailSL := math.min(trailSL, t1Price)
+                    trailState := "SL T1"
+
+                trailEvent := true
 
         if t3Hit and not t3WasHit
             t3WasHit := true
@@ -923,54 +1043,39 @@ if activeTrade and not newSetup
                 runnerEvent := true
                 activeTrade := true
 
+                if trailMode == "Prior Target"
+                    if tradeDir == 1
+                        trailSL := math.max(trailSL, t2Price)
+                        trailState := "SL T2"
+                    if tradeDir == -1
+                        trailSL := math.min(trailSL, t2Price)
+                        trailState := "SL T2"
+
+                    trailEvent := true
+
                 if not na(statusLabel)
                     label.set_text(statusLabel, currentSetup + "\nRUNNER AFTER T3")
                     label.set_color(statusLabel, color.purple)
                     label.set_textcolor(statusLabel, color.white)
 
-        oldTrail = trailSL
-        oldTrailState = trailState
+        if stopHit and not conservativeStops
+            tradeStatus := "Stopped"
+            stopEvent := true
+            activeTrade := false
 
-        if activeTrade and trailMode == "Prior Target"
-            if tradeDir == 1
-                candidateTrail = trailSL
+            if resetCooldownOnStop
+                lastSetupBar := na
 
-                if t1WasHit
-                    candidateTrail := math.max(candidateTrail, entryPrice)
-                    trailState := "SL BE"
+            if hideTargetsOnStop
+                f_clearPlanLinesKeepStatus()
 
-                if t2WasHit
-                    candidateTrail := math.max(candidateTrail, t1Price)
-                    trailState := "SL T1"
+            if not na(statusLabel)
+                label.set_text(statusLabel, currentSetup + "\nSTOPPED")
+                label.set_color(statusLabel, color.orange)
+                label.set_textcolor(statusLabel, color.black)
 
-                if t3WasHit and t3Behavior == "Hold Runner"
-                    candidateTrail := math.max(candidateTrail, t2Price)
-                    trailState := "SL T2"
-
-                trailSL := candidateTrail
-
-            if tradeDir == -1
-                candidateTrail = trailSL
-
-                if t1WasHit
-                    candidateTrail := math.min(candidateTrail, entryPrice)
-                    trailState := "SL BE"
-
-                if t2WasHit
-                    candidateTrail := math.min(candidateTrail, t1Price)
-                    trailState := "SL T1"
-
-                if t3WasHit and t3Behavior == "Hold Runner"
-                    candidateTrail := math.min(candidateTrail, t2Price)
-                    trailState := "SL T2"
-
-                trailSL := candidateTrail
-
-            trailChanged = math.abs(trailSL - oldTrail) >= trailAlertMinMove or trailState != oldTrailState
-
-            if trailChanged
-                trailEvent := true
-                lastTrailAlertSL := trailSL
+            if deleteOnComplete
+                f_deletePlan()
 
 if showPlan and not na(entryPrice)
     f_refreshPlanLabels()
@@ -1005,7 +1110,6 @@ plotshape(showRawMarkers and btBull, title="Raw BT Bull", style=shape.square, lo
 plotshape(showRawMarkers and btBear, title="Raw BT Bear", style=shape.square, location=location.abovebar, color=color.red, size=size.tiny, text="BT")
 
 // Transition debug markers.
-// Turn ON only while testing VOMY/iVOMY behavior.
 plotshape(showTransitionDebug and iVomyArm, title="iVOMY Armed", style=shape.circle, location=location.belowbar, color=color.aqua, textcolor=color.black, size=size.tiny, text="iV arm")
 plotshape(showTransitionDebug and vomyArm, title="VOMY Armed", style=shape.circle, location=location.abovebar, color=color.orange, textcolor=color.white, size=size.tiny, text="V arm")
 

@@ -1,20 +1,55 @@
 //@version=5
-indicator("OTD Internals Heartbeat v2.1", overlay=true)
+indicator("OTD Internals Heartbeat v2.2", overlay=true)
+
+// =====================================================================
+// OTD INTERNALS HEARTBEAT v2.2
+// Purpose:
+// - Send internals heartbeat webhook
+// - Display TRIN / ADD / VOLD / PCC cleanly on chart
+// - No trade signals
+// =====================================================================
+
+// =====================================================================
+// INPUTS
+// =====================================================================
 
 tvSecret = input.string("", "TradingView webhook secret")
+
 sendHeartbeat = input.bool(true, "Send internals heartbeat")
 onlyRTH = input.bool(true, "Only send during RTH")
 heartbeatSession = input.session("0930-1600", "Heartbeat session")
 heartbeatEveryBars = input.int(1, "Send every N bars", minval=1)
 
-// Visual status
+// Display
+showInternalsTable = input.bool(true, "Show internals table")
+tablePosition = input.string("Bottom Left", "Table position", options=["Top Right", "Bottom Right", "Top Left", "Bottom Left"])
+tableSize = input.string("Small", "Table size", options=["Tiny", "Small", "Normal"])
+
 showStatusDot = input.bool(false, "Show internals status dot on chart?")
 showOnlyLastDot = input.bool(true, "Show only latest status dot?")
 
+// Symbols
 trinSymbol = input.symbol("USI:TRIN", "TRIN symbol")
 addSymbol  = input.symbol("USI:ADD",  "ADD symbol")
 voldSymbol = input.symbol("USI:VOLD", "VOLD symbol")
 pccSymbol  = input.symbol("USI:PCC",  "PCC symbol")
+
+// Thresholds for quick visual bias
+trinBullMax = input.float(0.80, "TRIN bullish below", step=0.05)
+trinBearMin = input.float(1.20, "TRIN bearish above", step=0.05)
+
+addBullMin = input.float(1000, "ADD bullish above", step=100)
+addBearMax = input.float(-1000, "ADD bearish below", step=100)
+
+voldBullMin = input.float(100000000, "VOLD bullish above", step=10000000)
+voldBearMax = input.float(-100000000, "VOLD bearish below", step=10000000)
+
+pccBullMax = input.float(0.80, "PCC bullish below", step=0.05)
+pccBearMin = input.float(1.20, "PCC bearish above", step=0.05)
+
+// =====================================================================
+// SESSION + DATA
+// =====================================================================
 
 inSession = not na(time(timeframe.period, heartbeatSession))
 canSendSession = onlyRTH ? inSession : true
@@ -27,16 +62,114 @@ pccVal  = request.security(pccSymbol,  timeframe.period, close, gaps=barmerge.ga
 
 hasInternals = not na(trinVal) and not na(addVal) and not na(voldVal) and not na(pccVal)
 
-trinStr = str.tostring(math.round(trinVal * 100.0) / 100.0)
-addStr  = str.tostring(math.round(addVal))
-voldStr = str.tostring(math.round(voldVal))
-pccStr  = str.tostring(math.round(pccVal * 100.0) / 100.0)
+trinStr = hasInternals ? str.tostring(math.round(trinVal * 100.0) / 100.0) : "na"
+addStr  = hasInternals ? str.tostring(math.round(addVal)) : "na"
+voldStr = hasInternals ? str.tostring(math.round(voldVal)) : "na"
+pccStr  = hasInternals ? str.tostring(math.round(pccVal * 100.0) / 100.0) : "na"
 
-// Optional chart status dot.
-// OFF by default so it does not clutter SPX chart.
-plotshape(showStatusDot and hasInternals and (showOnlyLastDot ? barstate.islast : true), title="Internals OK", style=shape.circle, location=location.top, color=color.lime, size=size.tiny, text="INT")
+// =====================================================================
+// COLOR / BIAS HELPERS
+// =====================================================================
 
-plotshape(showStatusDot and not hasInternals and (showOnlyLastDot ? barstate.islast : true), title="Internals Missing", style=shape.circle, location=location.top, color=color.red, size=size.tiny, text="NO INT")
+f_metricColor(value, bullCond, bearCond) =>
+    not hasInternals ? color.gray :
+     bullCond ? color.green :
+     bearCond ? color.red :
+     color.orange
+
+trinColor = f_metricColor(trinVal, trinVal <= trinBullMax, trinVal >= trinBearMin)
+addColor  = f_metricColor(addVal, addVal >= addBullMin, addVal <= addBearMax)
+voldColor = f_metricColor(voldVal, voldVal >= voldBullMin, voldVal <= voldBearMax)
+pccColor  = f_metricColor(pccVal, pccVal <= pccBullMax, pccVal >= pccBearMin)
+
+bullScore =
+     (trinVal <= trinBullMax ? 1 : 0) +
+     (addVal >= addBullMin ? 1 : 0) +
+     (voldVal >= voldBullMin ? 1 : 0) +
+     (pccVal <= pccBullMax ? 1 : 0)
+
+bearScore =
+     (trinVal >= trinBearMin ? 1 : 0) +
+     (addVal <= addBearMax ? 1 : 0) +
+     (voldVal <= voldBearMax ? 1 : 0) +
+     (pccVal >= pccBearMin ? 1 : 0)
+
+internalsBias =
+     not hasInternals ? "NO DATA" :
+     bullScore >= 3 ? "BULLISH" :
+     bearScore >= 3 ? "BEARISH" :
+     "MIXED"
+
+biasColor =
+     internalsBias == "BULLISH" ? color.green :
+     internalsBias == "BEARISH" ? color.red :
+     internalsBias == "MIXED" ? color.orange :
+     color.gray
+
+// =====================================================================
+// DISPLAY TABLE
+// =====================================================================
+
+dashPos =
+     tablePosition == "Top Right" ? position.top_right :
+     tablePosition == "Bottom Right" ? position.bottom_right :
+     tablePosition == "Top Left" ? position.top_left :
+     position.bottom_left
+
+txtSize =
+     tableSize == "Tiny" ? size.tiny :
+     tableSize == "Normal" ? size.normal :
+     size.small
+
+var table internalsTable = table.new(dashPos, 2, 6, border_width=1)
+
+if barstate.islast and showInternalsTable
+    table.cell(internalsTable, 0, 0, "OTD Internals", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 0, internalsBias, text_color=color.white, bgcolor=biasColor, text_size=txtSize)
+
+    table.cell(internalsTable, 0, 1, "TRIN", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 1, trinStr, text_color=color.white, bgcolor=trinColor, text_size=txtSize)
+
+    table.cell(internalsTable, 0, 2, "ADD", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 2, addStr, text_color=color.white, bgcolor=addColor, text_size=txtSize)
+
+    table.cell(internalsTable, 0, 3, "VOLD", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 3, voldStr, text_color=color.white, bgcolor=voldColor, text_size=txtSize)
+
+    table.cell(internalsTable, 0, 4, "PCC", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 4, pccStr, text_color=color.white, bgcolor=pccColor, text_size=txtSize)
+
+    statusText = hasInternals ? "LIVE" : "NO DATA"
+    statusColor = hasInternals ? color.green : color.red
+
+    table.cell(internalsTable, 0, 5, "Status", text_color=color.white, bgcolor=color.black, text_size=txtSize)
+    table.cell(internalsTable, 1, 5, statusText, text_color=color.white, bgcolor=statusColor, text_size=txtSize)
+
+// Optional status dot.
+// OFF by default.
+plotshape(
+     showStatusDot and hasInternals and (showOnlyLastDot ? barstate.islast : true),
+     title="Internals OK",
+     style=shape.circle,
+     location=location.top,
+     color=color.lime,
+     size=size.tiny,
+     text="INT"
+)
+
+plotshape(
+     showStatusDot and not hasInternals and (showOnlyLastDot ? barstate.islast : true),
+     title="Internals Missing",
+     style=shape.circle,
+     location=location.top,
+     color=color.red,
+     size=size.tiny,
+     text="NO INT"
+)
+
+// =====================================================================
+// ALERT HEARTBEAT
+// =====================================================================
 
 if sendHeartbeat and canSendSession and canSendBar and barstate.isconfirmed and hasInternals
-    alert('{"type":"internals","signal":"INTERNALS","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","trin":' + trinStr + ',"add":' + addStr + ',"vold":' + voldStr + ',"pcc":' + pccStr + ',"secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
+    alert('{"type":"internals","signal":"INTERNALS","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","trin":' + trinStr + ',"add":' + addStr + ',"vold":' + voldStr + ',"pcc":' + pccStr + ',"bias":"' + internalsBias + '","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)

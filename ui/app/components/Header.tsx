@@ -33,8 +33,12 @@ export default function Header({
     <Link
       href={href}
       style={{
-        padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
-        fontFamily: "var(--font-inter), sans-serif", textDecoration: "none",
+        padding: "5px 12px",
+        borderRadius: 7,
+        fontSize: 12,
+        fontWeight: 600,
+        fontFamily: "var(--font-inter), sans-serif",
+        textDecoration: "none",
         background: active ? "#1e3a5f" : "transparent",
         color: active ? "white" : "#64748b",
         border: `1px solid ${active ? "#2d5a8e" : "transparent"}`,
@@ -63,7 +67,13 @@ export default function Header({
               {deskOpen ? "Desk Open" : "Desk Closed"}
             </div>
           )}
-          <div style={{ display: "flex", gap: 2, marginLeft: activePage === "desk" ? 8 : 0 }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 2,
+              marginLeft: activePage === "desk" ? 8 : 0,
+            }}
+          >
             {navLink("/", "Desk", activePage === "desk")}
             {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
             {navLink("/journal", "Journal", activePage === "journal")}
@@ -80,13 +90,26 @@ export default function Header({
               <>
                 <div className="header-spx-price">{spxPrice}</div>
                 <div className="header-spx-meta">
-                  VIX {marketData!.vix.vix} · PDC {marketData!.atr_levels.PDC.toFixed(0)} · ATR ~{marketData!.atr_levels.ATR.toFixed(1)}
+                  VIX {marketData?.vix?.vix} · PDC{" "}
+                  {marketData?.atr_levels?.PDC?.toFixed(0) ?? "—"} · ATR ~
+                  {marketData?.atr_levels?.ATR?.toFixed(1) ?? "—"}
                 </div>
               </>
             ) : (
               <>
-                <div className="skel" style={{ width: "72px", height: "18px", borderRadius: "6px" }} />
-                <div className="skel" style={{ width: "120px", height: "10px", borderRadius: "4px", marginTop: "4px" }} />
+                <div
+                  className="skel"
+                  style={{ width: "72px", height: "18px", borderRadius: "6px" }}
+                />
+                <div
+                  className="skel"
+                  style={{
+                    width: "120px",
+                    height: "10px",
+                    borderRadius: "4px",
+                    marginTop: "4px",
+                  }}
+                />
               </>
             )}
           </div>
@@ -95,7 +118,11 @@ export default function Header({
         <div className="header-right">
           {activePage === "desk" && (
             <>
-              <button className="hbtn" onClick={onRefresh} disabled={refreshing}>
+              <button
+                className="hbtn"
+                onClick={onRefresh}
+                disabled={refreshing}
+              >
                 {refreshing ? "Refreshing..." : "↻ Refresh Context"}
               </button>
               <button className="hbtn" onClick={onClearSession}>
@@ -108,17 +135,30 @@ export default function Header({
             onClick={() => setDrawerOpen((o) => !o)}
             aria-label="TradingView alerts"
           >
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              viewBox="0 0 24 24"
+              width="18"
+              height="18"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
               <path d="M13.73 21a2 2 0 0 1-3.46 0" />
             </svg>
             {alertCount > 0 && (
-              <span className="alert-badge">{alertCount > 9 ? "9+" : alertCount}</span>
+              <span className="alert-badge">
+                {alertCount > 9 ? "9+" : alertCount}
+              </span>
             )}
           </button>
           <UserButton
             appearance={{
-              elements: { avatarBox: { width: 32, height: 32, borderRadius: 8 } },
+              elements: {
+                avatarBox: { width: 32, height: 32, borderRadius: 8 },
+              },
             }}
           />
         </div>
