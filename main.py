@@ -102,8 +102,8 @@ print(
 
 # Unusual flow context — updated on each /market-data poll (every 60s from frontend)
 FLOW_CONTEXT: str = ""
-INTERNALS_CACHE: dict = {"trin": None, "add": None,
-                         "vold": None, "pcc": None, "ts": None}
+INTERNALS_CACHE: dict = {"trin": None, "add": None, "vold": None,
+                         "pcc": None, "bias": None, "ts": None}
 
 # TradingView webhook alert buffer — newest first, capped at 50
 TV_ALERTS: list[dict] = []
@@ -798,6 +798,7 @@ async def _handle_internals(data: dict) -> dict:
         except (ValueError, TypeError):
             return None
 
+    bias_raw = data.get("bias")
     INTERNALS_CACHE = {
         "type":        "internals",
         "signal":      "INTERNALS",
@@ -807,6 +808,7 @@ async def _handle_internals(data: dict) -> dict:
         "add":         _sf(data.get("add")),
         "vold":        _sf(data.get("vold")),
         "pcc":         _sf(data.get("pcc")),
+        "bias":        bias_raw.strip().upper() if bias_raw else None,
         "received_at": datetime.now(timezone.utc).isoformat(),
         "source":      "tradingview",
     }

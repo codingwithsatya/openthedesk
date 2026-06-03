@@ -1,5 +1,6 @@
 "use client";
 import { MarketData } from "../types";
+import InternalsWidget from "./InternalsWidget";
 
 interface LevelsPanelProps {
   marketData: MarketData | null;
@@ -40,6 +41,7 @@ export default function LevelsPanel({
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+      <InternalsWidget />
       {!marketData ? (
         /* ── Skeleton ── */
         <>
