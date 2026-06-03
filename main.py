@@ -7,7 +7,7 @@ import httpx
 import anthropic
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
-from fastapi import FastAPI, HTTPException, UploadFile, File, Request
+from fastapi import FastAPI, HTTPException, UploadFile, File, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse as FastAPIStreaming
 from pydantic import BaseModel
@@ -18,9 +18,24 @@ from market_data import get_market_summary
 from tradier import get_0dte_snapshot, format_options_context, get_market_internals
 from analyzer import get_ticker_analysis
 import time
+import jwt as pyjwt
 
 load_dotenv()
 TV_WEBHOOK_SECRET = os.getenv("TV_WEBHOOK_SECRET", "dev-secret")
+
+# ── Supabase init — graceful if not configured ───────────────────
+_sb = None
+try:
+    _sb_url = os.getenv("SUPABASE_URL", "")
+    _sb_key = os.getenv("SUPABASE_SERVICE_KEY", "")
+    if _sb_url and _sb_key:
+        from supabase import create_client
+        _sb = create_client(_sb_url, _sb_key)
+        print("✅ Supabase connected")
+    else:
+        print("⚠️  Supabase not configured — using in-memory fallback")
+except Exception as _e:
+    print(f"⚠️  Supabase init failed: {_e} — using in-memory fallback")
 
 app = FastAPI()
 
@@ -212,6 +227,21 @@ def build_system_prompt(live_context: str, flow_context: str = "") -> str:
 sessions: dict[str, list[dict]] = {}
 
 
+async def get_current_user(authorization: str = Header(...)) -> str:
+    """Extract user_id from Clerk JWT. Never trusts request body for identity."""
+    try:
+        token = authorization.removeprefix("Bearer ").strip()
+        payload = pyjwt.decode(token, options={"verify_signature": False}, algorithms=["RS256"])
+        user_id = payload.get("sub")
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token")
+        return user_id
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 class ChatRequest(BaseModel):
     message: str
     session_id: str = "default"
@@ -245,10 +275,18 @@ _LIVE_DATA_COMMANDS = {
 
 
 @app.post("/chat")
-async def chat(request: ChatRequest):
+async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
     global LIVE_CONTEXT, FLOW_CONTEXT
 
-    # Get or create session history
+    # Load session history: Supabase first, fallback to in-memory
+    if _sb:
+        try:
+            row = _sb.table("user_sessions").select("history").eq("user_id", user_id).eq("session_id", request.session_id).maybe_single().execute()
+            if row.data:
+                sessions[request.session_id] = row.data["history"]
+        except Exception as _e:
+            print(f"[WARN] session load failed: {_e}")
+
     if request.session_id not in sessions:
         sessions[request.session_id] = []
 
@@ -328,6 +366,17 @@ async def chat(request: ChatRequest):
         request.message, model, request.session_id, "chat",
         response.usage.input_tokens, response.usage.output_tokens,
     )
+
+    if _sb:
+        try:
+            _sb.table("user_sessions").upsert({
+                "user_id": user_id,
+                "session_id": request.session_id,
+                "history": history,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="user_id,session_id").execute()
+        except Exception as _e:
+            print(f"[WARN] session save failed: {_e}")
 
     return {
         "reply": reply,
@@ -562,18 +611,28 @@ async def premarket(request: ChatRequest):
 
 
 @app.post("/refresh-context")
-async def refresh_context(request: RefreshRequest):
+async def refresh_context(request: RefreshRequest, user_id: str = Depends(get_current_user)):
     """Fetch fresh context from Google Doc and clear session."""
     global LIVE_CONTEXT
     LIVE_CONTEXT = fetch_live_context()
     sessions.pop(request.session_id, None)
+    if _sb:
+        try:
+            _sb.table("user_sessions").delete().eq("user_id", user_id).eq("session_id", request.session_id).execute()
+        except Exception as _e:
+            print(f"[WARN] session delete failed: {_e}")
     return {"status": "refreshed", "chars": len(LIVE_CONTEXT)}
 
 
 @app.delete("/session/{session_id}")
-async def clear_session(session_id: str):
+async def clear_session(session_id: str, user_id: str = Depends(get_current_user)):
     """Clear conversation history for a session."""
     sessions.pop(session_id, None)
+    if _sb:
+        try:
+            _sb.table("user_sessions").delete().eq("user_id", user_id).eq("session_id", session_id).execute()
+        except Exception as _e:
+            print(f"[WARN] session delete failed: {_e}")
     return {"cleared": session_id}
 
 
@@ -910,6 +969,34 @@ async def _handle_trade_alert(data: dict) -> dict:
     for q in set(ALERT_SUBSCRIBERS):
         q.put_nowait(alert)
 
+    if _sb:
+        try:
+            _sb.table("tv_alerts").upsert({
+                "alert_id":              alert["id"],
+                "ts":                    alert["ts"],
+                "ticker":                alert.get("ticker"),
+                "timeframe":             alert.get("timeframe"),
+                "condition":             alert.get("condition"),
+                "price":                 alert.get("price"),
+                "signal":                alert.get("signal"),
+                "display_type":          alert.get("display_type"),
+                "setup":                 alert.get("setup"),
+                "grade":                 alert.get("grade"),
+                "direction":             alert.get("direction"),
+                "atr_level":             alert.get("atr_level"),
+                "entry":                 alert.get("entry"),
+                "t1":                    alert.get("t1"),
+                "t2":                    alert.get("t2"),
+                "t3":                    alert.get("t3"),
+                "sl":                    alert.get("sl"),
+                "trail_sl":              alert.get("trail_sl"),
+                "internals":             alert.get("internals"),
+                "internals_age_seconds": alert.get("internals_age_seconds"),
+                "trade_plan":            alert.get("trade_plan"),
+            }, on_conflict="alert_id").execute()
+        except Exception as _e:
+            print(f"[WARN] tv_alerts insert failed: {_e}")
+
     return {"status": "received", "id": alert["id"]}
 
 
@@ -940,6 +1027,16 @@ def get_internals():
 @app.get("/alerts")
 def get_alerts(limit: int = 20):
     limit = min(limit, 50)
+    if _sb:
+        try:
+            res = _sb.table("tv_alerts").select("*").order("ts", desc=True).limit(limit).execute()
+            rows = res.data or []
+            for r in rows:
+                if "alert_id" in r:
+                    r["id"] = r.pop("alert_id")
+            return {"alerts": rows, "count": len(rows)}
+        except Exception as _e:
+            print(f"[WARN] tv_alerts fetch failed: {_e}")
     sliced = TV_ALERTS[:limit]
     return {"alerts": sliced, "count": len(sliced)}
 
@@ -1058,7 +1155,7 @@ JOURNAL_ENTRIES: list[dict] = [
 
 
 @app.post("/journal/entry")
-async def create_journal_entry(payload: JournalEntryPayload):
+async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depends(get_current_user)):
     pnl = payload.pnl if payload.pnl is not None else _calc_pnl(
         payload.direction, payload.entry_price, payload.exit_price, payload.contracts
     )
@@ -1082,20 +1179,52 @@ async def create_journal_entry(payload: JournalEntryPayload):
         "notes": payload.notes,
         "internals": internals,
     }
+    if _sb:
+        try:
+            _sb.table("trade_journal").insert({
+                "user_id":       user_id,
+                "date":          entry["date"],
+                "ticker":        entry["ticker"],
+                "setup":         entry["setup"],
+                "direction":     entry["direction"],
+                "entry_price":   entry["entry_price"],
+                "exit_price":    entry["exit_price"],
+                "contracts":     entry["contracts"],
+                "pnl":           entry["pnl"],
+                "grade":         entry["grade"],
+                "process_grade": entry["process_grade"],
+                "notes":         entry["notes"],
+                "internals":     entry["internals"],
+            }).execute()
+        except Exception as _e:
+            print(f"[WARN] trade_journal insert failed: {_e}")
     JOURNAL_ENTRIES.insert(0, entry)
     return {"status": "created", "id": entry["id"], "pnl": entry["pnl"]}
 
 
 @app.get("/journal/entries")
-def get_journal_entries(limit: int = 50):
+def get_journal_entries(limit: int = 50, user_id: str = Depends(get_current_user)):
     limit = min(limit, 200)
+    if _sb:
+        try:
+            res = _sb.table("trade_journal").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+            rows = res.data or []
+            return {"entries": rows, "count": len(rows)}
+        except Exception as _e:
+            print(f"[WARN] trade_journal fetch failed: {_e}")
     sliced = JOURNAL_ENTRIES[:limit]
     return {"entries": sliced, "count": len(sliced)}
 
 
 @app.get("/journal/stats")
-def get_journal_stats():
+def get_journal_stats(user_id: str = Depends(get_current_user)):
     entries = JOURNAL_ENTRIES
+    if _sb:
+        try:
+            res = _sb.table("trade_journal").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(200).execute()
+            entries = res.data or []
+        except Exception as _e:
+            print(f"[WARN] trade_journal stats fetch failed: {_e}")
     if not entries:
         return {
             "total_trades": 0, "wins": 0, "losses": 0, "win_rate": 0.0,

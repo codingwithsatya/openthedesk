@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { Message, MarketData } from "./types";
 import Header        from "./components/Header";
 import LevelsPanel   from "./components/LevelsPanel";
@@ -12,6 +13,7 @@ const API        = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const SESSION_ID = "satya";
 
 export default function Home() {
+  const { getToken } = useAuth();
   const [messages,   setMessages]   = useState<Message[]>([]);
   const [loading,    setLoading]    = useState(false);
   const [deskOpen,   setDeskOpen]   = useState(false);
@@ -61,11 +63,13 @@ export default function Home() {
     setLoading(true);
 
     try {
+      const token = await getToken();
+      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
       if (msg === "PREMARKET") {
         const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
         const res = await fetch(`${API}/premarket`, {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...authHeader },
           body: JSON.stringify({
             message: "PREMARKET",
             session_id: SESSION_ID,
@@ -90,7 +94,7 @@ export default function Home() {
 
       const res = await fetch(`${API}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
       });
       const data = await res.json();
@@ -106,9 +110,11 @@ export default function Home() {
   const refreshContext = async () => {
     setRefreshing(true);
     try {
+      const token = await getToken();
+      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
       await fetch(`${API}/refresh-context`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({ session_id: SESSION_ID }),
       });
       setMessages([]);
@@ -119,7 +125,9 @@ export default function Home() {
   };
 
   const clearSession = async () => {
-    await fetch(`${API}/session/${SESSION_ID}`, { method: "DELETE" });
+    const token = await getToken();
+    const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
+    await fetch(`${API}/session/${SESSION_ID}`, { method: "DELETE", headers: authHeader });
     setMessages([]);
     setDeskOpen(false);
   };

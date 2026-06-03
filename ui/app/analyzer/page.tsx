@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import Header from "../components/Header";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -205,6 +206,7 @@ function ScreenerRowButton({
 // ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function AnalyzerPage() {
+  const { getToken } = useAuth();
   const [tickerInput,      setTickerInput]      = useState("");
   const [isAnalyzing,      setIsAnalyzing]      = useState(false);
   const [isLoadingScreener,setIsLoadingScreener] = useState(true);
@@ -217,7 +219,9 @@ export default function AnalyzerPage() {
   const loadScreener = async () => {
     setIsLoadingScreener(true);
     try {
-      const r = await fetch(`${API}/screener`);
+      const token = await getToken();
+      const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+      const r = await fetch(`${API}/screener`, { headers });
       setScreener(await r.json());
     } catch { /* silently fail */ }
     finally { setIsLoadingScreener(false); }
@@ -231,9 +235,11 @@ export default function AnalyzerPage() {
     setError(null);
     setResult(null);
     try {
+      const token = await getToken();
+      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
       const r = await fetch(`${API}/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", ...authHeader },
         body: JSON.stringify({ ticker: t }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);

@@ -6,3 +6,5 @@ requests
 python-multipart
 langsmith
 yfinance
+supabase==2.3.0
+PyJWT==2.8.0

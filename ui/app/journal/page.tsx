@@ -1,5 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
+import { useAuth } from "@clerk/nextjs";
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -88,6 +89,7 @@ type FilterKey = "all" | "bull" | "bear" | "winners" | "losers" | "aplus";
 
 // ── Page ──────────────────────────────────────────────────────
 export default function JournalPage() {
+  const { getToken } = useAuth();
   const [entries, setEntries]     = useState<JournalEntry[]>([]);
   const [stats, setStats]         = useState<JournalStats | null>(null);
   const [filter, setFilter]       = useState<FilterKey>("all");
@@ -96,14 +98,19 @@ export default function JournalPage() {
   const [chatInput, setChatInput] = useState("");
 
   useEffect(() => {
-    fetch(`${API}/journal/entries?limit=50`)
-      .then((r) => r.json())
-      .then((d) => setEntries(d.entries ?? []))
-      .catch(() => {});
-    fetch(`${API}/journal/stats`)
-      .then((r) => r.json())
-      .then(setStats)
-      .catch(() => {});
+    (async () => {
+      const token = await getToken();
+      const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+      fetch(`${API}/journal/entries?limit=50`, { headers })
+        .then((r) => r.json())
+        .then((d) => setEntries(d.entries ?? []))
+        .catch(() => {});
+      fetch(`${API}/journal/stats`, { headers })
+        .then((r) => r.json())
+        .then(setStats)
+        .catch(() => {});
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // ── Derived ─────────────────────────────────────────────────
