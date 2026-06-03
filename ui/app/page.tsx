@@ -64,12 +64,13 @@ export default function Home() {
 
     try {
       const token = await getToken();
-      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
+      const authHeader: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) authHeader["Authorization"] = `Bearer ${token}`;
       if (msg === "PREMARKET") {
         const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
         const res = await fetch(`${API}/premarket`, {
           method: "POST",
-          headers: { "Content-Type": "application/json", ...authHeader },
+          headers: authHeader,
           body: JSON.stringify({
             message: "PREMARKET",
             session_id: SESSION_ID,
@@ -94,7 +95,7 @@ export default function Home() {
 
       const res = await fetch(`${API}/chat`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
+        headers: authHeader,
         body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
       });
       const data = await res.json();
@@ -111,10 +112,11 @@ export default function Home() {
     setRefreshing(true);
     try {
       const token = await getToken();
-      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
+      const authHeader: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) authHeader["Authorization"] = `Bearer ${token}`;
       await fetch(`${API}/refresh-context`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
+        headers: authHeader,
         body: JSON.stringify({ session_id: SESSION_ID }),
       });
       setMessages([]);
@@ -126,7 +128,8 @@ export default function Home() {
 
   const clearSession = async () => {
     const token = await getToken();
-    const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
+    const authHeader: Record<string, string> = {};
+    if (token) authHeader["Authorization"] = `Bearer ${token}`;
     await fetch(`${API}/session/${SESSION_ID}`, { method: "DELETE", headers: authHeader });
     setMessages([]);
     setDeskOpen(false);

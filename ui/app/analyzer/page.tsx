@@ -220,7 +220,8 @@ export default function AnalyzerPage() {
     setIsLoadingScreener(true);
     try {
       const token = await getToken();
-      const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       const r = await fetch(`${API}/screener`, { headers });
       setScreener(await r.json());
     } catch { /* silently fail */ }
@@ -236,10 +237,11 @@ export default function AnalyzerPage() {
     setResult(null);
     try {
       const token = await getToken();
-      const authHeader = token ? { "Authorization": `Bearer ${token}` } : {};
+      const authHeader: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) authHeader["Authorization"] = `Bearer ${token}`;
       const r = await fetch(`${API}/analyze`, {
         method: "POST",
-        headers: { "Content-Type": "application/json", ...authHeader },
+        headers: authHeader,
         body: JSON.stringify({ ticker: t }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);

@@ -100,7 +100,8 @@ export default function JournalPage() {
   useEffect(() => {
     (async () => {
       const token = await getToken();
-      const headers: Record<string, string> = token ? { "Authorization": `Bearer ${token}` } : {};
+      const headers: Record<string, string> = {};
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       fetch(`${API}/journal/entries?limit=50`, { headers })
         .then((r) => r.json())
         .then((d) => setEntries(d.entries ?? []))
