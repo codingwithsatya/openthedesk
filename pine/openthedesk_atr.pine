@@ -1,18 +1,22 @@
 // © OpenTheDesk — built for Satya Pramod
-// OpenTheDesk — ATR Levels v3 Clean
+// OpenTheDesk — ATR Levels v3.1 Clean Extended
 // Purpose:
 // - Saty ATR levels only
+// - Day / Multiday ATR mode
+// - Full Saty ladder:
+//   Trigger, 38.2, 50, 61.8, 78.6, 100,
+//   123.6, 138.2, 150, 161.8, 178.6, 200
 // - Right-side level labels
 // - Info table
 // - Optional T1/T2/T3/STOP shapes
 // - Optional target/stop alerts only
 //
 // IMPORTANT:
-// Manual Planner v3.3.1 is now the setup classifier + webhook source.
+// Manual Planner v3.3.6 is now the setup classifier + webhook source.
 // This script should NOT send GG / VOMY / iVOMY / FLAG / DIV alerts.
 //@version=5
 
-indicator('OpenTheDesk — ATR Levels v3 Clean', shorttitle='OTD ATR Clean', overlay=true)
+indicator("OpenTheDesk — ATR Levels v3.1 Clean Extended", shorttitle="OTD ATR Clean Ext", overlay=true)
 
 // ═══════════════════════════════════════════════════════════════
 // INPUTS
@@ -28,6 +32,7 @@ level_size         = input.int(2,      'Line Width', minval=1, maxval=5)
 show_target_shapes = input.bool(false, 'Show Target/Stop Shapes')
 enable_alerts      = input.bool(false, 'Enable ATR Target/Stop Alerts')
 target_cooldown    = input.int(10,     'Target Cooldown (bars)', minval=1)
+atrMode = input.string("Day", "Saty ATR Mode", options=["Day", "Multiday"])
 
 // ═══════════════════════════════════════════════════════════════
 // ATR + PDC — exact Saty formula
@@ -36,23 +41,39 @@ target_cooldown    = input.int(10,     'Target Cooldown (bars)', minval=1)
 
 ticker_ext = ticker.new(syminfo.prefix, syminfo.ticker, session=session.extended)
 
-pdc = request.security(ticker_ext, 'D', close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
+satyTf = atrMode == "Day" ? "D" : "W"
 
-atr14 = request.security(ticker_ext,'D',ta.atr(14)[1],gaps=barmerge.gaps_off,lookahead=barmerge.lookahead_on)
+pdc = request.security(ticker_ext, satyTf, close[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
-call_trigger  = pdc + atr14 * 0.236
-gg_open_call  = pdc + atr14 * 0.382
-mid_atr_call  = pdc + atr14 * 0.500
-gg_comp_call  = pdc + atr14 * 0.618
-ext_786_call  = pdc + atr14 * 0.786
-full_atr_call = pdc + atr14 * 1.000
+atr14 = request.security(ticker_ext, satyTf, ta.atr(14)[1], gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
-put_trigger   = pdc - atr14 * 0.236
-gg_open_put   = pdc - atr14 * 0.382
-mid_atr_put   = pdc - atr14 * 0.500
-gg_comp_put   = pdc - atr14 * 0.618
-ext_786_put   = pdc - atr14 * 0.786
-full_atr_put  = pdc - atr14 * 1.000
+// Upside Saty ladder
+call_trigger   = pdc + atr14 * 0.236
+gg_open_call   = pdc + atr14 * 0.382
+mid_atr_call   = pdc + atr14 * 0.500
+gg_comp_call   = pdc + atr14 * 0.618
+ext_786_call   = pdc + atr14 * 0.786
+full_atr_call  = pdc + atr14 * 1.000
+ext_1236_call  = pdc + atr14 * 1.236
+ext_1382_call  = pdc + atr14 * 1.382
+ext_1500_call  = pdc + atr14 * 1.500
+ext_1618_call  = pdc + atr14 * 1.618
+ext_1786_call  = pdc + atr14 * 1.786
+ext_2000_call  = pdc + atr14 * 2.000
+
+// Downside Saty ladder
+put_trigger    = pdc - atr14 * 0.236
+gg_open_put    = pdc - atr14 * 0.382
+mid_atr_put    = pdc - atr14 * 0.500
+gg_comp_put    = pdc - atr14 * 0.618
+ext_786_put    = pdc - atr14 * 0.786
+full_atr_put   = pdc - atr14 * 1.000
+ext_1236_put   = pdc - atr14 * 1.236
+ext_1382_put   = pdc - atr14 * 1.382
+ext_1500_put   = pdc - atr14 * 1.500
+ext_1618_put   = pdc - atr14 * 1.618
+ext_1786_put   = pdc - atr14 * 1.786
+ext_2000_put   = pdc - atr14 * 2.000
 
 today_range = request.security(ticker_ext, 'D', high - low, gaps=barmerge.gaps_off, lookahead=barmerge.lookahead_on)
 
@@ -94,8 +115,19 @@ plot(show_level and show_mid ? mid_atr_put : na, '-50% Mid', color=#88888899, li
 plot(show_level and show_mid ? ext_786_call : na, '+78.6%', color=#aa88ffb3, linewidth=1, style=plot.style_stepline)
 plot(show_level and show_mid ? ext_786_put : na, '-78.6%', color=#aa88ffb3, linewidth=1, style=plot.style_stepline)
 
-plot(show_level and show_extensions ? pdc + atr14 * 2.0 : na, '+2 ATR', color=#88888866, linewidth=1, style=plot.style_stepline)
-plot(show_level and show_extensions ? pdc - atr14 * 2.0 : na, '-2 ATR', color=#88888866, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1236_call : na, '+123.6%', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1382_call : na, '+138.2%', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1500_call : na, '+150%', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1618_call : na, '+161.8%', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1786_call : na, '+178.6%', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_2000_call : na, '+2 ATR', color=#4488ff88, linewidth=1, style=plot.style_stepline)
+
+plot(show_level and show_extensions ? ext_1236_put : na, '-123.6%', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1382_put : na, '-138.2%', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1500_put : na, '-150%', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1618_put : na, '-161.8%', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_1786_put : na, '-178.6%', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
+plot(show_level and show_extensions ? ext_2000_put : na, '-2 ATR', color=#aa44ff88, linewidth=1, style=plot.style_stepline)
 
 // ═══════════════════════════════════════════════════════════════
 // EMAS FOR INFO TABLE ONLY
@@ -121,7 +153,7 @@ short_lbl = use_options_lbl ? 'Puts' : 'Short'
 var tbl = table.new(position.top_right, 1, 5, border_width=1)
 
 if barstate.islast and show_info
-    table.cell(tbl,0,0,'OpenTheDesk — ATR Levels v3 Clean',bgcolor=trend_color,text_color=color.white,text_size=size.small)
+    table.cell(tbl,0,0,'OpenTheDesk — ATR Levels v3.1 Clean ' + atrMode,bgcolor=trend_color,text_color=color.white,text_size=size.small)
 
     table.cell(tbl,0,1,'Day Range ($' + str.tostring(today_range, '#.##') + ') is ' + str.tostring(tr_pct, '#.#') + '% of ATR ($' + str.tostring(atr14, '#.##') + ')', bgcolor=tr_color, text_color=color.white,text_size=size.small)
 
@@ -148,6 +180,18 @@ var label lbl_mid_c = na
 var label lbl_mid_p = na
 var label lbl_786_c = na
 var label lbl_786_p = na
+var label lbl_1236_c = na
+var label lbl_1382_c = na
+var label lbl_1500_c = na
+var label lbl_1618_c = na
+var label lbl_1786_c = na
+var label lbl_2000_c = na
+var label lbl_1236_p = na
+var label lbl_1382_p = na
+var label lbl_1500_p = na
+var label lbl_1618_p = na
+var label lbl_1786_p = na
+var label lbl_2000_p = na
 
 labelOffset = 3
 
@@ -165,6 +209,20 @@ if barstate.islast and show_right_labels
     label.delete(lbl_mid_p)
     label.delete(lbl_786_c)
     label.delete(lbl_786_p)
+
+    label.delete(lbl_1236_c)
+    label.delete(lbl_1382_c)
+    label.delete(lbl_1500_c)
+    label.delete(lbl_1618_c)
+    label.delete(lbl_1786_c)
+    label.delete(lbl_2000_c)
+
+    label.delete(lbl_1236_p)
+    label.delete(lbl_1382_p)
+    label.delete(lbl_1500_p)
+    label.delete(lbl_1618_p)
+    label.delete(lbl_1786_p)
+    label.delete(lbl_2000_p)
 
     lbl_full_call := label.new(bar_index + labelOffset, full_atr_call, '+1 ATR ' + str.tostring(full_atr_call, '#.##'), color=color.new(color.white, 40), textcolor=color.white, style=label.style_label_left,size=size.small)
 
@@ -192,6 +250,21 @@ if barstate.islast and show_right_labels
         lbl_786_c := label.new(bar_index + labelOffset, ext_786_call, '+78.6% ' + str.tostring(ext_786_call, '#.##'), color=color.new(color.purple, 30), textcolor=color.white, style=label.style_label_left, size=size.small)
 
         lbl_786_p := label.new(bar_index + labelOffset, ext_786_put, '-78.6% ' + str.tostring(ext_786_put, '#.##'), color=color.new(color.purple, 30), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+        if show_extensions
+            lbl_1236_c := label.new(bar_index + labelOffset, ext_1236_call, '+123.6% ' + str.tostring(ext_1236_call, '#.##'), color=color.new(color.blue, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1382_c := label.new(bar_index + labelOffset, ext_1382_call, '+138.2% ' + str.tostring(ext_1382_call, '#.##'), color=color.new(color.blue, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1500_c := label.new(bar_index + labelOffset, ext_1500_call, '+150% ' + str.tostring(ext_1500_call, '#.##'), color=color.new(color.blue, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1618_c := label.new(bar_index + labelOffset, ext_1618_call, '+161.8% ' + str.tostring(ext_1618_call, '#.##'), color=color.new(color.blue, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1786_c := label.new(bar_index + labelOffset, ext_1786_call, '+178.6% ' + str.tostring(ext_1786_call, '#.##'), color=color.new(color.blue, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_2000_c := label.new(bar_index + labelOffset, ext_2000_call, '+2 ATR ' + str.tostring(ext_2000_call, '#.##'), color=color.new(color.blue, 25), textcolor=color.white, style=label.style_label_left, size=size.small)
+
+            lbl_1236_p := label.new(bar_index + labelOffset, ext_1236_put, '-123.6% ' + str.tostring(ext_1236_put, '#.##'), color=color.new(color.purple, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1382_p := label.new(bar_index + labelOffset, ext_1382_put, '-138.2% ' + str.tostring(ext_1382_put, '#.##'), color=color.new(color.purple, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1500_p := label.new(bar_index + labelOffset, ext_1500_put, '-150% ' + str.tostring(ext_1500_put, '#.##'), color=color.new(color.purple, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1618_p := label.new(bar_index + labelOffset, ext_1618_put, '-161.8% ' + str.tostring(ext_1618_put, '#.##'), color=color.new(color.purple, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_1786_p := label.new(bar_index + labelOffset, ext_1786_put, '-178.6% ' + str.tostring(ext_1786_put, '#.##'), color=color.new(color.purple, 35), textcolor=color.white, style=label.style_label_left, size=size.small)
+            lbl_2000_p := label.new(bar_index + labelOffset, ext_2000_put, '-2 ATR ' + str.tostring(ext_2000_put, '#.##'), color=color.new(color.purple, 25), textcolor=color.white, style=label.style_label_left, size=size.small)
 
 if barstate.islast and not show_right_labels
     label.delete(lbl_full_call)

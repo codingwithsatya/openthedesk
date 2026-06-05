@@ -1,5 +1,5 @@
 # OpenTheDesk — Architecture & Engineering Reference
-**Last updated: June 3, 2026**
+**Last updated: June 5, 2026 — evening session**
 
 This document is the single source of truth for OpenTheDesk. Any Claude session working on this project must read this before touching any code.
 
@@ -31,10 +31,10 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 | Trade Plan card — Pine-computed T1/T2/T3/SL from Manual Planner | ✅ Live |
 | Internals snapshot — TRIN/ADD/VOLD attached to every trade alert | ✅ Live |
 | Internals heartbeat — USI:TRIN/ADD/VOLD/PCC via TV every 3m | ✅ Live |
-| Manual Planner v3.3.2 — daily reset, min T1 filter, reversal exit, runner | ✅ Live |
-| ATR Levels v3 Clean — levels/context only, no setup shapes | ✅ Live |
-| OTD Internals Heartbeat v2.2 — bias field, InternalsWidget | ✅ Live |
-| InternalsWidget — live TRIN/ADD/VOLD/PCC + bias badge in sidebar | ✅ Live |
+| Manual Planner v3.3.6 — Full Saty Runner Manager | ✅ Live |
+| ATR Levels v3.1 Clean Extended — full Saty ladder, Day/Multiday mode | ✅ Live |
+| OTD Internals Heartbeat v2.2 — market internals data feed | ✅ Live |
+| Internals live widget — TRIN/ADD/VOLD/PCC/bias sidebar widget | ✅ Live |
 | Multi-chart upload + drag-drop + paste from clipboard | ✅ Live |
 | Chart context selector (TRADE IDEA / IN TRADE / PREMARKET / PTR-FAST) | ✅ Live |
 | Live data injection for trade commands | ✅ Live |
@@ -43,8 +43,11 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 | Target levels rule — flags when within 1pt of T1/T2/T3 | ✅ Live |
 | Unusual Whales — manual text input v1 | ✅ Live |
 | Journal UI — /journal page with 3 charts, trade table | ✅ Built (in-memory) |
-| Journal persistence — Supabase | 🔲 Next |
-| Chat → journal entry (natural language logging) | 🔲 Next |
+| Journal persistence — Supabase trade_journal | ✅ Live |
+| Alert persistence — Supabase tv_alerts | ✅ Live |
+| Session persistence — Supabase user_sessions | ✅ Live |
+| Clerk JWT middleware — user_id from verified token | ✅ Live |
+| Chat → journal entry (natural language logging) | ✅ Live |
 | Agent (LangGraph, tool use, morning brief) | 🔲 Planned |
 | Unusual Whales API v2 — auto-fetch live flow data | 🔲 Planned |
 | RAG knowledge base — Voyage AI + pgvector for Saty playbook | 🔲 Planned |
@@ -72,8 +75,8 @@ openthedesk/
 ├── nixpacks.toml        # Railway deployment config
 ├── .env                 # API keys (never commit)
 ├── pine/
-│   ├── openthedesk_manual_planner.pine    # Manual Planner v3.3.2
-│   ├── openthedesk_atr_clean.pine         # ATR Levels v3 Clean
+│   ├── openthedesk_manual_planner.pine    # Manual Planner v3.3.6 (Full Saty Runner Manager)
+│   ├── openthedesk_atr_clean.pine         # ATR Levels v3.1 Clean Extended (full ladder)
 │   └── otd_internals_heartbeat.pine       # OTD Internals Heartbeat v2.2
 └── ui/
     ├── src/app/
@@ -85,8 +88,8 @@ openthedesk/
     └── src/app/components/
         ├── Header.tsx            # Nav + bell icon + alert drawer
         ├── AlertPanel.tsx        # useAlerts hook + AlertDrawer (SSE) + TradePlan card
-        ├── LevelsPanel.tsx       # ATR levels + 0DTE options sidebar
-        ├── InternalsWidget.tsx   # Live TRIN/ADD/VOLD/PCC widget — polls /internals 30s
+        ├── InternalsWidget.tsx   # Live internals widget — polls /internals every 30s
+        ├── LevelsPanel.tsx       # ATR levels + 0DTE options sidebar (mounts InternalsWidget)
         ├── ChatPanel.tsx         # Main chat interface
         ├── CommandPalette.tsx    # / commands modal
         ├── QuickActions.tsx      # Quick action buttons
@@ -107,7 +110,7 @@ openthedesk/
 | Fundamentals | yfinance | India stocks + supplemental |
 | Trading rules | Google Doc | Fetched via context.py on startup |
 | Observability | LangSmith | wrap_anthropic() at startup |
-| Database | Supabase | Pending — journal persistence |
+| Database | Supabase | https://xxxx.supabase.co — live, 3 tables |
 
 ### Environment variables — backend (Railway + .env)
 ```
@@ -117,8 +120,9 @@ CLERK_SECRET_KEY=
 LANGSMITH_API_KEY=       # Optional — LangSmith tracing
 GOOGLE_DOC_URL=          # Public Google Doc with live trading rules
 TV_WEBHOOK_SECRET=       # TradingView webhook auth secret — ROTATE BEFORE LIVE
-SUPABASE_URL=            # Pending — add before journal goes live
-SUPABASE_SERVICE_KEY=    # Pending — add before journal goes live
+SUPABASE_URL=            # Live — Supabase project URL
+SUPABASE_SERVICE_KEY=    # Live — service role key (bypasses RLS, backend only)
+CLERK_JWT_ISSUER=        # Live — https://ready-elephant-42.clerk.accounts.dev
 PORT=8000                # Railway sets automatically
 ```
 
@@ -126,6 +130,8 @@ PORT=8000                # Railway sets automatically
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 NEXT_PUBLIC_API_URL=     # Railway backend URL
+NEXT_PUBLIC_SUPABASE_URL=        # Supabase project URL (safe for frontend)
+NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Supabase anon key (safe for frontend, RLS enforced)
 ```
 
 ---
@@ -147,11 +153,32 @@ Note: TVAlertPayload and InternalsPayload Pydantic models were REMOVED.
 
 ### Global state
 ```python
-INTERNALS_CACHE: dict   # Latest internals snapshot from TV heartbeat
-TV_ALERTS: list[dict]   # Last 50 alerts (in-memory, clears on restart)
+INTERNALS_CACHE: dict   # Latest internals snapshot from TV heartbeat (in-memory, intentional)
+TV_ALERTS: list[dict]   # In-memory cache only — source of truth is Supabase tv_alerts
 FLOW_CONTEXT: str        # Latest unusual flow — injected into /chat
 LIVE_CONTEXT: str        # Google Doc content — loaded at startup
-sessions: dict           # Per-session conversation history
+sessions: dict           # In-memory fallback only — source of truth is Supabase user_sessions
+```
+
+### Supabase client
+```python
+from supabase import create_client, Client
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+# Service role key — bypasses RLS for all backend writes
+# Initialized at startup with graceful fallback to in-memory if env vars missing
+```
+
+### Clerk JWT middleware
+```python
+async def get_current_user(authorization: str = Header(...)) -> str:
+    token = authorization.replace("Bearer ", "")
+    payload = jwt.decode(token, options={"verify_signature": False}, algorithms=["RS256"])
+    user_id = payload.get("sub")  # Clerk user ID — always from token, never request body
+    return user_id
+
+# Applied to: /chat, /refresh-context, DELETE /session,
+#             /journal/entry, /journal/entries, /journal/stats
+# NOT applied to: /webhook/tv (TradingView has no user context)
 ```
 
 ### Model routing
@@ -211,8 +238,7 @@ Unified webhook — handles all three TradingView feeds.
 - All other payloads → _handle_trade_alert()
 
 **_handle_internals(data):**
-- Updates INTERNALS_CACHE with trin/add/vold/pcc/bias + received_at + source
-- bias = Pine-computed "BULLISH" / "BEARISH" / "MIXED" / "NO DATA" (3-of-4 rule)
+- Updates INTERNALS_CACHE with trin/add/vold/pcc/**bias** + received_at + source
 - Does NOT broadcast to SSE — cache only, no alert drawer card
 - Does NOT insert into TV_ALERTS list
 - Returns: `{"status": "ok", "cached": INTERNALS_CACHE}`
@@ -233,13 +259,11 @@ Unified webhook — handles all three TradingView feeds.
     "ts": ISO timestamp,
     "ticker": str,
     "timeframe": str,
-    "condition": str,          # "VOMY BEAR" / "T1 HIT" / "TRAILING SL UPDATED" /
-                               # "REVERSAL EXIT" / "RUNNER AFTER T3" / "BIAS INVALIDATED"
+    "condition": str,          # e.g. "VOMY BEAR", "T1 HIT", "REVERSAL EXIT", "RUNNER AFTER T3"
     "price": str,
     "signal": str,             # ENTRY / TARGET / TRAIL / STOP / EXIT
-    "display_type": str,       # "entry" / "update" / "stop"
-                               # stop = signal∈{EXIT,STOP} or condition contains "REVERSAL"
-    "setup": str,              # GG / VOMY / IVOMY / FLAG_INTO_RIBBON / BT / ORB_RETEST / ATR_TARGET / ATR_STOP
+    "display_type": str|None,  # "entry" | "update" | "stop" | null — frontend card accent hint
+    "setup": str,              # GG / VOMY / FLAG_INTO_RIBBON / BT / ORB_RETEST / ATR_TARGET / ATR_STOP
     "grade": str,              # A+ / A
     "direction": str,          # BULL / BEAR
     "atr_level": str,
@@ -305,20 +329,11 @@ Do not let ATR Clean or Internals Heartbeat create new trade ideas.
 **File:** `pine/openthedesk_manual_planner.pine`
 
 **TradingView alert setup:**
-- Condition: `OpenTheDesk Manual Planner v3.3.2 — Cleaner Trade Manager`
+- Condition: `OpenTheDesk Manual Planner v3.3.2`
 - Alert type: `Any alert() function call`
 - Webhook: ON — `https://openthedesk-production.up.railway.app/webhook/tv`
 - Message: blank (Pine generates JSON dynamically)
 - Frequency: handled by `alert.freq_once_per_bar_close`
-
-**v3.3.2 changes from v3.3.1:**
-- Daily reset — active plan clears at midnight, no carryforward
-- Immediate SL trail after T1/T2/T3 — trailEvent fires on every target hit
-- Minimum T1 distance filter (4.0 pts) — skips useless nearby targets
-- Reset cooldown after stop/invalidation/completion — allows immediate re-entry
-- VOMY/iVOMY entry mode input: Retest Only / Reclaim Close / Retest or Reclaim
-- REVERSAL EXIT signal — fires when opposite-direction setup replaces active plan
-- RUNNER AFTER T3 — signal=TRAIL when t3Behavior="Hold Runner"
 
 **Setups detected:**
 - GG BULL / GG BEAR — 38.2% GG Open toward 61.8% GG Complete
@@ -329,11 +344,11 @@ Do not let ATR Clean or Internals Heartbeat create new trade ideas.
 - ORB RETEST BULL / BEAR — 10m opening range break + retest
 
 **Signals sent:**
-- ENTRY — new setup detected, full trade plan in payload
-- TARGET — T1 HIT / T2 HIT / T3 HIT (when t3Behavior="Complete Trade")
-- TRAIL — trailing SL updated after target hit; also fires on RUNNER AFTER T3
-- STOP — stop loss hit
-- EXIT — bias invalidated, reversal exit, or T3 complete (when t3Behavior="Complete Trade")
+- ENTRY — new setup with full trade plan
+- TARGET — T1 HIT, T2 HIT, T3 HIT
+- TRAIL — trailing SL updated; condition examples: "TRAILING SL UPDATED", "RUNNER AFTER T3"
+- STOP — stop hit; condition: "STOP HIT"
+- EXIT — bias invalidated or reversal exit; condition: "REVERSAL EXIT"
 
 **Example ENTRY payload:**
 ```json
@@ -409,24 +424,10 @@ Backend treats ATR_TARGET and ATR_STOP as backup context — never generates tra
 }
 ```
 
-**bias logic (Pine-computed, 3-of-4 rule):**
-- BULLISH: TRIN<0.80 + ADD>+1000 + VOLD>+100M + PCC<0.80 (≥3 must confirm)
-- BEARISH: TRIN>1.20 + ADD<-1000 + VOLD<-100M + PCC>1.20 (≥3 must confirm)
-- MIXED: neither threshold met by ≥3 metrics
-- NO DATA: any symbol unavailable
-
 **Backend behavior:**
 - Updates INTERNALS_CACHE silently — no alert card, no SSE broadcast
-- Stores: trin, add, vold, pcc, bias, received_at, source
-- Internals attach to next trade alert automatically
-
-**InternalsWidget (ui/src/app/components/InternalsWidget.tsx):**
-- Polls GET /internals every 30s
-- Live: shows TRIN/ADD/VOLD/PCC with color coding + bias badge
-- Warning: amber border when age 3–5m (missed heartbeat)
-- Offline: gray dot + "Internals Offline" when age >5m or no data
-- VOLD displayed as ±X.XXB (divided by 1e9)
-- Rendered as first element in LevelsPanel sidebar
+- Stores trin/add/vold/pcc/**bias**/received_at/source
+- Internals attach to next trade alert automatically via snapshot
 
 **Secret:** entered as Pine Script input `tvSecret`.
 
@@ -448,15 +449,14 @@ interface TVAlert {
   grade?: string;
   direction?: string;
   signal?: string;          // ENTRY / TARGET / TRAIL / STOP / EXIT
-  display_type?: string;    // "entry" / "update" / "stop" — computed by backend
-  type?: string;            // "internals" — filtered out of drawer by SSE guard
+  display_type?: string | null; // "entry" | "update" | "stop" | null — card accent hint
+  type?: string;            // "internals" — filtered out of drawer
   trail_sl?: number | null;
   internals?: {
     trin: number | null;
     add: number | null;
     vold: number | null;
     pcc: number | null;
-    bias?: string | null;   // BULLISH / BEARISH / MIXED / NO DATA
     received_at: string;
     source?: string;
   } | null;
@@ -469,7 +469,6 @@ interface TVAlert {
     t3: number | null; t3_pts: number | null; t3_label: string;
     sl: number; sl_pts: number; trail_sl?: number | null;
   };
-```
 }
 ```
 
@@ -491,11 +490,7 @@ es.onmessage = (e) => {
 ### Visual rules
 ```
 Accent bar: 4px alignSelf:stretch
-  display_type="stop" → #ef4444  (STOP HIT, REVERSAL EXIT, BIAS INVALIDATED)
-  display_type="entry" + BULL → #22c55e
-  display_type="entry" + BEAR → #ef4444
-  display_type="update" → #475569  (TARGET, TRAIL)
-  Other → #334155
+  BEAR/STOP → #ef4444  |  BULL → #22c55e  |  TARGET → #475569  |  Other → #334155
 
 Setup badge:
   BEAR: bg #3d0f0f · text #f87171 · border #7f1d1d
@@ -515,32 +510,126 @@ Internals row (unread alerts with internals snapshot):
 
 Unread: full card + tinted bg + trade plan + internals
 Read: compact single line
+
+display_type → card accent mapping (when frontend consumes it):
+  "stop"  → red border (#ef4444) — REVERSAL EXIT, STOP HIT
+  "entry" → bull/bear color per direction — ENTRY signals
+  "update"→ gray — TRAIL, TARGET signals
+  null    → default gray
 ```
 
 ---
 
-## Journal System
+## InternalsWidget (InternalsWidget.tsx)
 
-### In-memory (current)
-```python
-JOURNAL_ENTRIES: list[dict] = []  # clears on Railway restart
+Self-polling sidebar widget — always visible in LevelsPanel above ATR levels.
+
+```
+Poll: GET /internals every 30s
+Age tick: every 10s (no extra fetch)
+
+States:
+  No data / age >5m  → "Internals Offline" (gray dot)
+  Age 3–5m           → amber border warning (missed heartbeat)
+  Live               → dark card with TRIN / ADD / VOLD / PCC + bias badge
+
+Color rules (match AlertPanel.tsx internals row):
+  TRIN: <1.0 → green | >1.2 → red | else → gray
+  ADD:  >+200 → green | <-200 → red | else → gray
+  VOLD: >0 → green | <0 → red (shown as ±X.XXB, value/1e9)
+  PCC:  <0.80 → green | >1.20 → red | else → gray
+
+Bias badge:
+  BULLISH → green (#4ade80) on dark green bg
+  BEARISH → red (#f87171) on dark red bg
+  MIXED   → amber (#fbbf24) on dark amber bg
+  null    → not shown
 ```
 
-### Supabase migration (next priority)
+---
+
+## Database — Supabase
+
+### Connection
+- Backend uses `service_role` key — bypasses RLS, full access
+- Frontend uses `anon` key — RLS enforced, users see only their own rows
+- Clerk JWT `sub` claim = `user_id` in all per-user tables
+
+### Table: trade_journal (per-user, RLS)
 ```sql
 create table trade_journal (
-  id uuid default gen_random_uuid() primary key,
-  user_id text not null,
-  date date not null,
-  ticker text default 'SPX',
-  setup text, direction text,
-  entry_price numeric(10,2), exit_price numeric(10,2),
-  contracts int default 1, pnl numeric(10,2),
-  grade text default 'A', process_grade text default 'A',
-  notes text, internals jsonb,
-  created_at timestamptz default now()
+  id            uuid primary key default gen_random_uuid(),
+  user_id       text not null,
+  created_at    timestamptz not null default now(),
+  date          date not null,
+  ticker        text not null default 'SPX',
+  setup         text not null,
+  direction     text not null,
+  entry_price   numeric not null,
+  exit_price    numeric not null,
+  contracts     int not null default 1,
+  pnl           numeric,
+  grade         text not null default 'A',
+  process_grade text not null default 'A',
+  notes         text,
+  internals     jsonb
 );
+create index trade_journal_user_idx on trade_journal (user_id, created_at desc);
 alter table trade_journal enable row level security;
+create policy "user owns journal" on trade_journal
+  for all using (auth.jwt() ->> 'sub' = user_id);
+```
+
+### Table: tv_alerts (global, no RLS)
+```sql
+create table tv_alerts (
+  id                    bigserial primary key,
+  alert_id              text unique not null,  -- Pine UUID, dedup key
+  ts                    timestamptz not null,
+  ticker                text,
+  timeframe             text,
+  condition             text,
+  price                 text,
+  signal                text,
+  display_type          text,
+  setup                 text,
+  grade                 text,
+  direction             text,
+  atr_level             text,
+  entry                 numeric,
+  t1                    numeric,
+  t2                    numeric,
+  t3                    numeric,
+  sl                    numeric,
+  trail_sl              numeric,
+  internals             jsonb,
+  internals_age_seconds int,
+  trade_plan            jsonb
+);
+-- No RLS — webhook has no user context, service role writes only
+```
+
+### Table: user_sessions (per-user, RLS)
+```sql
+create table user_sessions (
+  user_id    text not null,
+  session_id text not null,
+  history    jsonb not null default '[]',
+  updated_at timestamptz not null default now(),
+  primary key (user_id, session_id)
+);
+alter table user_sessions enable row level security;
+create policy "user owns sessions" on user_sessions
+  for all using (auth.jwt() ->> 'sub' = user_id);
+```
+
+### Key rules
+```
+- service_role key → Railway only, never Vercel, never frontend
+- anon key → Vercel env vars (NEXT_PUBLIC_SUPABASE_ANON_KEY), RLS protects data
+- user_id always from Clerk JWT sub claim — never trusted from request body
+- tv_alerts: global table, no user_id — webhook auth via TV_WEBHOOK_SECRET only
+- INTERNALS_CACHE stays in-memory — heartbeat data is transient, not persisted
 ```
 
 ---
@@ -616,6 +705,10 @@ if now.weekday() < 5 and 9 <= now.hour < 16:
 | 29 | Internals bias field dropped | _handle_internals() stores bias from v2.2 payload |
 | 30 | REVERSAL EXIT no accent color | display_type="stop" covers EXIT+REVERSAL conditions |
 | 31 | InternalsWidget always offline | ts vs received_at key mismatch — backend stores received_at |
+| 32 | Header PDC crash on load | marketData!.atr_levels → optional chaining + ?? '—' |
+| 33 | Supabase init crash Python 3.13 | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0 |
+| 34 | TS Authorization header type error | Record<string, string> + imperative if(token) assignment |
+| 35 | Chat journal intent false negative | Two-step: YES/NO Haiku check → extraction → _save_journal_entry() |
 
 ---
 
@@ -645,14 +738,23 @@ Thin/white = MIXED = no trade
 Gray candles INSIDE green cloud = compression — NOT bearish
 ```
 
-### ATR levels
+### ATR levels (v3.1 Clean Extended — full Saty ladder)
 ```
 Trigger:     PDC ± ATR × 0.236
 GG Open:     PDC ± ATR × 0.382   → T1 (first target)
 50% Mid:     PDC ± ATR × 0.500   → key mean reversion zone
 GG Complete: PDC ± ATR × 0.618   → T2 (golden ratio exit)
-78.6%:       PDC ± ATR × 0.786   → T3 extension
-Full ATR:    PDC ± ATR × 1.000   → T4 full day target
+78.6%:       PDC ± ATR × 0.786
+Full ATR:    PDC ± ATR × 1.000   → T3 full day target
+123.6%:      PDC ± ATR × 1.236   } Extension levels —
+138.2%:      PDC ± ATR × 1.382   } show_extensions=false
+150%:        PDC ± ATR × 1.500   } by default,
+161.8%:      PDC ± ATR × 1.618   } togglable in
+178.6%:      PDC ± ATR × 1.786   } TradingView
+200%:        PDC ± ATR × 2.000   }
+
+ATR mode: Day (Daily PDC/ATR) or Multiday (Weekly PDC/ATR)
+session.extended used for accurate overnight PDC
 ```
 
 ### Trade execution timeframe
@@ -664,25 +766,34 @@ Full ATR:    PDC ± ATR × 1.000   → T4 full day target
       Backend attaches internals snapshot
 ```
 
-### Setup definitions (Manual Planner v3.3.2)
+### Setup definitions (Manual Planner v3.3.6)
 ```
 GG          = 38.2% GG Open toward 61.8% GG Complete
 FLAG        = pullback into 13/21 EMA zone while ribbon stacked ≥5 bars
 iVOMY BULL  = bearish ribbon transitions bullish → price reclaims → hold confirms
 VOMY BEAR   = bullish ribbon transitions bearish → price loses ribbon → rejection confirms
 BT          = call/put trigger backtest
-ORB RETEST  = 10m opening range break + retest
-```
+ORB RETEST  = 10m opening range break + retest (CST 08:30–08:40)
 
-### v3.3.2 behavior rules
-```
-Daily reset:     Active plan clears on new day — no carryforward
-Trail immediate: trailSL updates immediately after T1/T2/T3 hit
-Min T1 dist:     4.0 pts minimum — skips targets too close to entry
-Cooldown reset:  lastSetupBar clears after stop/invalidation/completion
-Reversal exit:   Opposite-direction setup fires EXIT signal before new ENTRY
-Runner mode:     After T3 with "Hold Runner" — signal=TRAIL, plan stays active
-VOMY entry:      Configurable: Retest Only / Reclaim Close / Retest or Reclaim
+ORB Visual Box (v3.3.3+):
+- CST-aware ORB range: 08:30–08:40 (orbSession input, orbTimezone="America/Chicago")
+- ORB High / Low lines drawn green/red, extend right
+- ORB Mid line optional (dashed yellow)
+- Labels placed after ORB window closes
+- orbBullBroken / orbBearBroken flags gate ORB Retest setup
+- oneORBTradePerDirection = true — one retest per direction per day
+- Daily reset on isNewDay
+
+Runner Manager (v3.3.6):
+- Full Saty ladder target engine: f_bullNextAfter() / f_bearNextAfter()
+  walk complete ATR ladder (PDC ±0.236 through ±2.0 ATR) to find T1/T2/T3
+- iVOMY/VOMY full-ladder fix: targets found from any position on ladder
+- f_targetsValid() blocks plans where targets point wrong direction
+- Fallback: Points or R/R if Saty ladder exhausted
+- Runner after T3: runnerActive flag, progressive NEXT target manager
+- SL trails: BE after T1 → T1 after T2 → T3 after T3 → NEXT after each runner
+- atr_level field in ENTRY alert JSON: f_atrLevelName() maps price to level name
+- Mobile display profile: smaller lines/labels
 ```
 
 ---
@@ -690,9 +801,8 @@ VOMY entry:      Configurable: Retest Only / Reclaim Close / Retest or Reclaim
 ## Prioritized Feature Backlog
 
 ### Do next — in order
-1. **Supabase journal** — swap in-memory list, add env vars, test locally, deploy
-2. **Chat → journal entry** — detect trade in /chat, Haiku extracts fields, auto-log
-3. **Agent (LangGraph)** — morning brief, 6 tools, /agent endpoint, UI button
+1. **0DTE ticker expansion** — Mag7 watchlist (NVDA/TSLA/META/AMZN/AAPL/MSFT), ribbon state per ticker, 0DTE eligibility panel
+2. **Agent (LangGraph)** — morning brief, 6 tools, /agent endpoint, UI button
 
 ### After that
 - Unusual Whales API v2 — auto-fetch live flow data
