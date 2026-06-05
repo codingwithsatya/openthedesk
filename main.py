@@ -72,6 +72,46 @@ _HAIKU_COMMANDS = {
     "TRADE REVIEW", "EOD",
 }
 
+_JOURNAL_INTENT_SYSTEM = """You are a classifier. The user is a day trader.
+Determine if their message describes a COMPLETED trade they want to log.
+
+A journal entry message contains: a setup name (GG, FLAG, VOMY, iVOMY, BT, ORB),
+a direction (bull/bear/call/put), an entry price, and an exit price or P&L.
+
+Reply with exactly one word: YES or NO.
+No explanation. No punctuation. Just YES or NO."""
+
+_JOURNAL_EXTRACT_SYSTEM = """You are a trade journal extraction assistant.
+Extract structured fields from the user's trade description.
+
+Valid setups: GG, FLAG, VOMY, iVOMY, BT, ORB
+Valid directions: BULL, BEAR
+Valid grades: A+, A, B
+
+Return ONLY a valid JSON object with these exact keys:
+{
+  "ticker": "SPX",
+  "setup": "GG",
+  "direction": "BULL",
+  "entry_price": 7390.0,
+  "exit_price": 7378.0,
+  "contracts": 1,
+  "pnl": null,
+  "grade": "A",
+  "process_grade": "A",
+  "notes": "any extra context the user mentioned"
+}
+
+Rules:
+- ticker defaults to "SPX" if not mentioned
+- contracts defaults to 1 if not mentioned
+- pnl: use the dollar value if user stated it explicitly, else null
+  (backend will calculate from entry/exit)
+- grade and process_grade default to "A" if not mentioned
+- notes: capture any extra context (e.g. "stopped correctly", "FOMO entry")
+- If entry_price or exit_price cannot be determined, return {"error": "missing_fields", "missing": ["field1"]}
+- Return ONLY the JSON object. No markdown. No explanation. No backticks."""
+
 
 def route_model(message: str) -> str:
     """Return the cheapest model that can handle this command well."""
@@ -146,6 +186,117 @@ async def _keep_alive():
 @app.on_event("startup")
 async def startup():
     asyncio.create_task(_keep_alive())
+
+
+# ── Journal intent helpers ───────────────────────────────────────
+
+_JOURNAL_COMMAND_PREFIXES = (
+    "PREMARKET", "PTR", "IN TRADE", "TRADE IDEA", "TRADE REVIEW",
+    "EOD", "OPEN THE DESK", "GRADE", "PATTERN CHECK", "MARKET REGIME",
+    "CAPITAL PROTECTION", "WIRE OUT", "BLUNT FEEDBACK", "WEEKLY REVIEW",
+    "SETUP LIBRARY", "CLOSE THE DESK",
+)
+
+
+def _is_command_message(message: str) -> bool:
+    """Return True if message is a known trading command — skip journal intent check."""
+    upper = message.strip().upper()
+    if upper in _HAIKU_COMMANDS:
+        return True
+    return any(upper.startswith(p) for p in _JOURNAL_COMMAND_PREFIXES)
+
+
+def _detect_journal_intent(message: str) -> bool:
+    """Return True if message looks like a completed trade the user wants to log."""
+    try:
+        r = with_retry(lambda: client.messages.create(
+            model=HAIKU,
+            max_tokens=64,
+            system=_JOURNAL_INTENT_SYSTEM,
+            messages=[{"role": "user", "content": message}],
+        ))
+        return r.content[0].text.strip().upper().startswith("YES")
+    except Exception as _e:
+        print(f"[WARN] journal intent check failed: {_e}")
+        return False
+
+
+def _extract_journal_fields(message: str) -> dict | None:
+    """Extract structured trade fields from message. Returns dict or None on failure."""
+    try:
+        r = with_retry(lambda: client.messages.create(
+            model=HAIKU,
+            max_tokens=512,
+            system=_JOURNAL_EXTRACT_SYSTEM,
+            messages=[{"role": "user", "content": message}],
+        ))
+        raw = r.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        data = json.loads(raw.strip())
+        if "error" in data:
+            return {"error": data.get("error"), "missing": data.get("missing", [])}
+        return data
+    except Exception as _e:
+        print(f"[WARN] journal extraction failed: {_e}")
+        return None
+
+
+def _save_journal_entry(fields: dict, user_id: str) -> dict:
+    """Write extracted journal fields to trade_journal. Returns saved entry dict."""
+    direction = (fields.get("direction") or "BULL").upper()
+    entry_price = float(fields.get("entry_price", 0))
+    exit_price = float(fields.get("exit_price", 0))
+    contracts = int(fields.get("contracts") or 1)
+
+    pnl = fields.get("pnl")
+    if pnl is None:
+        pnl = _calc_pnl(direction, entry_price, exit_price, contracts)
+    pnl = round(float(pnl), 2)
+
+    internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
+
+    entry = {
+        "id":            str(uuid.uuid4()),
+        "created_at":    datetime.now(timezone.utc).isoformat(),
+        "date":          datetime.now(ZoneInfo("America/New_York")).strftime("%Y-%m-%d"),
+        "ticker":        fields.get("ticker", "SPX"),
+        "setup":         fields.get("setup", ""),
+        "direction":     direction,
+        "entry_price":   entry_price,
+        "exit_price":    exit_price,
+        "contracts":     contracts,
+        "pnl":           pnl,
+        "grade":         fields.get("grade", "A"),
+        "process_grade": fields.get("process_grade", "A"),
+        "notes":         fields.get("notes") or "",
+        "internals":     internals,
+    }
+
+    if _sb:
+        try:
+            _sb.table("trade_journal").insert({
+                "user_id":       user_id,
+                "date":          entry["date"],
+                "ticker":        entry["ticker"],
+                "setup":         entry["setup"],
+                "direction":     entry["direction"],
+                "entry_price":   entry["entry_price"],
+                "exit_price":    entry["exit_price"],
+                "contracts":     entry["contracts"],
+                "pnl":           entry["pnl"],
+                "grade":         entry["grade"],
+                "process_grade": entry["process_grade"],
+                "notes":         entry["notes"],
+                "internals":     entry["internals"],
+            }).execute()
+        except Exception as _e:
+            print(f"[WARN] chat→journal insert failed: {_e}")
+
+    JOURNAL_ENTRIES.insert(0, entry)
+    return entry
 
 
 def build_system_prompt(live_context: str, flow_context: str = "") -> str:
@@ -291,6 +442,32 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
         sessions[request.session_id] = []
 
     history = sessions[request.session_id]
+
+    # ── Chat → Journal intent detection ─────────────────────────
+    if not _is_command_message(request.message):
+        if _detect_journal_intent(request.message):
+            fields = _extract_journal_fields(request.message)
+            if fields is None:
+                journal_reply = "I couldn't parse that trade. Try: 'GG Bear entry 7390 exit 7378 1 contract'"
+                return {"reply": journal_reply, "model": HAIKU,
+                        "session_id": request.session_id, "turns": len(history) // 2}
+            if "error" in fields:
+                missing = ", ".join(fields.get("missing", []))
+                journal_reply = f"Almost there — I need: {missing}. What were they?"
+                return {"reply": journal_reply, "model": HAIKU,
+                        "session_id": request.session_id, "turns": len(history) // 2}
+            saved = _save_journal_entry(fields, user_id)
+            pnl_str = f"+${saved['pnl']:,.0f}" if saved['pnl'] >= 0 else f"-${abs(saved['pnl']):,.0f}"
+            trin = saved["internals"].get("trin")
+            trin_str = f" · TRIN {trin}" if trin else ""
+            journal_reply = (
+                f"Logged ✓ {saved['setup']} {saved['direction'].title()} · "
+                f"Entry {saved['entry_price']} · Exit {saved['exit_price']} · "
+                f"{pnl_str}{trin_str}"
+            )
+            return {"reply": journal_reply, "model": HAIKU,
+                    "session_id": request.session_id, "turns": len(history) // 2}
+    # ── End journal intent block ─────────────────────────────────
 
     # Inject live market snapshot for trade-relevant commands
     live_injection = ""
