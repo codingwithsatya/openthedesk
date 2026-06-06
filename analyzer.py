@@ -581,3 +581,116 @@ def get_ticker_analysis(ticker: str, trading_mode: str = "day") -> dict:
             result["iv_rank"] = None
 
     return sanitize(result)
+
+
+# ── Lightweight watchlist snapshot ──────────────────────────────────────────
+
+def get_watchlist_data(ticker: str, zero_dte_eligible: set) -> dict:
+    """
+    Fast watchlist snapshot — ribbon, ATR triggers, Phase Oscillator, compression.
+    No Claude calls, no options chain, no fundamentals fetch beyond sector.
+    """
+    ticker = ticker.strip().upper()
+    base: dict = {
+        "ticker":            ticker,
+        "price":             None,
+        "change_pct":        None,
+        "ribbon_state":      "MIXED",
+        "ema8":              None,
+        "ema21":             None,
+        "ema34":             None,
+        "atr_14":            None,
+        "call_trigger":      None,
+        "put_trigger":       None,
+        "gg_open_call":      None,
+        "gg_open_put":       None,
+        "compression":       False,
+        "po_value":          None,
+        "volume_ratio":      None,
+        "sector":            None,
+        "market":            "US",
+        "zero_dte_eligible": ticker in zero_dte_eligible,
+        "error":             None,
+    }
+
+    if not _YF:
+        base["error"] = "yfinance not installed"
+        return sanitize(base)
+
+    try:
+        tk = yf.Ticker(ticker)
+        hist = tk.history(period="60d", interval="1d")
+
+        if hist.empty or len(hist) < 15:
+            base["error"] = "insufficient data"
+            return sanitize(base)
+
+        closes = hist["Close"]
+        price  = float(closes.iloc[-1])
+        pdc    = float(closes.iloc[-2])
+
+        base["price"]      = round(price, 2)
+        base["change_pct"] = round((price - pdc) / pdc * 100, 2) if pdc else None
+
+        def _ema(span: int) -> float:
+            return round(float(closes.ewm(span=span, adjust=False).mean().iloc[-1]), 2)
+
+        e8  = _ema(8)
+        e21 = _ema(21)
+        e34 = _ema(34)
+        base["ema8"]  = e8
+        base["ema21"] = e21
+        base["ema34"] = e34
+
+        if e8 >= e21 >= e34:
+            base["ribbon_state"] = "BULLISH"
+        elif e8 <= e21 <= e34:
+            base["ribbon_state"] = "BEARISH"
+        else:
+            base["ribbon_state"] = "MIXED"
+
+        bars = [
+            {
+                "high":  float(hist["High"].iloc[i]),
+                "low":   float(hist["Low"].iloc[i]),
+                "close": float(hist["Close"].iloc[i]),
+            }
+            for i in range(len(hist))
+        ]
+        atr = _wilder_atr(bars, 14)
+        base["atr_14"] = atr
+
+        if atr:
+            # Fibonacci ATR levels off PDC — matches OpenTheDesk Manual Planner
+            base["call_trigger"] = round(pdc + atr * 0.236, 2)
+            base["put_trigger"]  = round(pdc - atr * 0.236, 2)
+            base["gg_open_call"] = round(pdc + atr * 0.382, 2)
+            base["gg_open_put"]  = round(pdc - atr * 0.382, 2)
+
+            base["po_value"] = round(((price - e21) / (3.0 * atr)) * 100, 1)
+
+            try:
+                std_21       = float(closes.rolling(21).std(ddof=1).iloc[-1])
+                bband_up     = e21 + 2.0 * std_21
+                threshold_up = e21 + 2.0 * atr
+                base["compression"] = (bband_up - threshold_up) <= 0
+            except Exception:
+                pass
+
+        try:
+            vol_today  = float(hist["Volume"].iloc[-1])
+            avg_vol_20 = float(hist["Volume"].tail(20).mean())
+            base["volume_ratio"] = round(vol_today / avg_vol_20, 2) if avg_vol_20 > 0 else None
+        except Exception:
+            pass
+
+        try:
+            info = tk.info or {}
+            base["sector"] = info.get("sector")
+        except Exception:
+            pass
+
+    except Exception as e:
+        base["error"] = str(e)
+
+    return sanitize(base)

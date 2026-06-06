@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { UserButton } from "@clerk/nextjs";
 import { MarketData } from "../types";
@@ -12,6 +12,7 @@ interface HeaderProps {
   onClearSession: () => void;
   marketData: MarketData | null;
   activePage?: "desk" | "analyzer" | "journal";
+  sessionDuration?: string;
 }
 
 export default function Header({
@@ -21,8 +22,11 @@ export default function Header({
   onClearSession,
   marketData,
   activePage = "desk",
+  sessionDuration,
 }: HeaderProps) {
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const { alerts, alertCount, markAllRead, markRead, isUnread } = useAlerts();
 
   const spxPrice = marketData
@@ -51,7 +55,7 @@ export default function Header({
 
   return (
     <>
-      <header className="header">
+      <header className="header" suppressHydrationWarning>
         <div className="header-left">
           <div className="logo-wrap">
             <img
@@ -62,9 +66,22 @@ export default function Header({
           </div>
           <div className="divider-v" />
           {activePage === "desk" && (
-            <div className={`status-badge ${deskOpen ? "open" : "closed"}`}>
-              <div className={`status-dot ${deskOpen ? "pulse" : ""}`} />
-              {deskOpen ? "Desk Open" : "Desk Closed"}
+            <div
+              className={`status-badge ${(mounted && deskOpen) ? "open" : "closed"}`}
+              suppressHydrationWarning
+            >
+              <div
+                className={`status-dot ${(mounted && deskOpen) ? "pulse" : ""}`}
+                suppressHydrationWarning
+              />
+              <span suppressHydrationWarning>
+                {(mounted && deskOpen) ? "Desk Open" : "Desk Closed"}
+              </span>
+              {mounted && deskOpen && sessionDuration && (
+                <span style={{ color: "#22d3ee", fontSize: 10, fontFamily: "var(--font-jetbrains-mono), monospace", marginLeft: 6 }} suppressHydrationWarning>
+                  {sessionDuration}
+                </span>
+              )}
             </div>
           )}
           <div

@@ -15,6 +15,12 @@ interface ChatPanelProps {
   setMessages: (fn: (prev: Message[]) => Message[]) => void;
   setLoading: (v: boolean) => void;
   bottomRef: React.RefObject<HTMLDivElement | null>;
+  deskOpen?: boolean;
+  onMorningBrief?: () => void;
+  onOpenDesk?: () => void;
+  firstName?: string;
+  canOpenDesk?: boolean;
+  marketStatusLabel?: string;
 }
 
 function compressImage(file: File): Promise<Blob> {
@@ -34,6 +40,13 @@ function compressImage(file: File): Promise<Blob> {
   });
 }
 
+const getGreeting = () => {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+};
+
 export default function ChatPanel({
   messages,
   loading,
@@ -42,6 +55,12 @@ export default function ChatPanel({
   setMessages,
   setLoading,
   bottomRef,
+  deskOpen = false,
+  onMorningBrief,
+  onOpenDesk,
+  firstName = "Satya",
+  canOpenDesk = true,
+  marketStatusLabel = "Market Closed",
 }: ChatPanelProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const inputRef    = useRef<string>("");
@@ -130,19 +149,56 @@ export default function ChatPanel({
       {/* Messages */}
       <div className="messages">
         {messages.length === 0 ? (
-          <div className="empty">
-            <div className="empty-icon">📊</div>
-            <div>
-              <div className="empty-title">Ready when you are.</div>
-              <div className="empty-sub">
-                Your trading context is loaded.
-                <br />
-                Open the desk to begin the session.
+          <div style={{
+            flex: 1, display: "flex", flexDirection: "column",
+            alignItems: "center", justifyContent: "center", gap: 20,
+            padding: "0 24px",
+          }}>
+            <div style={{ textAlign: "center" as const }}>
+              <div style={{ fontSize: 40, marginBottom: 12 }}>🌅</div>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+                {getGreeting()}, {firstName}.
+              </div>
+              <div style={{ fontSize: 13, color: "#64748b", maxWidth: 300, lineHeight: 1.6 }}>
+                Start with a Morning Brief to understand today&apos;s bias,
+                then open the desk when you&apos;re ready to trade.
               </div>
             </div>
-            <button className="open-desk-btn" onClick={() => onSend("Open the Desk")}>
-              Open the Desk
-            </button>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
+              <button
+                onClick={onMorningBrief ?? (() => onSend("MORNING BRIEF"))}
+                disabled={loading}
+                style={{
+                  padding: "12px 32px", borderRadius: 10,
+                  background: "linear-gradient(135deg, #1d4ed8, #7e22ce)",
+                  color: "white", border: "none",
+                  cursor: loading ? "not-allowed" : "pointer",
+                  fontSize: 14, fontWeight: 700,
+                  boxShadow: "0 4px 20px rgba(29,78,216,0.25)",
+                  opacity: loading ? 0.7 : 1,
+                }}
+              >
+                🌅 Morning Brief
+              </button>
+              <button
+                onClick={onOpenDesk ?? (() => onSend("Open the Desk"))}
+                disabled={loading || !canOpenDesk}
+                title={!canOpenDesk ? `Market is closed — ${marketStatusLabel}` : undefined}
+                style={{
+                  padding: "10px 24px", borderRadius: 10,
+                  background: "transparent",
+                  color: canOpenDesk ? "#15803d" : "#475569",
+                  border: `1px solid ${canOpenDesk ? "#bbf7d0" : "rgba(100,116,139,0.2)"}`,
+                  cursor: (loading || !canOpenDesk) ? "not-allowed" : "pointer",
+                  fontSize: 13, fontWeight: 600,
+                  opacity: canOpenDesk ? 1 : 0.5,
+                  transition: "all 0.2s",
+                }}
+              >
+                {canOpenDesk ? "Open the Desk →" : `Desk locked — ${marketStatusLabel}`}
+              </button>
+              <div style={{ fontSize: 11, color: "#94a3b8" }}>or type a command below</div>
+            </div>
           </div>
         ) : (
           messages.map((msg, i) => (
@@ -177,7 +233,7 @@ export default function ChatPanel({
       </div>
 
       {/* Quick Actions */}
-      <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} />
+      <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} deskOpen={deskOpen} canOpenDesk={canOpenDesk} />
 
       {/* Input */}
       <div

@@ -16,7 +16,7 @@ from dotenv import load_dotenv
 from context import fetch_live_context
 from market_data import get_market_summary
 from tradier import get_0dte_snapshot, format_options_context, get_market_internals
-from analyzer import get_ticker_analysis
+from analyzer import get_ticker_analysis, get_watchlist_data
 import time
 import jwt as pyjwt
 
@@ -787,6 +787,162 @@ async def premarket(request: ChatRequest):
     return FastAPIStreaming(stream(), media_type="text/plain")
 
 
+async def _fetch_market_news() -> dict:
+    """Fetch economic calendar + gap movers + catalyst news via Claude web search."""
+    today = datetime.now(ZoneInfo("America/New_York")).strftime("%B %d %Y")
+
+    results = {"economic_calendar": "", "gap_movers": "", "catalyst_news": ""}
+
+    async def _search(query: str) -> str:
+        try:
+            r = await asyncio.to_thread(lambda: client.messages.create(
+                model=HAIKU,
+                max_tokens=512,
+                tools=[{"type": "web_search_20250305", "name": "web_search"}],
+                messages=[{"role": "user", "content": query}],
+            ))
+            text_parts = []
+            for block in r.content:
+                if hasattr(block, "type") and block.type == "text":
+                    text_parts.append(block.text)
+            return "\n".join(text_parts)
+        except Exception as e:
+            print(f"[WARN] news fetch failed: {e}")
+            return ""
+
+    cal, movers, news = await asyncio.gather(
+        _search(
+            f"economic calendar today {today} high impact USD events "
+            f"time ET forecast previous — list only HIGH and MEDIUM impact"
+        ),
+        _search(
+            f"premarket gap ups gap downs stocks today {today} "
+            f"biggest movers percentage change reason"
+        ),
+        _search(
+            f"stock market catalyst news today {today} "
+            f"earnings reactions Fed speakers macro events SPX"
+        ),
+    )
+
+    results["economic_calendar"] = cal
+    results["gap_movers"] = movers
+    results["catalyst_news"] = news
+    return results
+
+
+@app.post("/morning-brief")
+async def morning_brief(request: ChatRequest, _user_id: str = Depends(get_current_user)):
+    """Generate a structured morning brief using live market + MAG7 watchlist data."""
+
+    async def _fetch_market():
+        return await asyncio.to_thread(get_market_summary, request.atr)
+
+    async def _fetch_watchlist():
+        from analyzer import get_watchlist_data
+        _eligible = {"NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL", "QQQ", "SPY"}
+        tickers = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL", "SPY", "QQQ"]
+        results = await asyncio.gather(
+            *[asyncio.to_thread(get_watchlist_data, t, _eligible) for t in tickers]
+        )
+        return results
+
+    market, watchlist_results, news_data = await asyncio.gather(
+        _fetch_market(), _fetch_watchlist(), _fetch_market_news()
+    )
+
+    spx   = market.get("spx", {})
+    vix   = market.get("vix", {})
+    atr_l = market.get("atr_levels", {})
+    trin  = INTERNALS_CACHE.get("trin")
+    add_v = INTERNALS_CACHE.get("add")
+    vold  = INTERNALS_CACHE.get("vold")
+    pcc   = INTERNALS_CACHE.get("pcc")
+
+    watch_lines = []
+    spy_state = "N/A"
+    qqq_state = "N/A"
+    for r in watchlist_results:
+        t      = r.get("ticker", "")
+        ribbon = r.get("ribbon_state", "MIXED")
+        comp   = "●" if r.get("compression") else " "
+        chg    = f"{r.get('change_pct', 0):+.2f}%" if r.get("change_pct") is not None else "N/A"
+        po     = r.get("po_value") or 0
+        po_zone = ("accumulation" if po < -61.8 else
+                   "distribution" if po > 61.8 else
+                   "neutral")
+        if t == "SPY":
+            spy_state = ribbon
+        elif t == "QQQ":
+            qqq_state = ribbon
+        else:
+            watch_lines.append(
+                f"{t:<6} {ribbon:<8} {comp}  {chg:<8} PO:{po:.0f} ({po_zone})"
+            )
+
+    now_et = datetime.now(ZoneInfo("America/New_York"))
+
+    context = f"""MORNING BRIEF DATA — {now_et.strftime('%A %B %d, %Y %H:%M ET')}
+
+SPX MARKET DATA:
+  Current: {spx.get('last') or spx.get('close')}
+  PDC:     {atr_l.get('PDC')}
+  VIX:     {vix.get('vix')} (High: {vix.get('vix_high')}  Low: {vix.get('vix_low')})
+  ATR:     {atr_l.get('ATR')} pts
+
+SPX ATR LEVELS:
+  Call Trigger (0.236): {atr_l.get('call_trigger')}
+  Put Trigger  (0.236): {atr_l.get('put_trigger')}
+  GG Open Call (0.382): {atr_l.get('gg_open_call')}
+  GG Open Put  (0.382): {atr_l.get('gg_open_put')}
+
+MARKET INTERNALS:
+  TRIN: {trin or 'N/A'}
+  ADD:  {add_v or 'N/A'}
+  VOLD: {vold or 'N/A'}
+  PCC:  {pcc or 'N/A'}
+
+SPY ribbon: {spy_state}
+QQQ ribbon: {qqq_state}
+
+MAG 7 + CONTEXT:
+{chr(10).join(watch_lines)}
+"""
+
+    all_empty = not any([news_data["economic_calendar"], news_data["gap_movers"], news_data["catalyst_news"]])
+    if all_empty:
+        news_block = "\n─────────────────────────────────────────\nNEWS DATA: unavailable — proceeding with market data only\n─────────────────────────────────────────\n"
+    else:
+        news_block = f"""
+─────────────────────────────────────────
+MARKET NEWS CONTEXT (web search results)
+─────────────────────────────────────────
+
+ECONOMIC CALENDAR TODAY:
+{news_data['economic_calendar'] or 'unavailable'}
+
+PRE-MARKET MOVERS (Gap Ups/Downs):
+{news_data['gap_movers'] or 'unavailable'}
+
+CATALYST NEWS:
+{news_data['catalyst_news'] or 'unavailable'}
+─────────────────────────────────────────
+"""
+    context += news_block
+
+    def _run() -> str:
+        r = with_retry(lambda: client.messages.create(
+            model=SONNET,
+            max_tokens=2048,
+            system=_MORNING_BRIEF_SYSTEM,
+            messages=[{"role": "user", "content": context}],
+        ))
+        return r.content[0].text
+
+    brief = await asyncio.to_thread(_run)
+    return {"morning_brief": brief, "generated_at": now_et.isoformat()}
+
+
 @app.post("/refresh-context")
 async def refresh_context(request: RefreshRequest, user_id: str = Depends(get_current_user)):
     """Fetch fresh context from Google Doc and clear session."""
@@ -909,6 +1065,157 @@ EARNINGS NOTE: flag upcoming earnings and how to manage around it (reduce size, 
 
 Be direct. No hedging. If it's at all-time highs with a stretched valuation, say WAIT. If it's a strong setup, say BUY and give the exact zone."""
 
+_QUICK_READ_SYSTEM = """You are a 0DTE options desk assistant for the Saty Mahajan system.
+Given real market data, produce a fast pre-trade brief.
+
+Output EXACTLY this format — no extra text, no markdown headers with #:
+
+BIAS: [BULL / BEAR / WAIT] — one sentence why
+
+BULL ABOVE: $[call_trigger]  ([label e.g. Call Trigger])
+  Entry: [nearest round strike]C @ est $[premium 1-4]
+  T1: $[gg_open_call] (GG Open) → +[pts]pts
+  T2: $[next level above] (GG Complete)
+  Stop: Below $[call_trigger]
+
+BEAR BELOW: $[put_trigger]  ([label e.g. Put Trigger])
+  Entry: [nearest round strike]P @ est $[premium 1-4]
+  T1: $[gg_open_put] (GG Open) → +[pts]pts
+  T2: $[next level below] (GG Complete)
+  Stop: Above $[put_trigger]
+
+IV NOTE: [one line — use compression and PO context to assess IV environment]
+PREMIUM: $[range] per contract — [naked / spread recommended]
+
+Rules:
+- Strike = nearest $1 increment to trigger level for stocks, $5 for ETFs
+- Premium estimate: ATR-based — for stocks use ATR × 0.15 to 0.25 as rough estimate
+- If compression=true → note breakout imminent, direction unclear until trigger breaks
+- If po_value < -61.8 → accumulation zone, calls riskier
+- If po_value > 61.8 → distribution zone, puts riskier
+- WAIT bias only if ribbon=MIXED and compression=true
+- Be direct. No padding. Traders read this in 10 seconds."""
+
+_MORNING_BRIEF_SYSTEM = """You are the OpenTheDesk morning intelligence engine.
+You receive live market data and news search results every morning.
+Produce a complete morning brief in this exact format.
+
+Output EXACTLY this structure — use the emoji headers as shown:
+
+📈 MARKET TONE
+[2-3 sentences on overall market mood. Use SPX gap vs PDC,
+VIX level, Mag7 alignment, and any major overnight news.
+Be specific — mention actual price levels and percentages.]
+
+📊 MORNING BIAS
+[What to watch today. Key setup conditions. Any macro events
+that change the trading approach. One paragraph, direct.]
+
+📈 GAP UPS (from news data — top 5 most relevant to SPX/tech)
+$TICKER +X% — one line reason
+[If no data: "No significant gap ups found"]
+
+📉 GAP DOWNS (from news data — top 5 most relevant)
+$TICKER -X% — one line reason
+[If no data: "No significant gap downs found"]
+
+📅 US ECONOMIC CALENDAR
+[List only HIGH and MEDIUM impact events with time ET]
+HH:MM ET [HIGH] Event Name · Prior: X | Forecast: Y
+[If none: "No high-impact events scheduled today"]
+
+⚠️ VOLATILITY FLAGS
+[List any events that change 0DTE risk posture:]
+- FOMC today → EXTREME risk, no 0DTE
+- CPI/PPI/NFP today → HIGH risk, wait 15 min post-release
+- Fed speaker → MODERATE, size down
+- NFP tomorrow → elevated IV today
+- Earnings in Mag7 today/AH → note for context
+[If none: "No major volatility events today"]
+
+🔥 CATALYST NEWS
+[3-5 bullet points of market-moving news relevant to trading]
+- [catalyst]
+- [catalyst]
+
+─────────────────────────────────────────────────────────
+MARKET BIAS: [BULLISH / BEARISH / MIXED / NO TRADE]
+Conviction: [HIGH / MEDIUM / LOW] — [one sentence]
+
+SIGNAL SCORECARD:
+SPX vs PDC:  [BULL/BEAR] — [price vs PDC]
+VIX:         [BULL/BEAR] — [value]
+TRIN:        [BULL/BEAR/N/A] — [value]
+ADD:         [BULL/BEAR/N/A] — [value]
+SPY ribbon:  [BULL/BEAR/MIXED]
+QQQ ribbon:  [BULL/BEAR/MIXED]
+BULL signals: X | BEAR signals: Y
+
+─────────────────────────────────────────────────────────
+MAG 7 ALIGNMENT
+NVDA  [ribbon]  [● if compression]  [chg%]  [note]
+TSLA  ...
+META  ...
+AMZN  ...
+AAPL  ...
+MSFT  ...
+GOOGL ...
+Alignment: X/7 BULL, Y/7 BEAR, Z/7 MIXED
+
+─────────────────────────────────────────────────────────
+TODAY'S PLAN
+PRIMARY INSTRUMENT: [SPX 0DTE / ticker / NO TRADE]
+Reason: [one sentence]
+
+DIRECTION: [CALLS on reclaim / PUTS on breakdown / WAIT / NO TRADE]
+
+SPX KEY LEVELS:
+  Bull above: $[call_trigger] (Call Trigger)
+  Bear below: $[put_trigger] (Put Trigger)
+  No trade zone: $[put_trigger] – $[call_trigger]
+
+SESSION RULES:
+  • Morning window only: 9:40–11:00 ET
+  • Max 2 trades | Max loss $150
+  • Grade A/A+ only
+  • No trades after 12pm ET
+  [Add any event-specific rules, e.g. "No trades before 8:45 ET — Jobless Claims"]
+
+RISK LEVEL: [LOW / MODERATE / HIGH / EXTREME]
+Reason: [one sentence]
+─────────────────────────────────────────────────────────
+
+Scoring rules:
+BULL signals: SPX > PDC, VIX < 18, TRIN < 0.8, ADD > +200, SPY BULLISH, QQQ BULLISH
+BEAR signals: SPX < PDC, VIX > 22, TRIN > 1.2, ADD < -200, SPY BEARISH, QQQ BEARISH
+MIXED counts as neither.
+
+BIAS:
+- 5-6 BULL → BULLISH HIGH
+- 4 BULL → BULLISH MEDIUM
+- 3/3 split → MIXED
+- 4 BEAR → BEARISH MEDIUM
+- 5-6 BEAR → BEARISH HIGH
+- VIX > 35 or all mixed → NO TRADE
+
+PRIMARY INSTRUMENT:
+- SPX 0DTE when: bias clear + VIX 15-28
+- Mag7 when: individual ticker A+ setup + SPX bias confirms
+- NO TRADE when: VIX > 35, divergence day, or <3 clear signals
+
+HARD RULES — always apply these regardless of other signals:
+- If FOMC rate decision is today → RISK: EXTREME, recommend NO 0DTE trades
+- If CPI, PPI, PCE, or NFP is today → RISK: HIGH minimum,
+  add "No trades before [release time + 15 min]" to session rules
+- If NFP is tomorrow (Friday) → note elevated IV today, size down
+- If a Mag7 name has earnings today → note in Mag7 Watch
+- If VIX > 30 → RISK: HIGH minimum regardless of other signals
+- If VIX > 40 → RISK: EXTREME, recommend NO 0DTE trades
+- Internals N/A is acceptable — never fail the brief because of missing data
+- If news data says "unavailable" → skip that section gracefully
+
+Be direct. No padding. This is read in 60 seconds before market open."""
+
 
 def _fmt_options_context(oc: dict | None) -> str:
     """Format real options chain dict into a structured string for Haiku."""
@@ -937,10 +1244,31 @@ _US_WATCHLIST = ["AAPL", "NVDA", "TSLA", "MSFT",
 _IN_WATCHLIST = ["RELIANCE.NS", "INFY.NS",
                  "TCS.NS", "HDFCBANK.NS", "ICICIBANK.NS"]
 
+_ZERO_DTE_ELIGIBLE = {
+    "NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL",
+    "QQQ", "SPY", "XLK", "XLF", "SMH",
+}
+_MAG7               = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL"]
+_CONTEXT_INSTRUMENTS = ["QQQ", "SPY", "XLK", "XLF", "SMH"]
+
 
 class AnalyzeRequest(BaseModel):
     ticker: str
     trading_mode: str = "day"   # day | multiday | swing | position
+
+
+class QuickAnalyzeRequest(BaseModel):
+    ticker: str
+    price: float
+    ribbon_state: str
+    compression: bool
+    po_value: float
+    call_trigger: float
+    put_trigger: float
+    gg_open_call: float
+    gg_open_put: float
+    atr_14: float
+    change_pct: float
 
 
 @app.post("/analyze")
@@ -984,6 +1312,37 @@ async def analyze(request: AnalyzeRequest):
     }
 
 
+@app.post("/quick-analyze")
+async def quick_analyze(request: QuickAnalyzeRequest):
+    """Fast 0DTE pre-trade brief via Haiku — no yfinance call, uses watchlist data."""
+    prompt = (
+        f"Ticker: {request.ticker}\n"
+        f"Price: ${request.price}\n"
+        f"Change: {request.change_pct:+.2f}%\n"
+        f"Ribbon: {request.ribbon_state}\n"
+        f"Compression: {request.compression}\n"
+        f"Phase Oscillator: {request.po_value:.1f}\n"
+        f"Call Trigger (0.236 ATR): ${request.call_trigger:.2f}\n"
+        f"Put Trigger (0.236 ATR): ${request.put_trigger:.2f}\n"
+        f"GG Open Call (0.382 ATR): ${request.gg_open_call:.2f}\n"
+        f"GG Open Put (0.382 ATR): ${request.gg_open_put:.2f}\n"
+        f"ATR-14: {request.atr_14:.2f}\n\n"
+        f"Generate the quick read brief."
+    )
+
+    def _run() -> str:
+        r = with_retry(lambda: client.messages.create(
+            model=HAIKU,
+            max_tokens=512,
+            system=_QUICK_READ_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        ))
+        return r.content[0].text
+
+    text = await asyncio.to_thread(_run)
+    return {"ticker": request.ticker, "quick_read": text}
+
+
 @app.get("/screener")
 async def screener():
     """Run get_ticker_analysis on the full watchlist in parallel, filter non-MIXED."""
@@ -1018,7 +1377,30 @@ async def screener():
     return {
         "us_setups":    us_setups,
         "india_setups": in_setups,
-        "generated_at": datetime.utcnow().isoformat() + "Z",
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/watchlist")
+async def watchlist():
+    """Ribbon state + ATR levels + eligibility for Mag7 and context instruments."""
+    all_tickers = _MAG7 + _CONTEXT_INSTRUMENTS
+    results = await asyncio.gather(
+        *[asyncio.to_thread(get_watchlist_data, t, _ZERO_DTE_ELIGIBLE)
+          for t in all_tickers]
+    )
+
+    def _sort_key(r: dict) -> tuple:
+        order = {"BULLISH": 0, "BEARISH": 1, "MIXED": 2}
+        return (order.get(r.get("ribbon_state", "MIXED"), 2), -abs(r.get("change_pct") or 0))
+
+    mag7_results     = sorted([r for r in results if r["ticker"] in _MAG7], key=_sort_key)
+    context_results  = sorted([r for r in results if r["ticker"] in _CONTEXT_INSTRUMENTS], key=_sort_key)
+
+    return {
+        "mag7":         mag7_results,
+        "context":      context_results,
+        "generated_at": datetime.now(timezone.utc).isoformat(),
     }
 
 

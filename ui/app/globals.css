@@ -604,6 +604,190 @@ body {
   background: #f1f5f9;
 }
 
+/* ── Full analysis result card ───────────────────── */
+.result-card {
+  background: #0a0e17;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 0 0 1px rgba(255,255,255,0.03),
+              0 24px 48px rgba(0, 0, 0, 0.4);
+  margin-bottom: 36px;
+}
+
+.result-header {
+  background: linear-gradient(135deg, #0d1320 0%, #0f1829 100%);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  padding: 20px 24px 16px;
+}
+
+.result-levels {
+  background: #0d1117;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 12px 24px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.result-panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0;
+}
+
+.result-panel {
+  padding: 24px;
+  position: relative;
+}
+
+.result-panel:first-child {
+  border-right: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.result-panel-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.result-panel-badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.result-fundamentals {
+  background: #0d1117;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding: 14px 24px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: center;
+}
+
+.result-ema-strip {
+  background: #080b12;
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+  padding: 10px 24px;
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+
+@media (max-width: 768px) {
+  .result-panels {
+    grid-template-columns: 1fr;
+  }
+  .result-panel:first-child {
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  }
+}
+
+.watchlist-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
+/* ── Glassmorphism card ───────────────────────────── */
+.glass-card {
+  background: rgba(13, 17, 23, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.glass-card:hover {
+  transform: translateY(-2px);
+}
+
+.glow-bull {
+  box-shadow:
+    0 0 0 1px rgba(74, 222, 128, 0.15),
+    0 4px 24px rgba(74, 222, 128, 0.08);
+}
+.glow-bull:hover {
+  box-shadow:
+    0 0 0 1px rgba(74, 222, 128, 0.3),
+    0 8px 32px rgba(74, 222, 128, 0.15);
+}
+.glow-bear {
+  box-shadow:
+    0 0 0 1px rgba(248, 113, 113, 0.15),
+    0 4px 24px rgba(248, 113, 113, 0.08);
+}
+.glow-bear:hover {
+  box-shadow:
+    0 0 0 1px rgba(248, 113, 113, 0.3),
+    0 8px 32px rgba(248, 113, 113, 0.15);
+}
+.glow-mixed {
+  box-shadow:
+    0 0 0 1px rgba(100, 116, 139, 0.1),
+    0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+@keyframes ring-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(249, 115, 22, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+  }
+}
+.compression-ring {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #f97316;
+  animation: ring-pulse 1.5s ease-out infinite;
+  flex-shrink: 0;
+}
+
+.card-expand {
+  overflow: hidden;
+  max-height: 0;
+  transition:
+    max-height 0.3s ease-out,
+    opacity 0.25s ease;
+  opacity: 0;
+}
+.card-expand.open {
+  max-height: 600px;
+  opacity: 1;
+}
+
+.shimmer-line {
+  background: linear-gradient(90deg, #1e293b 25%, #2d3f55 50%, #1e293b 75%);
+  background-size: 800px 100%;
+  animation: shimmer 1.4s infinite linear;
+  border-radius: 4px;
+}
+
+.po-bar-fill-bull {
+  background: linear-gradient(90deg, #22d3ee, #4ade80);
+}
+.po-bar-fill-bear {
+  background: linear-gradient(90deg, #f87171, #fb923c);
+}
+
 /* ── Bottom nav (mobile only) ─────────────────────── */
 .bottom-nav {
   display: none;
@@ -639,6 +823,14 @@ body {
 .bnav-icon {
   font-size: 18px;
   line-height: 1;
+}
+
+/* ── Watchlist grid — tablet (2 cols) ─────────────── */
+@media (max-width: 1024px) {
+  .watchlist-grid {
+    grid-template-columns: repeat(2, 1fr);
+    align-items: start;
+  }
 }
 
 /* ── Responsive — mobile ──────────────────────────── */
@@ -768,6 +960,10 @@ body {
   }
   .analyzer-panels {
     grid-template-columns: 1fr;
+  }
+  .watchlist-grid {
+    grid-template-columns: 1fr;
+    align-items: start;
   }
 
   /*

@@ -1,31 +1,53 @@
 "use client";
+import { useState, useEffect } from "react";
 
 interface QuickActionsProps {
   onSend: (msg: string) => void;
   loading: boolean;
   onOpenPalette: () => void;
+  deskOpen?: boolean;
+  canOpenDesk?: boolean;
 }
 
-const PILLS = [
-  { label: "Open the Desk", cmd: "Open the Desk", bg: "#16a34a", color: "white",   border: "#15803d"  },
-  { label: "PTR-FAST",      cmd: "PTR-FAST",      bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe"  },
-  { label: "PREMARKET",     cmd: "PREMARKET",      bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff"  },
+const CLOSED_PILLS = [
+  { label: "☀ Morning Brief", cmd: "MORNING BRIEF", bg: "#1e3a5f", color: "#93c5fd", border: "#2d5a8e" },
+  { label: "Open the Desk",   cmd: "Open the Desk", bg: "#16a34a", color: "white",   border: "#15803d" },
 ] as const;
 
-export default function QuickActions({ onSend, loading, onOpenPalette }: QuickActionsProps) {
+const OPEN_PILLS = [
+  { label: "PTR-FAST",  cmd: "PTR-FAST",  bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
+  { label: "PREMARKET", cmd: "PREMARKET", bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff" },
+] as const;
+
+export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen = false, canOpenDesk = true }: QuickActionsProps) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const pills = (mounted && deskOpen) ? OPEN_PILLS : CLOSED_PILLS;
   return (
-    <div className="quick-actions">
-      {PILLS.map((p) => (
-        <button
-          key={p.cmd}
-          className="qa-pill"
-          disabled={loading}
-          onClick={() => onSend(p.cmd)}
-          style={{ background: p.bg, color: p.color, borderColor: p.border }}
-        >
-          {p.label}
-        </button>
-      ))}
+    <div className="quick-actions" suppressHydrationWarning>
+      {pills.map((p) => {
+        const isOpenDesk = p.cmd === "Open the Desk";
+        const locked = isOpenDesk && !canOpenDesk;
+        return (
+          <button
+            key={p.cmd}
+            className="qa-pill"
+            disabled={loading || locked}
+            title={locked ? "Market is closed" : undefined}
+            onClick={() => onSend(p.cmd)}
+            style={{
+              background: p.bg,
+              color: p.color,
+              borderColor: p.border,
+              opacity: locked ? 0.4 : 1,
+              cursor: (loading || locked) ? "not-allowed" : "pointer",
+            }}
+          >
+            {p.label}
+          </button>
+        );
+      })}
       <button
         className="qa-pill"
         onClick={onOpenPalette}
