@@ -19,6 +19,7 @@ interface ChatPanelProps {
   onMorningBrief?: () => void;
   onOpenDesk?: () => void;
   firstName?: string;
+  briefLoading?: boolean;
   canOpenDesk?: boolean;
   marketStatusLabel?: string;
 }
@@ -59,6 +60,7 @@ export default function ChatPanel({
   onMorningBrief,
   onOpenDesk,
   firstName = "Satya",
+  briefLoading = false,
   canOpenDesk = true,
   marketStatusLabel = "Market Closed",
 }: ChatPanelProps) {
@@ -167,18 +169,18 @@ export default function ChatPanel({
             <div style={{ display: "flex", flexDirection: "column", gap: 10, alignItems: "center" }}>
               <button
                 onClick={onMorningBrief ?? (() => onSend("MORNING BRIEF"))}
-                disabled={loading}
+                disabled={briefLoading || loading}
                 style={{
                   padding: "12px 32px", borderRadius: 10,
                   background: "linear-gradient(135deg, #1d4ed8, #7e22ce)",
                   color: "white", border: "none",
-                  cursor: loading ? "not-allowed" : "pointer",
+                  cursor: (briefLoading || loading) ? "not-allowed" : "pointer",
                   fontSize: 14, fontWeight: 700,
                   boxShadow: "0 4px 20px rgba(29,78,216,0.25)",
-                  opacity: loading ? 0.7 : 1,
+                  opacity: (briefLoading || loading) ? 0.7 : 1,
                 }}
               >
-                🌅 Morning Brief
+                {briefLoading ? "⏳ Preparing Brief..." : "🌅 Morning Brief"}
               </button>
               <button
                 onClick={onOpenDesk ?? (() => onSend("Open the Desk"))}
@@ -233,7 +235,7 @@ export default function ChatPanel({
       </div>
 
       {/* Quick Actions */}
-      <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} deskOpen={deskOpen} canOpenDesk={canOpenDesk} />
+      <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} deskOpen={deskOpen} canOpenDesk={canOpenDesk} briefLoading={briefLoading} />
 
       {/* Input */}
       <div

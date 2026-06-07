@@ -1,5 +1,5 @@
 # OpenTheDesk — Architecture & Engineering Reference
-**Last updated: June 5, 2026 — evening session**
+**Last updated: June 7, 2026 — evening session**
 
 This document is the single source of truth for OpenTheDesk. Any Claude session working on this project must read this before touching any code.
 
@@ -23,6 +23,7 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 |---------|--------|
 | 0DTE Desk — chat, all commands, PREMARKET, chart vision | ✅ Live |
 | Analyzer — real options chain, greeks, dual Claude verdicts | ✅ Live |
+| Analyzer — dark terminal theme redesign | ✅ Live |
 | Screener — 15 tickers parallel, ribbon filter | ✅ Live |
 | Auth (Clerk), observability (LangSmith) | ✅ Live |
 | Reliability — retry backoff, keep-alive, timeouts | ✅ Live |
@@ -42,13 +43,21 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 | Market internals rule — context not gate (never blocks trades) | ✅ Live |
 | Target levels rule — flags when within 1pt of T1/T2/T3 | ✅ Live |
 | Unusual Whales — manual text input v1 | ✅ Live |
-| Journal UI — /journal page with 3 charts, trade table | ✅ Built (in-memory) |
+| Journal UI — /journal page with 3 charts, trade table | ✅ Live |
 | Journal persistence — Supabase trade_journal | ✅ Live |
 | Alert persistence — Supabase tv_alerts | ✅ Live |
 | Session persistence — Supabase user_sessions | ✅ Live |
 | Clerk JWT middleware — user_id from verified token | ✅ Live |
 | Chat → journal entry (natural language logging) | ✅ Live |
-| Agent (LangGraph, tool use, morning brief) | 🔲 Planned |
+| 0DTE Watchlist — Mag7 + SPY/QQQ/XLK/XLF/SMH, ribbon + ATR levels | ✅ Live |
+| Quick Read — card expand, Haiku 0DTE brief, Bull Above / Bear Below | ✅ Live |
+| Morning Brief — full bias engine, Mag7, news, economic calendar | ✅ Live |
+| Desk state machine — Open/Closed with localStorage persistence | ✅ Live |
+| Market hours enforcement — desk locked outside 9:30–16:00 ET weekdays | ✅ Live |
+| Auto-close desk at 16:15 ET | ✅ Live |
+| User-specific greeting — Clerk firstName, time-aware | ✅ Live |
+| Agent (LangGraph, tool use) | 🔲 Planned |
+| Alert card → journal (Took This Trade button) | 🔲 Next |
 | Unusual Whales API v2 — auto-fetch live flow data | 🔲 Planned |
 | RAG knowledge base — Voyage AI + pgvector for Saty playbook | 🔲 Planned |
 | Earnings scanner | 🔲 Planned |
@@ -79,20 +88,20 @@ openthedesk/
 │   ├── openthedesk_atr_clean.pine         # ATR Levels v3.1 Clean Extended (full ladder)
 │   └── otd_internals_heartbeat.pine       # OTD Internals Heartbeat v2.2
 └── ui/
-    ├── src/app/
-    │   ├── page.tsx              # 0DTE Desk
-    │   ├── analyzer/page.tsx     # Analyzer (/analyzer)
+    ├── app/
+    │   ├── page.tsx              # 0DTE Desk — desk state machine, morning brief, chat
+    │   ├── analyzer/page.tsx     # Analyzer — watchlist, quick read, full analysis
     │   ├── journal/page.tsx      # Journal (/journal)
     │   ├── layout.tsx            # ClerkProvider + auth
-    │   └── globals.css           # Design tokens + shared styles
-    └── src/app/components/
-        ├── Header.tsx            # Nav + bell icon + alert drawer
+    │   └── globals.css           # Design tokens + shared styles + glassmorphism
+    └── app/components/
+        ├── Header.tsx            # Nav + desk open/closed indicator + session timer
         ├── AlertPanel.tsx        # useAlerts hook + AlertDrawer (SSE) + TradePlan card
         ├── InternalsWidget.tsx   # Live internals widget — polls /internals every 30s
         ├── LevelsPanel.tsx       # ATR levels + 0DTE options sidebar (mounts InternalsWidget)
-        ├── ChatPanel.tsx         # Main chat interface
+        ├── ChatPanel.tsx         # Main chat interface + empty state + morning brief wiring
         ├── CommandPalette.tsx    # / commands modal
-        ├── QuickActions.tsx      # Quick action buttons
+        ├── QuickActions.tsx      # Quick action buttons — state-aware (open vs closed)
         └── MobileSheet.tsx       # Mobile bottom sheet for levels
 ```
 
@@ -107,7 +116,7 @@ openthedesk/
 | Auth | Clerk | Google sign-in, single user (Satya) |
 | LLM | Anthropic API | claude-sonnet-4-6 + claude-haiku-4-5-20251001 |
 | Market data | Tradier | api.tradier.com/v1 (production brokerage) |
-| Fundamentals | yfinance | India stocks + supplemental |
+| Fundamentals | yfinance | Mag7 + context instruments + India stocks |
 | Trading rules | Google Doc | Fetched via context.py on startup |
 | Observability | LangSmith | wrap_anthropic() at startup |
 | Database | Supabase | https://xxxx.supabase.co — live, 3 tables |
@@ -119,7 +128,7 @@ TRADIER_TOKEN=           # Production brokerage token (Level 6 options)
 CLERK_SECRET_KEY=
 LANGSMITH_API_KEY=       # Optional — LangSmith tracing
 GOOGLE_DOC_URL=          # Public Google Doc with live trading rules
-TV_WEBHOOK_SECRET=       # TradingView webhook auth secret — ROTATE BEFORE LIVE
+TV_WEBHOOK_SECRET=       # TradingView webhook auth secret — ROTATED June 2026
 SUPABASE_URL=            # Live — Supabase project URL
 SUPABASE_SERVICE_KEY=    # Live — service role key (bypasses RLS, backend only)
 CLERK_JWT_ISSUER=        # Live — https://ready-elephant-42.clerk.accounts.dev
@@ -138,26 +147,54 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Supabase anon key (safe for frontend, RLS enf
 
 ## Backend — main.py
 
-### Pydantic models (remaining)
+### Pydantic models
 ```python
-ChatRequest:          message, session_id, atr (optional)
-RefreshRequest:       session_id
-AnalyzeRequest:       ticker, trading_mode (day|multiday|swing|position)
-JournalEntryPayload:  date, ticker, setup, direction,
-                      entry_price, exit_price, contracts,
-                      pnl (optional), grade, process_grade, notes (optional)
+ChatRequest:           message, session_id, atr (optional)
+RefreshRequest:        session_id
+AnalyzeRequest:        ticker, trading_mode (day|multiday|swing|position)
+QuickAnalyzeRequest:   ticker, price, ribbon_state, compression, po_value,
+                       call_trigger, put_trigger, gg_open_call, gg_open_put,
+                       atr_14, change_pct
+JournalEntryPayload:   date, ticker, setup, direction,
+                       entry_price, exit_price, contracts,
+                       pnl (optional), grade, process_grade, notes (optional)
 ```
 
 Note: TVAlertPayload and InternalsPayload Pydantic models were REMOVED.
 /webhook/tv now uses raw Request body parsing — handles any TV payload format.
 
+### Endpoints
+```
+GET  /health                  → status check
+GET  /ping                    → keep-alive probe
+GET  /me                      → auth probe
+POST /chat                    → main chat (Clerk JWT required)
+POST /analyze-chart           → chart vision — streaming
+GET  /market-data             → SPX + VIX + ATR + 0DTE options + flow
+POST /premarket               → PREMARKET command — streaming
+POST /refresh-context         → reload Google Doc + clear session
+DELETE /session/{id}          → clear chat history
+POST /analyze                 → ticker analysis — Haiku + Sonnet parallel
+GET  /screener                → ribbon screener — 15 tickers parallel
+GET  /watchlist               → Mag7 + context instruments watchlist
+POST /quick-analyze           → Haiku 0DTE quick read for watchlist card
+POST /morning-brief           → full morning brief — news + Mag7 + bias (Clerk JWT required)
+POST /webhook/tv              → TradingView unified webhook
+GET  /internals               → latest internals snapshot
+GET  /alerts                  → alert history (Supabase first, in-memory fallback)
+GET  /alerts/stream           → SSE stream — pushes alerts to frontend
+POST /journal/entry           → create journal entry (Clerk JWT required)
+GET  /journal/entries         → fetch journal entries (Clerk JWT required)
+GET  /journal/stats           → journal statistics (Clerk JWT required)
+```
+
 ### Global state
 ```python
 INTERNALS_CACHE: dict   # Latest internals snapshot from TV heartbeat (in-memory, intentional)
 TV_ALERTS: list[dict]   # In-memory cache only — source of truth is Supabase tv_alerts
-FLOW_CONTEXT: str        # Latest unusual flow — injected into /chat
-LIVE_CONTEXT: str        # Google Doc content — loaded at startup
-sessions: dict           # In-memory fallback only — source of truth is Supabase user_sessions
+FLOW_CONTEXT: str       # Latest unusual flow — injected into /chat
+LIVE_CONTEXT: str       # Google Doc content — loaded at startup
+sessions: dict          # In-memory fallback only — source of truth is Supabase user_sessions
 ```
 
 ### Supabase client
@@ -177,8 +214,10 @@ async def get_current_user(authorization: str = Header(...)) -> str:
     return user_id
 
 # Applied to: /chat, /refresh-context, DELETE /session,
-#             /journal/entry, /journal/entries, /journal/stats
+#             /journal/entry, /journal/entries, /journal/stats,
+#             /morning-brief
 # NOT applied to: /webhook/tv (TradingView has no user context)
+#                 /watchlist, /quick-analyze (no user context needed)
 ```
 
 ### Model routing
@@ -189,458 +228,286 @@ HAIKU  = "claude-haiku-4-5-20251001"
 _HAIKU_COMMANDS = {
     "PTR-FAST", "PTR-FULL", "GRADE", "PATTERN CHECK",
     "MARKET REGIME", "CAPITAL PROTECTION", "WIRE OUT",
-    "TRADE REVIEW", "EOD"
+    "TRADE REVIEW", "EOD",
 }
-# Everything else → Sonnet
+_LONG_COMMANDS = {
+    "PTR-FULL", "TRADE REVIEW", "EOD", "WEEKLY REVIEW",
+    "PREMARKET", "BLUNT FEEDBACK", "OPEN THE DESK", "MORNING BRIEF",
+}
+# max_tokens: long commands = 4096, others = 2048
+# /analyze: Haiku = 2048, Sonnet = 1536 — never lower
 ```
 
-### All endpoints
-
-#### GET /health
-`{"status": "ok", "context_loaded": bool}`
-
-#### GET /ping
-Keep-alive. Called by `_keep_alive()` every 10min on weekdays 9am–4pm ET.
-
-#### POST /chat
-Multi-turn conversation. Sessions stored in memory.
-- Injects LIVE_CONTEXT + FLOW_CONTEXT into system prompt
-- Routes to Haiku or Sonnet per command
-- Returns: `{reply, model, session_id, turns}`
-
-#### POST /analyze-chart
-Vision endpoint — image upload → chart analysis. Streams response.
-
-#### GET /market-data
-Live SPX + VIX + ATR levels + 0DTE options + unusual flow.
-
-#### POST /premarket
-PREMARKET command with live data injected. Streams Sonnet response.
-
-#### POST /refresh-context
-Fresh Google Doc fetch + clear session history.
-
-#### DELETE /session/{session_id}
-Clears conversation history.
-
-#### POST /analyze
-Dual Claude verdict on any ticker.
-- Haiku (short-term options) + Sonnet (long-term stock) in parallel
-- **max_tokens: Haiku=2048, Sonnet=1536 — do not lower**
-
-#### GET /screener
-15 tickers parallel, MIXED ribbon filtered, sorted by |change_pct|.
-
-#### POST /webhook/tv  ← REFACTORED June 2
-Unified webhook — handles all three TradingView feeds.
-- Auth: X-TV-Secret header OR secret body field (raw Request, no Pydantic)
-- Routes on `type=="internals"` or `signal=="INTERNALS"` → _handle_internals()
-- All other payloads → _handle_trade_alert()
-
-**_handle_internals(data):**
-- Updates INTERNALS_CACHE with trin/add/vold/pcc/**bias** + received_at + source
-- Does NOT broadcast to SSE — cache only, no alert drawer card
-- Does NOT insert into TV_ALERTS list
-- Returns: `{"status": "ok", "cached": INTERNALS_CACHE}`
-
-**_handle_trade_alert(data):**
-- Accepts Manual Planner v3.3.2 and ATR Clean backup payloads
-- Uses Pine-computed entry/t1/t2/t3/sl/trail_sl directly — no backend recalculation
-- Attaches INTERNALS_CACHE snapshot + internals_age_seconds to every alert
-- Generates trade_plan ONLY for signal=ENTRY + direction in (BULL, BEAR)
-- ATR_TARGET and ATR_STOP setups never generate trade_plan
-- Inserts into TV_ALERTS (max 50), broadcasts to SSE subscribers
-- Returns: `{"status": "received", "id": uuid}`
-
-**Alert object stored fields:**
+### Chat → journal intent detection
 ```python
-{
-    "id": uuid,
-    "ts": ISO timestamp,
-    "ticker": str,
-    "timeframe": str,
-    "condition": str,          # e.g. "VOMY BEAR", "T1 HIT", "REVERSAL EXIT", "RUNNER AFTER T3"
-    "price": str,
-    "signal": str,             # ENTRY / TARGET / TRAIL / STOP / EXIT
-    "display_type": str|None,  # "entry" | "update" | "stop" | null — frontend card accent hint
-    "setup": str,              # GG / VOMY / FLAG_INTO_RIBBON / BT / ORB_RETEST / ATR_TARGET / ATR_STOP
-    "grade": str,              # A+ / A
-    "direction": str,          # BULL / BEAR
-    "atr_level": str,
-    "entry": float,            # Pine-computed
-    "t1": float,               # Pine-computed
-    "t2": float,               # Pine-computed
-    "t3": float,               # Pine-computed
-    "sl": float,               # Pine-computed
-    "trail_sl": float,         # Pine-computed — updates on TRAIL signals
-    "internals": dict | None,  # INTERNALS_CACHE snapshot at alert time
-    "internals_age_seconds": int | None,
-    "trade_plan": dict | None  # Only on ENTRY alerts
-}
+# In /chat, before routing to Claude:
+# 1. _is_command_message() — skip if known command prefix
+# 2. _detect_journal_intent() — Haiku YES/NO, max_tokens=64
+# 3. _extract_journal_fields() — Haiku JSON extraction, max_tokens=512
+# 4. _save_journal_entry() — writes to Supabase + in-memory
+# Returns "Logged ✓ GG Bear · Entry 7390 · Exit 7378 · +$1,200 · TRIN 1.62"
 ```
 
-**trade_plan dict (ENTRY only):**
+### Morning Brief — /morning-brief
 ```python
-{
-    "entry": float,
-    "direction": str,
-    "t1": float, "t1_pts": float, "t1_label": "GG Open — Scale 50%",
-    "t2": float, "t2_pts": float, "t2_label": "GG Complete — Scale 25%",
-    "t3": float, "t3_pts": float, "t3_label": "Full Extension — Exit All",
-    "sl": float, "sl_pts": float,
-    "trail_sl": float
-}
+# Runs three parallel operations:
+# 1. get_market_summary() — SPX/VIX/ATR levels
+# 2. get_watchlist_data() × 9 tickers — Mag7 + SPY/QQQ (asyncio.gather)
+# 3. _fetch_market_news() — 3 parallel Haiku web searches:
+#    - Economic calendar today (HIGH/MED impact USD events)
+#    - Premarket gap ups/downs
+#    - Catalyst news
+
+# Output format (rose.trading style):
+# 📈 MARKET TONE
+# 📊 MORNING BIAS
+# 📈 GAP UPS / 📉 GAP DOWNS
+# 📅 US ECONOMIC CALENDAR
+# ⚠️ VOLATILITY FLAGS (FOMC/CPI/NFP rules hardcoded)
+# 🔥 CATALYST NEWS
+# MARKET BIAS scorecard (6 signals)
+# MAG 7 ALIGNMENT table
+# TODAY'S PLAN (instrument, direction, SPX levels)
+# RISK LEVEL
+
+# Hard rules in system prompt:
+# FOMC today → RISK: EXTREME, no 0DTE
+# CPI/PPI/NFP today → RISK: HIGH, wait 15 min post-release
+# VIX > 30 → RISK: HIGH minimum
+# VIX > 40 → RISK: EXTREME, no 0DTE
+# News unavailable → brief still generates from market data
 ```
 
-#### GET /alerts
-Stored TV_ALERTS. `?limit=` param (max 50).
+### 0DTE Watchlist — /watchlist
+```python
+_MAG7 = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL"]
+_CONTEXT_INSTRUMENTS = ["QQQ", "SPY", "XLK", "XLF", "SMH"]
+_ZERO_DTE_ELIGIBLE = {all above}  # static — daily options available
 
-#### GET /alerts/stream
-SSE — instant push on trade alerts. 1s heartbeat ping.
-Internals updates do NOT appear here (cache only).
-
-#### GET /internals
-Returns current INTERNALS_CACHE.
-
-#### POST /journal/entry
-Creates journal entry. Auto-calculates P&L if missing.
-
-#### GET /journal/entries
-Returns JOURNAL_ENTRIES list.
-
-#### GET /journal/stats
-Win rate, avg winner/loser, P&L by setup, equity curve.
-
----
-
-## TradingView Pine Scripts — 3 Scripts
-
-### Architecture decision
-- **Manual Planner v3.3.2** = source of truth for trade signals
-- **ATR Clean v3** = levels and context only
-- **Internals Heartbeat v2.2** = market internals data feed only
-
-Do not let ATR Clean or Internals Heartbeat create new trade ideas.
-
----
-
-### 1. Manual Planner v3.3.2 — Main alert source
-
-**File:** `pine/openthedesk_manual_planner.pine`
-
-**TradingView alert setup:**
-- Condition: `OpenTheDesk Manual Planner v3.3.2`
-- Alert type: `Any alert() function call`
-- Webhook: ON — `https://openthedesk-production.up.railway.app/webhook/tv`
-- Message: blank (Pine generates JSON dynamically)
-- Frequency: handled by `alert.freq_once_per_bar_close`
-
-**Setups detected:**
-- GG BULL / GG BEAR — 38.2% GG Open toward 61.8% GG Complete
-- FLAG INTO RIBBON BULL / BEAR — pullback into 13/21 EMA zone
-- iVOMY BULL — bearish ribbon transitions bullish, price reclaims ribbon, hold confirms
-- VOMY BEAR — bullish ribbon transitions bearish, price loses ribbon, rejection confirms
-- BT BULL / BEAR — call/put trigger backtest
-- ORB RETEST BULL / BEAR — 10m opening range break + retest
-
-**Signals sent:**
-- ENTRY — new setup with full trade plan
-- TARGET — T1 HIT, T2 HIT, T3 HIT
-- TRAIL — trailing SL updated; condition examples: "TRAILING SL UPDATED", "RUNNER AFTER T3"
-- STOP — stop hit; condition: "STOP HIT"
-- EXIT — bias invalidated or reversal exit; condition: "REVERSAL EXIT"
-
-**Example ENTRY payload:**
-```json
-{
-  "ticker": "SPX",
-  "timeframe": "3",
-  "condition": "VOMY BEAR",
-  "price": "7599.50",
-  "entry": "7599.50",
-  "t1": "7563.81",
-  "t2": "7553.76",
-  "t3": "7545.64",
-  "sl": "7608.25",
-  "trail_sl": "7585.52",
-  "atr_level": "put_trigger",
-  "setup": "VOMY",
-  "grade": "A+",
-  "direction": "BEAR",
-  "signal": "ENTRY",
-  "secret": "..."
-}
+# get_watchlist_data(ticker, zero_dte_eligible) in analyzer.py:
+# Returns: price, change_pct, ribbon_state, ema8/21/34, atr_14,
+#          call_trigger (0.236), put_trigger (0.236),
+#          gg_open_call (0.382), gg_open_put (0.382),
+#          compression (Bollinger), po_value, volume_ratio,
+#          sector, zero_dte_eligible, error
+# Sorted: BULLISH first → BEARISH → MIXED, within group by |change_pct|
 ```
 
-**Secret:** entered as Pine Script input `tvSecret` — never hardcoded.
-
----
-
-### 2. ATR Levels v3 Clean — Levels only
-
-**File:** `pine/openthedesk_atr_clean.pine`
-
-**Purpose:** ATR level lines, right-side labels, info table. No setup shapes.
-
-**Live settings:**
-- Show Target/Stop Shapes: OFF
-- Enable ATR Target/Stop Alerts: OFF
-- Show Right-Side Level Labels: ON
-- Show Info Table: ON
-
-**Optional backup alertconditions (OFF by default):**
-- 🎯 OTD ATR T1/T2/T3 [3m] — setup=ATR_TARGET, signal=TARGET
-- ⚠️ OTD ATR STOP [3m] — setup=ATR_STOP, signal=STOP
-
-Backend treats ATR_TARGET and ATR_STOP as backup context — never generates trade_plan.
-
----
-
-### 3. OTD Internals Heartbeat v2.2 — Market context
-
-**File:** `pine/otd_internals_heartbeat.pine`
-
-**TradingView alert setup:**
-- Condition: `OTD Internals Heartbeat v2.2`
-- Alert type: `Any alert() function call`
-- Webhook: ON — `https://openthedesk-production.up.railway.app/webhook/tv`
-- Message: blank (Pine generates JSON)
-
-**Symbols:** USI:TRIN · USI:ADD · USI:VOLD · USI:PCC
-
-**Payload:**
-```json
-{
-  "type": "internals",
-  "signal": "INTERNALS",
-  "ticker": "SPX",
-  "timeframe": "3",
-  "trin": 0.82,
-  "add": 1200,
-  "vold": 150000000,
-  "pcc": 0.72,
-  "bias": "BULLISH",
-  "secret": "..."
-}
+### Quick Read — /quick-analyze
+```python
+# POST — accepts watchlist ticker data
+# Haiku, max_tokens=512
+# Returns structured 0DTE brief:
+# BIAS: BULL/BEAR/WAIT
+# BULL ABOVE: $trigger (label)
+#   Entry: strike @ est premium
+#   T1/T2/Stop
+# BEAR BELOW: $trigger (label)
+#   Entry: strike @ est premium
+#   T1/T2/Stop
+# IV NOTE + PREMIUM recommendation
 ```
 
-**Backend behavior:**
-- Updates INTERNALS_CACHE silently — no alert card, no SSE broadcast
-- Stores trin/add/vold/pcc/**bias**/received_at/source
-- Internals attach to next trade alert automatically via snapshot
-
-**Secret:** entered as Pine Script input `tvSecret`.
-
 ---
 
-## Alert Card System (AlertPanel.tsx)
+## Frontend — Desk (ui/app/page.tsx)
 
-### TVAlert interface
+### Desk state machine
 ```typescript
-interface TVAlert {
-  id: string;
-  ts: string;
-  ticker: string;
-  timeframe: string;
-  condition: string;
-  price: string;
-  atr_level: string;
-  setup?: string;
-  grade?: string;
-  direction?: string;
-  signal?: string;          // ENTRY / TARGET / TRAIL / STOP / EXIT
-  display_type?: string | null; // "entry" | "update" | "stop" | null — card accent hint
-  type?: string;            // "internals" — filtered out of drawer
-  trail_sl?: number | null;
-  internals?: {
-    trin: number | null;
-    add: number | null;
-    vold: number | null;
-    pcc: number | null;
-    received_at: string;
-    source?: string;
-  } | null;
-  internals_age_seconds?: number | null;
-  trade_plan?: {
-    entry: number;
-    direction: string;
-    t1: number | null; t1_pts: number | null; t1_label: string;
-    t2: number | null; t2_pts: number | null; t2_label: string;
-    t3: number | null; t3_pts: number | null; t3_label: string;
-    sl: number; sl_pts: number; trail_sl?: number | null;
-  };
-}
+// States: CLOSED → OPEN → CLOSED
+// Persisted in localStorage:
+//   otd_desk_open: "true" | "false"
+//   otd_desk_open_time: ISO string
+
+// Auto-close: >12 hours old on load → reset to CLOSED
+// Auto-close: 16:15 ET weekdays → EOD runs automatically
+
+// Market hours gate:
+getMarketStatus() → "weekend" | "premarket_early" | "premarket" | "open" | "closed"
+canOpenDesk = marketStatus === "open"  // 9:30–16:00 ET weekdays only
+
+// openDesk():
+//   1. setDeskOpen(true) + localStorage
+//   2. sendMessage("Open the Desk") → session opener streams
+
+// closeDesk():
+//   1. setDeskOpen(false) + clear localStorage
+//   2. sendMessage("EOD") → EOD runs automatically
 ```
 
-### SSE guard (critical)
+### Morning Brief flow
 ```typescript
-es.onmessage = (e) => {
-  if (e.data === "ping") return;
-  try {
-    const alert: TVAlert = JSON.parse(e.data);
-    if (alert.type === "internals") return;  // filter internals from drawer
-    setAlerts(prev => {
-      if (prev.some(a => a.id === alert.id)) return prev;
-      return [alert, ...prev];
-    });
-  } catch {}
-};
+// runMorningBrief():
+//   1. setBriefLoading(true) → button shows "⏳ Preparing Brief..."
+//   2. POST /morning-brief with Clerk token
+//   3. setMessages([...prev, { role: "assistant", content: data.morning_brief }])
+//   4. setBriefLoading(false)
+// Available even when desk is CLOSED — pre-session prep
 ```
 
-### Visual rules
+### Greeting
+```typescript
+const { user } = useUser();  // Clerk hook
+const firstName = user?.firstName
+  ? user.firstName.charAt(0).toUpperCase() + user.firstName.slice(1)
+  : "Satya";
+
+getGreeting() → "Good morning" | "Good afternoon" | "Good evening"
+// Based on ET hour: <12 morning, <17 afternoon, else evening
 ```
-Accent bar: 4px alignSelf:stretch
-  BEAR/STOP → #ef4444  |  BULL → #22c55e  |  TARGET → #475569  |  Other → #334155
 
-Setup badge:
-  BEAR: bg #3d0f0f · text #f87171 · border #7f1d1d
-  BULL: bg #0f2d1a · text #4ade80 · border #14532d
-  Other: bg #1e293b · text #94a3b8 · border #334155
+### QuickActions — state-aware
+```
+DESK CLOSED: [🌅 Morning Brief] [Open the Desk — disabled if market closed]
+DESK OPEN:   [PTR-FAST] [PREMARKET] [/ Commands] [Close Desk]
+```
 
-Grade: A+ → blue  |  A → transparent/gray
+### Hydration fix
+```typescript
+// Both Header.tsx and QuickActions.tsx use:
+const [mounted, setMounted] = useState(false);
+useEffect(() => { setMounted(true); }, []);
 
-Trade Plan (unread ENTRY alerts only):
-  ENTRY gray | T1/T2 green | T3 yellow | SL red | points shown
-
-Internals row (unread alerts with internals snapshot):
-  TRIN: <1.0 green | >1.2 red | else gray
-  ADD: >+200 green | <-200 red | else gray
-  VOLD: positive green | negative red (shown in billions e.g. +0.15B)
-  Age: right-aligned, "Xs ago" or "Xm ago"
-
-Unread: full card + tinted bg + trade plan + internals
-Read: compact single line
-
-display_type → card accent mapping (when frontend consumes it):
-  "stop"  → red border (#ef4444) — REVERSAL EXIT, STOP HIT
-  "entry" → bull/bear color per direction — ENTRY signals
-  "update"→ gray — TRAIL, TARGET signals
-  null    → default gray
+// All deskOpen-dependent rendering uses (mounted && deskOpen)
+// suppressHydrationWarning on affected elements
+// Prevents SSR/client mismatch on localStorage-based state
 ```
 
 ---
 
-## InternalsWidget (InternalsWidget.tsx)
+## Frontend — Analyzer (ui/app/analyzer/page.tsx)
 
-Self-polling sidebar widget — always visible in LevelsPanel above ATR levels.
-
+### WatchlistPanel
+```typescript
+// Fetches GET /watchlist on mount
+// Two sections: "Mag 7" and "Market Context"
+// TickerCard — glassmorphism, ribbon glow, compression ring
+// Click card → expands inline (card-expand CSS animation)
+// Quick Read loads from /quick-analyze on first expand
+// Cached per ticker — no re-fetch on re-expand
+// "Full Analysis →" button → triggers existing analyze() flow
+// Only one card expanded at a time
 ```
-Poll: GET /internals every 30s
-Age tick: every 10s (no extra fetch)
 
-States:
-  No data / age >5m  → "Internals Offline" (gray dot)
-  Age 3–5m           → amber border warning (missed heartbeat)
-  Live               → dark card with TRIN / ADD / VOLD / PCC + bias badge
+### TickerCard design
+```
+- glass-card class + glow-bull/glow-bear/glow-mixed
+- Ribbon badge with glow
+- 0DTE badge (cyan) if zero_dte_eligible
+- Compression ring (orange pulsing) if compression=true
+- BULL ABOVE / BEAR BELOW trigger levels
+- PO bar: gradient fill, green→teal positive, red→orange negative
+- Expanded: BIAS colored, prices cyan, IV/PREMIUM italic gray
+- Full Analysis button: gradient blue→purple
+```
 
-Color rules (match AlertPanel.tsx internals row):
-  TRIN: <1.0 → green | >1.2 → red | else → gray
-  ADD:  >+200 → green | <-200 → red | else → gray
-  VOLD: >0 → green | <0 → red (shown as ±X.XXB, value/1e9)
-  PCC:  <0.80 → green | >1.20 → red | else → gray
-
-Bias badge:
-  BULLISH → green (#4ade80) on dark green bg
-  BEARISH → red (#f87171) on dark red bg
-  MIXED   → amber (#fbbf24) on dark amber bg
-  null    → not shown
+### Full Analysis result card
+```
+Dark terminal theme (#0a0e17)
+- Top ribbon glow line (green BULLISH / red BEARISH)
+- Header: ticker, price, ribbon badge with glow, badges
+- Levels strip: horizontal chips, near-price highlighted yellow
+- Two panels side by side:
+  Left (Haiku): blue accent, "0DTE · Options Trade Plan"
+  Right (Sonnet): purple accent, "Stock Analysis · Long-Term"
+- MarkdownText: LABEL: bold white, values colored green/red,
+  ## headers as uppercase dividers, $prices cyan, **bold** white
+- Fundamentals strip: dark, monospace values
+- EMA strip: darkest, muted values
 ```
 
 ---
 
 ## Database — Supabase
 
-### Connection
-- Backend uses `service_role` key — bypasses RLS, full access
-- Frontend uses `anon` key — RLS enforced, users see only their own rows
-- Clerk JWT `sub` claim = `user_id` in all per-user tables
-
-### Table: trade_journal (per-user, RLS)
+### Tables
 ```sql
-create table trade_journal (
-  id            uuid primary key default gen_random_uuid(),
-  user_id       text not null,
-  created_at    timestamptz not null default now(),
-  date          date not null,
-  ticker        text not null default 'SPX',
-  setup         text not null,
-  direction     text not null,
-  entry_price   numeric not null,
-  exit_price    numeric not null,
-  contracts     int not null default 1,
-  pnl           numeric,
-  grade         text not null default 'A',
-  process_grade text not null default 'A',
-  notes         text,
-  internals     jsonb
-);
-create index trade_journal_user_idx on trade_journal (user_id, created_at desc);
-alter table trade_journal enable row level security;
-create policy "user owns journal" on trade_journal
-  for all using (auth.jwt() ->> 'sub' = user_id);
+trade_journal (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,          -- Clerk sub claim
+  created_at timestamptz DEFAULT now(),
+  date date,
+  ticker text DEFAULT 'SPX',
+  setup text,
+  direction text,
+  entry_price numeric,
+  exit_price numeric,
+  contracts int DEFAULT 1,
+  pnl numeric,
+  grade text DEFAULT 'A',
+  process_grade text DEFAULT 'A',
+  notes text,
+  internals jsonb
+)
+-- RLS: user_id = auth.jwt()->>'sub'
+-- Index: (user_id, created_at DESC)
+
+tv_alerts (
+  alert_id uuid PRIMARY KEY,
+  ts timestamptz,
+  ticker text, timeframe text, condition text,
+  price numeric, signal text, display_type text,
+  setup text, grade text, direction text,
+  atr_level text,
+  entry numeric, t1 numeric, t2 numeric, t3 numeric,
+  sl numeric, trail_sl numeric,
+  internals jsonb, internals_age_seconds int,
+  trade_plan jsonb
+)
+-- No RLS — global (alerts have no user context from TradingView)
+-- Dedup: upsert on_conflict="alert_id"
+
+user_sessions (
+  user_id text,
+  session_id text,
+  history jsonb,           -- full message array
+  updated_at timestamptz,
+  PRIMARY KEY (user_id, session_id)
+)
+-- RLS: user_id = auth.jwt()->>'sub'
 ```
 
-### Table: tv_alerts (global, no RLS)
-```sql
-create table tv_alerts (
-  id                    bigserial primary key,
-  alert_id              text unique not null,  -- Pine UUID, dedup key
-  ts                    timestamptz not null,
-  ticker                text,
-  timeframe             text,
-  condition             text,
-  price                 text,
-  signal                text,
-  display_type          text,
-  setup                 text,
-  grade                 text,
-  direction             text,
-  atr_level             text,
-  entry                 numeric,
-  t1                    numeric,
-  t2                    numeric,
-  t3                    numeric,
-  sl                    numeric,
-  trail_sl              numeric,
-  internals             jsonb,
-  internals_age_seconds int,
-  trade_plan            jsonb
-);
--- No RLS — webhook has no user context, service role writes only
+### Data flow
 ```
+tv_alerts:      TradingView → /webhook/tv → Supabase (no user context)
+trade_journal:  /chat intent or /journal/entry → Supabase (Clerk user_id)
+user_sessions:  /chat → Supabase upsert after every reply (Clerk user_id)
 
-### Table: user_sessions (per-user, RLS)
-```sql
-create table user_sessions (
-  user_id    text not null,
-  session_id text not null,
-  history    jsonb not null default '[]',
-  updated_at timestamptz not null default now(),
-  primary key (user_id, session_id)
-);
-alter table user_sessions enable row level security;
-create policy "user owns sessions" on user_sessions
-  for all using (auth.jwt() ->> 'sub' = user_id);
-```
-
-### Key rules
-```
-- service_role key → Railway only, never Vercel, never frontend
-- anon key → Vercel env vars (NEXT_PUBLIC_SUPABASE_ANON_KEY), RLS protects data
-- user_id always from Clerk JWT sub claim — never trusted from request body
-- tv_alerts: global table, no user_id — webhook auth via TV_WEBHOOK_SECRET only
-- INTERNALS_CACHE stays in-memory — heartbeat data is transient, not persisted
+All three tables confirmed live and writing as of June 5, 2026.
+INTERNALS_CACHE stays in-memory — heartbeat data is transient, not persisted
 ```
 
 ---
 
-## Agent System (planned — after Supabase journal)
+## TradingView Pipeline
 
-### Build order
-1. Supabase live → enables search_journal()
-2. LangGraph agent loop + 6 tools
-3. New /agent endpoint
-4. "Morning Brief" button in Desk UI
+### Signal sources (all fire on 3m bar close)
+```
+Manual Planner v3.3.6    → ENTRY/TARGET/TRAIL/STOP/EXIT alerts
+                            Sends: ticker, timeframe, condition, price,
+                                   entry, t1, t2, t3, sl, trail_sl,
+                                   setup, grade, direction, signal,
+                                   atr_level, secret
+ATR Levels v3.1 Clean    → Optional backup target/stop alerts only
+                            setup="ATR_TARGET" or "ATR_STOP"
+Internals Heartbeat v2.2 → type="internals", TRIN/ADD/VOLD/PCC/bias
+                            fires every 3m bar close, routes to cache only
+```
+
+### Webhook routing (/webhook/tv)
+```python
+if data.get("type") == "internals" or data.get("signal") == "INTERNALS":
+    → _handle_internals()  # updates INTERNALS_CACHE only, no SSE broadcast
+else:
+    → _handle_trade_alert()  # builds alert dict, SSE broadcast, Supabase upsert
+```
+
+### Alert display types (frontend card accent)
+```
+"entry"  → ENTRY signal, direction BULL/BEAR
+"update" → TRAIL or TARGET signal
+"stop"   → EXIT, STOP, or REVERSAL condition
+```
 
 ---
 
@@ -658,7 +525,7 @@ def with_retry(fn, max_attempts=3):
 
 ### Two Anthropic clients
 ```python
-client        = Anthropic(timeout=60.0)   # /chat, /analyze
+client        = Anthropic(timeout=60.0)   # /chat, /analyze, /morning-brief
 stream_client = Anthropic(timeout=120.0)  # /analyze-chart, /premarket
 ```
 
@@ -666,6 +533,33 @@ stream_client = Anthropic(timeout=120.0)  # /analyze-chart, /premarket
 ```python
 if now.weekday() < 5 and 9 <= now.hour < 16:
     await http.get(f"http://localhost:{port}/ping")
+```
+
+---
+
+## Monday Morning Workflow
+
+```
+~9:00 ET  Open app → "Good morning, Satya."
+           Click 🌅 Morning Brief
+           → Market tone, gap ups/downs, economic calendar
+           → Volatility flags (FOMC/CPI/NFP auto-detected)
+           → Mag7 alignment, SPX levels, TODAY'S PLAN
+           → RISK LEVEL
+
+~9:25 ET  "Open the Desk →" becomes active (green)
+           Click it → session opener runs automatically
+           Header: ● DESK OPEN + session timer starts
+
+9:30+ ET  TradingView alerts → alert drawer fills
+           PTR-FAST before any entry
+           Take trade
+           "took GG Bear at 7390, exited 7378" → auto-journals
+           Or: [Took This Trade] button on alert card (planned)
+
+4:00 PM   Desk auto-closes at 4:15 ET
+           EOD runs automatically
+           Check /journal page
 ```
 
 ---
@@ -709,6 +603,10 @@ if now.weekday() < 5 and 9 <= now.hour < 16:
 | 33 | Supabase init crash Python 3.13 | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0 |
 | 34 | TS Authorization header type error | Record<string, string> + imperative if(token) assignment |
 | 35 | Chat journal intent false negative | Two-step: YES/NO Haiku check → extraction → _save_journal_entry() |
+| 36 | Watchlist card grid stretching | alignSelf: "start" on TickerCard + align-items: start on grid |
+| 37 | Hydration mismatch desk state | mounted flag + suppressHydrationWarning in Header + QuickActions |
+| 38 | Morning Brief calling /chat | runMorningBrief() calls /morning-brief directly, reads data.morning_brief |
+| 39 | Desk open on weekend refresh | localStorage auto-clears if >12h old on mount |
 
 ---
 
@@ -801,8 +699,9 @@ Runner Manager (v3.3.6):
 ## Prioritized Feature Backlog
 
 ### Do next — in order
-1. **0DTE ticker expansion** — Mag7 watchlist (NVDA/TSLA/META/AMZN/AAPL/MSFT), ribbon state per ticker, 0DTE eligibility panel
-2. **Agent (LangGraph)** — morning brief, 6 tools, /agent endpoint, UI button
+1. **Alert card → journal** — "Took This Trade" button on alert card, inline form for exit price + contracts, one-click journal entry
+2. **Agent (LangGraph)** — 6 tools, /agent endpoint, proactive alerts
+3. **WEEKLY REVIEW wired to Supabase** — fetch real trade_journal data instead of context-only
 
 ### After that
 - Unusual Whales API v2 — auto-fetch live flow data

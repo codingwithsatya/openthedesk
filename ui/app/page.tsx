@@ -17,13 +17,6 @@ export default function Home() {
   const { user } = useUser();
   const firstName = user?.firstName || "Satya";
 
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return "Good morning";
-    if (hour < 17) return "Good afternoon";
-    return "Good evening";
-  };
-
   const getMarketStatus = () => {
     const now = new Date();
     const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
@@ -78,6 +71,7 @@ export default function Home() {
     return null;
   });
   const [sessionDuration, setSessionDuration] = useState("");
+  const [briefLoading, setBriefLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [marketData, setMarketData] = useState<MarketData | null>(null);
   const [satyAtr, setSatyAtr] = useState<string>("");
@@ -322,7 +316,44 @@ export default function Home() {
     fetchMarketData(undefined);
   };
 
-  const runMorningBrief = () => sendMessage("MORNING BRIEF");
+  const runMorningBrief = async () => {
+    if (briefLoading) return;
+    setBriefLoading(true);
+
+    setMessages((prev) => [...prev, { role: "user" as const, content: "MORNING BRIEF" }]);
+
+    try {
+      const token = await getToken();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+
+      const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
+      const res = await fetch(`${API}/morning-brief`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          message: "MORNING BRIEF",
+          session_id: SESSION_ID,
+          ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}),
+        }),
+      });
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant" as const, content: data.morning_brief, model: "claude-sonnet-4-6" },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant" as const, content: "⚠️ Morning Brief failed to load. Check your connection and try again." },
+      ]);
+    } finally {
+      setBriefLoading(false);
+    }
+  };
   const openDesk = async () => {
     if (!canOpenDesk) return;
     const now = new Date();
@@ -410,6 +441,7 @@ export default function Home() {
           onMorningBrief={runMorningBrief}
           onOpenDesk={openDesk}
           firstName={firstName}
+          briefLoading={briefLoading}
           canOpenDesk={canOpenDesk}
           marketStatusLabel={marketStatusLabel}
         />

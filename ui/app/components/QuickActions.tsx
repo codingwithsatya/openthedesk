@@ -7,6 +7,7 @@ interface QuickActionsProps {
   onOpenPalette: () => void;
   deskOpen?: boolean;
   canOpenDesk?: boolean;
+  briefLoading?: boolean;
 }
 
 const CLOSED_PILLS = [
@@ -19,7 +20,7 @@ const OPEN_PILLS = [
   { label: "PREMARKET", cmd: "PREMARKET", bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff" },
 ] as const;
 
-export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen = false, canOpenDesk = true }: QuickActionsProps) {
+export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen = false, canOpenDesk = true, briefLoading = false }: QuickActionsProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
@@ -28,23 +29,25 @@ export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen 
     <div className="quick-actions" suppressHydrationWarning>
       {pills.map((p) => {
         const isOpenDesk = p.cmd === "Open the Desk";
+        const isMorningBrief = p.cmd === "MORNING BRIEF";
         const locked = isOpenDesk && !canOpenDesk;
+        const briefBusy = isMorningBrief && briefLoading;
         return (
           <button
             key={p.cmd}
             className="qa-pill"
-            disabled={loading || locked}
+            disabled={loading || locked || briefBusy}
             title={locked ? "Market is closed" : undefined}
             onClick={() => onSend(p.cmd)}
             style={{
               background: p.bg,
               color: p.color,
               borderColor: p.border,
-              opacity: locked ? 0.4 : 1,
-              cursor: (loading || locked) ? "not-allowed" : "pointer",
+              opacity: (locked || briefBusy) ? 0.4 : 1,
+              cursor: (loading || locked || briefBusy) ? "not-allowed" : "pointer",
             }}
           >
-            {p.label}
+            {briefBusy ? "⏳ Loading..." : p.label}
           </button>
         );
       })}
