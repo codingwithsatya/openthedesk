@@ -147,12 +147,12 @@ export default function ChatPanel({
   }
 
   return (
-    <div className="chat">
+    <div className="chat" style={{ display: "flex", flexDirection: "column", height: "100%", overflow: "hidden" }}>
       {/* Messages */}
-      <div className="messages">
+      <div className="messages" style={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
         {messages.length === 0 ? (
           <div style={{
-            flex: 1, display: "flex", flexDirection: "column",
+            height: "100%", display: "flex", flexDirection: "column",
             alignItems: "center", justifyContent: "center", gap: 20,
             padding: "0 24px",
           }}>
@@ -235,7 +235,9 @@ export default function ChatPanel({
       </div>
 
       {/* Quick Actions */}
-      <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} deskOpen={deskOpen} canOpenDesk={canOpenDesk} briefLoading={briefLoading} />
+      <div style={{ flexShrink: 0 }}>
+        <QuickActions onSend={onSend} loading={loading} onOpenPalette={onOpenPalette} deskOpen={deskOpen} canOpenDesk={canOpenDesk} briefLoading={briefLoading} />
+      </div>
 
       {/* Input */}
       <div
@@ -248,7 +250,7 @@ export default function ChatPanel({
           const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith("image/"));
           if (files.length) handleChartFiles(files);
         }}
-        style={{ outline: dragOver ? "2px dashed #3b82f6" : undefined }}
+        style={{ flexShrink: 0, outline: dragOver ? "2px dashed #3b82f6" : undefined }}
       >
         {pendingFiles.length > 0 && (
           <div style={{

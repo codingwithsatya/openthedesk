@@ -1627,16 +1627,30 @@ async def alerts_stream():
 
 class JournalEntryPayload(BaseModel):
     date: str
-    ticker: str = "SPX"
+    ticker: str
     setup: str
     direction: str
     entry_price: float
-    exit_price: float
+    entry_premium: Optional[float] = None
+    exit_price: Optional[float] = None
+    exit_premium: Optional[float] = None
     contracts: int = 1
     pnl: Optional[float] = None
-    grade: str = "A"
-    process_grade: str = "A"
+    grade: Optional[str] = None
+    process_grade: Optional[str] = None
     notes: Optional[str] = None
+    status: str = "open"
+
+
+class JournalUpdatePayload(BaseModel):
+    exit_price: Optional[float] = None
+    exit_premium: Optional[float] = None
+    entry_premium: Optional[float] = None
+    pnl: Optional[float] = None
+    grade: Optional[str] = None
+    process_grade: Optional[str] = None
+    notes: Optional[str] = None
+    status: Optional[str] = None
 
 
 def _calc_pnl(direction: str, entry: float, exit_p: float, contracts: int) -> float:
@@ -1715,8 +1729,9 @@ JOURNAL_ENTRIES: list[dict] = [
 
 @app.post("/journal/entry")
 async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depends(get_current_user)):
-    pnl = payload.pnl if payload.pnl is not None else _calc_pnl(
-        payload.direction, payload.entry_price, payload.exit_price, payload.contracts
+    pnl = payload.pnl if payload.pnl is not None else (
+        _calc_pnl(payload.direction, payload.entry_price, payload.exit_price, payload.contracts)
+        if payload.exit_price is not None else None
     )
     internals = get_market_internals()
     if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
@@ -1730,35 +1745,65 @@ async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depe
         "setup": payload.setup,
         "direction": payload.direction,
         "entry_price": payload.entry_price,
+        "entry_premium": payload.entry_premium,
         "exit_price": payload.exit_price,
+        "exit_premium": payload.exit_premium,
         "contracts": payload.contracts,
-        "pnl": round(pnl, 2),
-        "grade": payload.grade,
-        "process_grade": payload.process_grade,
-        "notes": payload.notes,
+        "pnl": round(pnl, 2) if pnl is not None else None,
+        "grade": payload.grade or "",
+        "process_grade": payload.process_grade or "",
+        "notes": payload.notes or "",
+        "status": payload.status,
         "internals": internals,
     }
     if _sb:
         try:
             _sb.table("trade_journal").insert({
-                "user_id":       user_id,
-                "date":          entry["date"],
-                "ticker":        entry["ticker"],
-                "setup":         entry["setup"],
-                "direction":     entry["direction"],
-                "entry_price":   entry["entry_price"],
-                "exit_price":    entry["exit_price"],
-                "contracts":     entry["contracts"],
-                "pnl":           entry["pnl"],
-                "grade":         entry["grade"],
-                "process_grade": entry["process_grade"],
-                "notes":         entry["notes"],
-                "internals":     entry["internals"],
+                "user_id":        user_id,
+                "date":           entry["date"],
+                "ticker":         entry["ticker"],
+                "setup":          entry["setup"],
+                "direction":      entry["direction"],
+                "entry_price":    entry["entry_price"],
+                "entry_premium":  entry["entry_premium"],
+                "exit_price":     entry["exit_price"],
+                "exit_premium":   entry["exit_premium"],
+                "contracts":      entry["contracts"],
+                "pnl":            entry["pnl"],
+                "grade":          entry["grade"],
+                "process_grade":  entry["process_grade"],
+                "notes":          entry["notes"],
+                "status":         entry["status"],
+                "internals":      entry["internals"],
             }).execute()
         except Exception as _e:
             print(f"[WARN] trade_journal insert failed: {_e}")
     JOURNAL_ENTRIES.insert(0, entry)
     return {"status": "created", "id": entry["id"], "pnl": entry["pnl"]}
+
+
+@app.patch("/journal/entry/{entry_id}")
+async def update_journal_entry(
+    entry_id: str,
+    payload: JournalUpdatePayload,
+    user_id: str = Depends(get_current_user)
+):
+    if not _sb:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
+        if not update_data:
+            return {"status": "no changes"}
+        result = _sb.table("trade_journal")\
+            .update(update_data)\
+            .eq("id", entry_id)\
+            .eq("user_id", user_id)\
+            .execute()
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Entry not found or not yours")
+        return {"status": "updated", "entry": result.data[0]}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/journal/entries")
@@ -1792,8 +1837,9 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
             "equity_curve": [],
         }
 
-    wins = [e for e in entries if (e.get("pnl") or 0) > 0]
-    losses = [e for e in entries if (e.get("pnl") or 0) <= 0]
+    closed = [e for e in entries if e.get("pnl") is not None]
+    wins = [e for e in closed if e["pnl"] > 0]
+    losses = [e for e in closed if e["pnl"] <= 0]
 
     avg_winner = sum(e["pnl"] for e in wins) / len(wins) if wins else 0.0
     avg_loser = sum(e["pnl"] for e in losses) / len(losses) if losses else 0.0
@@ -1842,11 +1888,11 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
         equity_curve.append(round(running, 2))
 
     return {
-        "total_trades": len(entries),
+        "total_trades": len(closed),
         "wins": len(wins),
         "losses": len(losses),
-        "win_rate": round(len(wins) / len(entries) * 100, 1),
-        "total_pnl": round(sum(e.get("pnl") or 0 for e in entries), 2),
+        "win_rate": round(len(wins) / len(closed) * 100, 1) if closed else 0.0,
+        "total_pnl": round(sum(e["pnl"] for e in closed), 2),
         "avg_winner": round(avg_winner, 2),
         "avg_loser": round(avg_loser, 2),
         "best_setup": best_setup,

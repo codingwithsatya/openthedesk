@@ -34,6 +34,9 @@ interface JournalEntry {
   process_grade: string;
   notes?: string;
   internals?: { trin?: number | null; add?: number | null; vold?: number | null };
+  status?: string;
+  entry_premium?: number | null;
+  exit_premium?: number | null;
 }
 
 interface JournalStats {
@@ -96,6 +99,14 @@ export default function JournalPage() {
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [sideFilter, setSideFilter] = useState<string>("all");
   const [chatInput, setChatInput] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    exit_price: string; pnl: string; grade: string; notes: string;
+  }>({ exit_price: "", pnl: "", grade: "", notes: "" });
+  const [editSaving, setEditSaving] = useState(false);
+  const [closingId, setClosingId] = useState<string | null>(null);
+  const [closeForm, setCloseForm] = useState({ exit_premium: "", grade: "A" });
+  const [closeSaving, setCloseSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -195,6 +206,100 @@ export default function JournalPage() {
   };
 
   const barOpts = { ...CHART_OPTS, scales: { ...CHART_OPTS.scales, y: { ...CHART_OPTS.scales.y, max: 100 } } };
+
+  const handleEdit = (entry: JournalEntry) => {
+    setEditingId(entry.id);
+    setEditForm({
+      exit_price: entry.exit_price.toFixed(2),
+      pnl: entry.pnl.toFixed(0),
+      grade: entry.grade,
+      notes: entry.notes ?? "",
+    });
+  };
+
+  const handleSave = async (entryId: string, direction: string) => {
+    setEditSaving(true);
+    const token = await getToken();
+    const exit = parseFloat(editForm.exit_price);
+    const entryRow = entries.find(e => e.id === entryId);
+    const isBull = direction.toUpperCase() === "BULL";
+    // Premium-based trades: use premiums for P&L, not SPX price difference
+    const computedPnl = (entryRow?.entry_premium != null && entryRow?.exit_premium != null)
+      ? Math.round((entryRow.exit_premium - entryRow.entry_premium) * entryRow.contracts * 100 * 100) / 100
+      : entryRow
+      ? (isBull ? (exit - entryRow.entry_price) : (entryRow.entry_price - exit)) * 100
+      : parseFloat(editForm.pnl);
+    const rounded = Math.round(computedPnl * 100) / 100;
+    try {
+      const res = await fetch(`${API}/journal/entry/${entryId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          exit_price: exit,
+          pnl: rounded,
+          grade: editForm.grade,
+          process_grade: editForm.grade,
+          notes: editForm.notes || undefined,
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setEntries(prev => prev.map(e =>
+        e.id === entryId
+          ? { ...e, exit_price: exit, pnl: rounded, grade: editForm.grade, process_grade: editForm.grade, notes: editForm.notes }
+          : e
+      ));
+      setEditingId(null);
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Save failed — try again");
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleClose = async (entry: JournalEntry) => {
+    setCloseSaving(true);
+    const token = await getToken();
+    const exitPremium = parseFloat(closeForm.exit_premium);
+    if (!exitPremium || exitPremium <= 0) {
+      setCloseSaving(false);
+      return;
+    }
+    const entryPremium = entry.entry_premium ?? 0;
+    const pnl = Math.round((exitPremium - entryPremium) * entry.contracts * 100 * 100) / 100;
+    try {
+      const res = await fetch(`${API}/journal/entry/${entry.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          exit_premium: exitPremium,
+          pnl,
+          grade: closeForm.grade,
+          process_grade: closeForm.grade,
+          status: "closed",
+        }),
+      });
+      if (!res.ok) throw new Error();
+      setEntries(prev => prev.map(e =>
+        e.id === entry.id
+          ? { ...e, exit_premium: exitPremium, pnl, grade: closeForm.grade,
+              process_grade: closeForm.grade, status: "closed" }
+          : e
+      ));
+      setClosingId(null);
+      setCloseForm({ exit_premium: "", grade: "A" });
+    } catch {
+      alert("Close failed — try again");
+    } finally {
+      setCloseSaving(false);
+    }
+  };
 
   // ── Stat cell ────────────────────────────────────────────────
   const StatCell = ({ label, value, color }: { label: string; value: string; color?: string }) => (
@@ -447,10 +552,10 @@ export default function JournalPage() {
                           {e.entry_price.toFixed(2)}
                         </span>
                         <span style={{ fontSize: 12, fontFamily: "var(--font-jetbrains-mono), monospace", color: "#94a3b8" }}>
-                          {e.exit_price.toFixed(2)}
+                          {e.exit_price != null ? e.exit_price.toFixed(2) : "—"}
                         </span>
-                        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-jetbrains-mono), monospace", color: pnlColor(e.pnl) }}>
-                          {fmtPnl(e.pnl)}
+                        <span style={{ fontSize: 13, fontWeight: 600, fontFamily: "var(--font-jetbrains-mono), monospace", color: e.pnl != null ? pnlColor(e.pnl) : "#94a3b8" }}>
+                          {e.pnl != null ? fmtPnl(e.pnl) : "—"}
                         </span>
                         <span style={{
                           fontSize: 10, fontWeight: 700,
@@ -490,13 +595,83 @@ export default function JournalPage() {
                               ["Direction", e.direction],
                               ["Contracts", `${e.contracts}x`],
                               ["Entry",     `$${e.entry_price.toFixed(2)}`],
-                              ["Exit",      `$${e.exit_price.toFixed(2)}`],
+                              ["Exit",      e.exit_price != null ? `$${e.exit_price.toFixed(2)}` : "—"],
                             ].map(([label, val]) => (
                               <div key={label} style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
                                 <span style={{ fontSize: 11, color: "#475569" }}>{label}</span>
                                 <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "var(--font-jetbrains-mono), monospace" }}>{val}</span>
                               </div>
                             ))}
+                            {(e.status === "open" || !e.status) && e.entry_premium && (
+                              <>
+                                <div style={{ height: 1, background: "#1e3a5f", margin: "8px 0" }} />
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                                  <span style={{ fontSize: 11, color: "#475569" }}>Status</span>
+                                  <span style={{ fontSize: 11, color: "#fbbf24", fontWeight: 600 }}>● OPEN</span>
+                                </div>
+                                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
+                                  <span style={{ fontSize: 11, color: "#475569" }}>Entry Premium</span>
+                                  <span style={{ fontSize: 11, color: "#94a3b8", fontFamily: "monospace" }}>
+                                    ${e.entry_premium.toFixed(2)}
+                                  </span>
+                                </div>
+                                {closingId === e.id ? (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                    <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                      <span style={{ fontSize: 11, color: "#475569", width: 70, flexShrink: 0 }}>Exit Premium</span>
+                                      <input
+                                        type="number" step="0.01" autoFocus
+                                        placeholder="e.g. 4.80"
+                                        value={closeForm.exit_premium}
+                                        onChange={ev => setCloseForm(f => ({ ...f, exit_premium: ev.target.value }))}
+                                        onKeyDown={ev => { if (ev.key === "Enter") handleClose(e); }}
+                                        style={{ flex: 1, background: "#0a1120", border: "1px solid #2d5a8e",
+                                          borderRadius: 4, color: "#f1f5f9", fontSize: 12,
+                                          padding: "3px 7px", fontFamily: "monospace" }}
+                                      />
+                                    </div>
+                                    <div style={{ display: "flex", gap: 4 }}>
+                                      {["A+","A","B","C"].map(g => (
+                                        <button key={g}
+                                          onClick={() => setCloseForm(f => ({ ...f, grade: g }))}
+                                          style={{
+                                            flex: 1, padding: "2px 0", borderRadius: 4, fontSize: 11, cursor: "pointer",
+                                            background: closeForm.grade === g ? "#1e3a5f" : "transparent",
+                                            color: closeForm.grade === g ? "#60a5fa" : "#475569",
+                                            border: `1px solid ${closeForm.grade === g ? "#2d5a8e" : "#1e3a5f"}`,
+                                          }}>{g}</button>
+                                      ))}
+                                    </div>
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                      <button
+                                        onClick={() => handleClose(e)}
+                                        disabled={closeSaving}
+                                        style={{ flex: 1, padding: "5px 0", borderRadius: 5, fontSize: 12,
+                                          cursor: "pointer", background: "#00c896", color: "#000",
+                                          border: "none", fontWeight: 600 }}>
+                                        {closeSaving ? "Closing..." : "Close Trade"}
+                                      </button>
+                                      <button
+                                        onClick={() => setClosingId(null)}
+                                        style={{ padding: "5px 10px", borderRadius: 5, fontSize: 12,
+                                          cursor: "pointer", background: "transparent",
+                                          color: "#475569", border: "1px solid #1e3a5f" }}>
+                                        ✕
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <button
+                                    onClick={() => setClosingId(e.id)}
+                                    style={{ width: "100%", padding: "6px 0", borderRadius: 5, fontSize: 12,
+                                      cursor: "pointer", background: "rgba(0,200,150,0.1)",
+                                      color: "#00c896", border: "1px solid rgba(0,200,150,0.3)",
+                                      fontWeight: 600 }}>
+                                    Close Trade →
+                                  </button>
+                                )}
+                              </>
+                            )}
                             {e.internals && (
                               <>
                                 <div style={{ height: 1, background: "#1e3a5f", margin: "8px 0" }} />
@@ -534,9 +709,70 @@ export default function JournalPage() {
                             <div style={{ fontSize: 10, fontWeight: 600, color: "#475569", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 10 }}>
                               Notes
                             </div>
-                            <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, margin: 0 }}>
-                              {e.notes || "No notes"}
-                            </p>
+                            {editingId === e.id ? (
+                              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                  <span style={{ fontSize: 11, color: "#475569", width: 60 }}>Exit</span>
+                                  <input
+                                    type="number" step="0.01"
+                                    value={editForm.exit_price}
+                                    onChange={ev => setEditForm(f => ({ ...f, exit_price: ev.target.value }))}
+                                    style={{ flex: 1, background: "#0a1120", border: "1px solid #2d5a8e", borderRadius: 4,
+                                      color: "#f1f5f9", fontSize: 12, padding: "3px 7px", fontFamily: "monospace" }}
+                                  />
+                                </div>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                                  <span style={{ fontSize: 11, color: "#475569", width: 60 }}>Grade</span>
+                                  <div style={{ display: "flex", gap: 4 }}>
+                                    {["A+","A","B","C"].map(g => (
+                                      <button key={g}
+                                        onClick={() => setEditForm(f => ({ ...f, grade: g }))}
+                                        style={{
+                                          padding: "2px 8px", borderRadius: 4, fontSize: 11, cursor: "pointer",
+                                          background: editForm.grade === g ? "#1e3a5f" : "transparent",
+                                          color: editForm.grade === g ? "#60a5fa" : "#475569",
+                                          border: `1px solid ${editForm.grade === g ? "#2d5a8e" : "#1e3a5f"}`,
+                                        }}>{g}</button>
+                                    ))}
+                                  </div>
+                                </div>
+                                <textarea
+                                  rows={2}
+                                  value={editForm.notes}
+                                  onChange={ev => setEditForm(f => ({ ...f, notes: ev.target.value }))}
+                                  placeholder="Notes..."
+                                  style={{ background: "#0a1120", border: "1px solid #1e3a5f", borderRadius: 4,
+                                    color: "#94a3b8", fontSize: 11, padding: "6px 8px", resize: "none" }}
+                                />
+                                <div style={{ display: "flex", gap: 6 }}>
+                                  <button
+                                    onClick={() => handleSave(e.id, e.direction)}
+                                    disabled={editSaving}
+                                    style={{ flex: 1, padding: "5px 0", borderRadius: 5, fontSize: 12, cursor: "pointer",
+                                      background: "#1e3a5f", color: "#60a5fa", border: "1px solid #2d5a8e" }}>
+                                    {editSaving ? "Saving..." : "Save"}
+                                  </button>
+                                  <button
+                                    onClick={() => setEditingId(null)}
+                                    style={{ padding: "5px 12px", borderRadius: 5, fontSize: 12, cursor: "pointer",
+                                      background: "transparent", color: "#475569", border: "1px solid #1e3a5f" }}>
+                                    ✕
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <>
+                                <p style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.6, margin: "0 0 10px 0" }}>
+                                  {e.notes || "No notes"}
+                                </p>
+                                <button
+                                  onClick={() => handleEdit(e)}
+                                  style={{ padding: "4px 12px", borderRadius: 5, fontSize: 11, cursor: "pointer",
+                                    background: "transparent", color: "#475569", border: "1px solid #1e3a5f" }}>
+                                  ✎ Edit
+                                </button>
+                              </>
+                            )}
                           </div>
 
                           {/* AI placeholder */}
