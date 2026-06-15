@@ -23,7 +23,9 @@ function formatRelative(ts: string): string {
   if (diffSec < 60) return `${diffSec}s`;
   const m = Math.floor(diffSec / 60);
   if (m < 60) return `${m}m`;
-  return `${Math.floor(m / 60)}h`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  return `${Math.floor(h / 24)}d`;
 }
 
 function MobileSignalCard({
@@ -51,6 +53,18 @@ function MobileSignalCard({
   const sig = (alert.signal ?? "").toUpperCase();
   const setup = (alert.setup ?? "").toUpperCase();
   const isEntry = sig === "ENTRY";
+
+  // Only allow Took/Skip on ENTRY alerts from today — older, un-actioned
+  // entries stay informational (no buttons) since logging them now would
+  // create a journal entry with a misleading date.
+  const alertDate = new Date(alert.ts);
+  const today = new Date();
+  const isToday =
+    alertDate.getFullYear() === today.getFullYear() &&
+    alertDate.getMonth() === today.getMonth() &&
+    alertDate.getDate() === today.getDate();
+
+  const isActionable = isEntry && isToday;
   const tp = alert.trade_plan;
   const alertKey = alert.id || `${alert.ts}-${alert.price}-${alert.signal}`;
 
@@ -314,7 +328,7 @@ function MobileSignalCard({
       )}
 
       {/* Took / Skip */}
-      {isEntry && cardState === "idle" && (
+      {isActionable && cardState === "idle" && (
         <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
           <button
             onClick={() => setCardState("form")}
@@ -355,7 +369,7 @@ function MobileSignalCard({
       )}
 
       {/* Entry premium form */}
-      {isEntry && (cardState === "form" || cardState === "submitting") && (
+      {isActionable && (cardState === "form" || cardState === "submitting") && (
         <div
           style={{
             marginTop: 6,
@@ -496,10 +510,25 @@ export default function MobileSignalStream({
   // Prioritize: any active (unlogged, unskipped) ENTRY alert is always
   // shown, even if newer non-ENTRY alerts (TRAIL/TARGET/STOP for other
   // tickers) would otherwise push it out of a plain slice(0, 5).
+  const isFromToday = (ts: string) => {
+    const d = new Date(ts);
+    const now = new Date();
+    return (
+      d.getFullYear() === now.getFullYear() &&
+      d.getMonth() === now.getMonth() &&
+      d.getDate() === now.getDate()
+    );
+  };
+
   const activeEntries = alerts.filter((a) => {
     const sig = (a.signal ?? "").toUpperCase();
     const key = keyOf(a);
-    return sig === "ENTRY" && !loggedIds.has(key) && !skippedIds.has(key);
+    return (
+      sig === "ENTRY" &&
+      isFromToday(a.ts) &&
+      !loggedIds.has(key) &&
+      !skippedIds.has(key)
+    );
   });
   const rest = alerts.filter((a) => !activeEntries.includes(a));
   const visibleAlerts = [...activeEntries, ...rest].slice(0, 5);
