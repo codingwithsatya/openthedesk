@@ -1,8 +1,8 @@
 //@version=5
-indicator("OpenTheDesk Manual Planner v3.3.6 — Full Saty Runner Manager", overlay=true, max_lines_count=200, max_labels_count=200, max_boxes_count=20)
+indicator("OpenTheDesk Manual Planner v3.3.9 — Saty Probability + Quality Engine", overlay=true, max_lines_count=200, max_labels_count=200, max_boxes_count=20)
 
 // =====================================================================
-// OPENTHEDESK MANUAL PLANNER v3.3.6 — FULL SATY RUNNER MANAGER
+// OPENTHEDESK MANUAL PLANNER v3.3.9 — SATY PROBABILITY + QUALITY ENGINE
 //
 // Built from v3.3.3 with:
 // - Full Saty ladder target engine
@@ -11,10 +11,33 @@ indicator("OpenTheDesk Manual Planner v3.3.6 — Full Saty Runner Manager", over
 // - Fallback targets
 // - Runner after T3
 // - NEXT target manager
-// - SL trails to BE / T1 / T3 / NEXT
+// - SL trails to BE / T1 / Runner SL after T3 / NEXT
 // - ATR level names in alert JSON
 // - Mobile display profile
 // - ORB high / low lines
+//
+// v3.3.7 added:
+// - Risk quality engine
+// - Stop Mode: Manual Only / Technical / Capped Technical
+// - Minimum T1 reward points filter
+// - Maximum stop distance filter
+// - Minimum T1 R multiple filter
+// - Invalid Risk/Target blocker
+// - Cleaner stop status: Before T1 / BE after T1 / After T2 / Runner After T3
+// - Runner SL after T3 options: T2 / T3 / Ribbon Pivot / Off
+//
+// v3.3.8 added:
+// - Saty probability classification for T1
+// - Risk math variables: risk points, T1 reward points, T1 R
+// - Context classification: Aligned / Ribbon OK / Mixed / Counter HTF / Weak
+// - Final setup grade: A+ / A / B / B- / C / BLOCK
+// - Plan type: Premium / Normal / Aggressive / Runner-Low Prob / Blocked
+// - Optional blocks for counter-HTF and low-probability T1
+// - Active label now shows Grade / Plan Type
+// - Invalid label now shows block reason
+//
+// v3.3.9 added:
+// - Adds atr_level to T1/T2/T3/RUNNER NEXT HIT alert JSON for frontend probability lookup
 // =====================================================================
 
 // =====================================================================
@@ -101,6 +124,14 @@ fallbackTargetMode = input.string("Points", "If no valid Saty target", options=[
 minTargetDistancePts = input.float(4.0, "Minimum T1 distance points", step=0.25)
 
 manualStopPts = input.float(8.0, "Manual stop buffer points", step=0.25)
+// v3.3.7 — Risk quality engine
+stopMode = input.string("Capped Technical", "Stop Mode", options=["Manual Only", "Technical", "Capped Technical"])
+minT1RewardPts = input.float(8.0, "Minimum T1 reward points", step=0.25)
+maxStopDistancePts = input.float(14.0, "Maximum stop distance points", step=0.25)
+minT1R = input.float(0.75, "Minimum T1 R multiple", step=0.05)
+
+// v3.3.7 — Runner behavior after T3
+runnerTrailAfterT3 = input.string("T2", "Runner SL after T3", options=["T2", "T3", "Ribbon Pivot", "Off"])
 manualT1Pts = input.float(10.0, "Manual T1 points", step=0.25)
 manualT2Pts = input.float(20.0, "Manual T2 points", step=0.25)
 manualT3Pts = input.float(30.0, "Manual T3 points", step=0.25)
@@ -143,6 +174,15 @@ hideTargetsOnComplete = input.bool(false, "Hide targets when completed")
 useDynamicAlerts = input.bool(true, "Use dynamic alert() JSON")
 tvSecret = input.string("", "TradingView webhook secret")
 sendTestAlert = input.bool(false, "Send one test alert on next confirmed bar?")
+
+// v3.3.8 — Saty probability + quality engine
+showRiskMathOnDashboard = input.bool(true, "Show risk math on dashboard?")
+showSatyProbOnDashboard = input.bool(true, "Show Saty probability on dashboard?")
+requireRibbonForAPlus = input.bool(true, "Require Ribbon alignment for A+?")
+requireHTFForAPlus = input.bool(true, "Require HTF alignment for A+?")
+blockLowProbabilityT1 = input.bool(false, "Block low-probability T1?")
+blockCounterHTF = input.bool(false, "Block counter-HTF trades?")
+
 
 // =====================================================================
 // 2. DISPLAY FLAGS
@@ -781,6 +821,102 @@ f_targetsValid(dir, entry, t1, t2, t3) =>
      dir == -1 ? hasT1 and hasT2 and hasT3 and t1 < entry and t2 < t1 and t3 < t2 :
      false
 
+f_planRiskValid(dir, entry, stop, t1) =>
+    stopRisk = dir == 1 ? entry - stop : stop - entry
+    t1Reward = dir == 1 ? t1 - entry : entry - t1
+    t1R = stopRisk > 0 ? t1Reward / stopRisk : 0.0
+
+    stopRisk > 0 and
+     t1Reward >= minT1RewardPts and
+     stopRisk <= maxStopDistancePts and
+     t1R >= minT1R
+
+f_riskPts(dir, entry, stop) =>
+    dir == 1 ? entry - stop :
+     dir == -1 ? stop - entry :
+     na
+
+f_rewardPts(dir, entry, target) =>
+    dir == 1 ? target - entry :
+     dir == -1 ? entry - target :
+     na
+
+f_rMultiple(riskPts, rewardPts) =>
+    not na(riskPts) and riskPts > 0 and not na(rewardPts) ? rewardPts / riskPts : na
+
+f_satyProbClass(price) =>
+    string cls = "CUSTOM"
+
+    nearLowerTrig = math.abs(price - satyLowerTrigger) <= syminfo.mintick
+    nearLower382 = math.abs(price - satyLower382) <= syminfo.mintick
+    nearLower500 = math.abs(price - satyLower500) <= syminfo.mintick
+    nearLower618 = math.abs(price - satyLower618) <= syminfo.mintick
+    nearLower786 = math.abs(price - satyLower786) <= syminfo.mintick
+    nearLower100 = math.abs(price - satyLower100) <= syminfo.mintick
+    nearLower1236 = math.abs(price - satyLower1236) <= syminfo.mintick
+
+    nearUpperTrig = math.abs(price - satyUpperTrigger) <= syminfo.mintick
+    nearUpper382 = math.abs(price - satyUpper382) <= syminfo.mintick
+    nearUpper500 = math.abs(price - satyUpper500) <= syminfo.mintick
+    nearUpper618 = math.abs(price - satyUpper618) <= syminfo.mintick
+    nearUpper786 = math.abs(price - satyUpper786) <= syminfo.mintick
+    nearUpper100 = math.abs(price - satyUpper100) <= syminfo.mintick
+    nearUpper1236 = math.abs(price - satyUpper1236) <= syminfo.mintick
+
+    nearLowerExt =
+         math.abs(price - satyLower1382) <= syminfo.mintick or
+         math.abs(price - satyLower1500) <= syminfo.mintick or
+         math.abs(price - satyLower1618) <= syminfo.mintick or
+         math.abs(price - satyLower1786) <= syminfo.mintick or
+         math.abs(price - satyLower2000) <= syminfo.mintick
+
+    nearUpperExt =
+         math.abs(price - satyUpper1382) <= syminfo.mintick or
+         math.abs(price - satyUpper1500) <= syminfo.mintick or
+         math.abs(price - satyUpper1618) <= syminfo.mintick or
+         math.abs(price - satyUpper1786) <= syminfo.mintick or
+         math.abs(price - satyUpper2000) <= syminfo.mintick
+
+    if nearLowerTrig or nearUpperTrig or nearLower382 or nearUpper382 or nearLower500 or nearUpper500 or nearLower618 or nearUpper618
+        cls := "HIGH"
+    else if nearLower786 or nearUpper786
+        cls := "GOOD"
+    else if nearLower100 or nearUpper100
+        cls := "MOMENTUM"
+    else if nearLower1236 or nearUpper1236
+        cls := "RUNNER"
+    else if nearLowerExt or nearUpperExt
+        cls := "STRONG MOM"
+    else
+        cls := "CUSTOM"
+
+    cls
+
+f_contextClass(dir) =>
+    ribbonAligned = dir == 1 ? ribbonBull : dir == -1 ? ribbonBear : false
+    htfAligned = dir == 1 ? htfBull : dir == -1 ? htfBear : false
+    htfCounter = dir == 1 ? htfBear : dir == -1 ? htfBull : false
+
+    ribbonAligned and htfAligned ? "ALIGNED" :
+     ribbonAligned and not htfCounter ? "RIBBON OK" :
+     ribbonMixed ? "MIXED" :
+     htfCounter ? "COUNTER HTF" :
+     "WEAK"
+
+f_qualityGrade(riskOk, probClass, contextClass) =>
+    highProb = probClass == "HIGH" or probClass == "GOOD"
+    weakProb = probClass == "RUNNER" or probClass == "STRONG MOM"
+    aligned = contextClass == "ALIGNED"
+    ribbonOk = contextClass == "RIBBON OK"
+
+    not riskOk ? "BLOCK" :
+     aligned and highProb ? "A+" :
+     ribbonOk and highProb ? "A" :
+     contextClass == "MIXED" ? "B" :
+     contextClass == "COUNTER HTF" ? "B-" :
+     weakProb ? "C" :
+     "B"
+
 f_runnerNextTarget(dir, fromLevel) =>
     dir == 1 ? f_bullNextAfter(fromLevel + syminfo.mintick) :
      dir == -1 ? f_bearNextAfter(fromLevel - syminfo.mintick) :
@@ -893,6 +1029,14 @@ var label t3Label = na
 var label slLabel = na
 var label statusLabel = na
 var bool testAlertSent = false
+
+var float planRiskPts = na
+var float planT1RewardPts = na
+var float planT1R = na
+var string planRiskStatus = "WAIT"
+var string planProbClass = "WAIT"
+var string planContextClass = "WAIT"
+var string planType = "WAIT"
 
 newBullEvent = false
 newBearEvent = false
@@ -1056,6 +1200,14 @@ if resetPlanOnNewDay and isNewDay
     currentGrade := "A"
     trailState := "SL"
 
+    planRiskPts := na
+    planT1RewardPts := na
+    planT1R := na
+    planRiskStatus := "WAIT"
+    planProbClass := "WAIT"
+    planContextClass := "WAIT"
+    planType := "WAIT"
+
 // =====================================================================
 // 10. NEW SETUP GATING
 // =====================================================================
@@ -1156,7 +1308,11 @@ if newSetup
             t3Price := entryPrice + riskDist * rr3
 
         technicalStop = math.min(low, ribbonBottom) - syminfo.mintick
-        slPrice := math.min(technicalStop, entryPrice - manualStopPts)
+        manualStop = entryPrice - manualStopPts
+        maxAllowedStop = entryPrice - maxStopDistancePts
+
+        slPrice := stopMode == "Manual Only" ? manualStop : stopMode == "Technical" ? technicalStop : math.max(technicalStop, maxAllowedStop)
+
         trailSL := slPrice
 
     if tradeDir == -1
@@ -1182,7 +1338,11 @@ if newSetup
             t3Price := entryPrice - riskDist * rr3
 
         technicalStop = math.max(high, ribbonTop) + syminfo.mintick
-        slPrice := math.max(technicalStop, entryPrice + manualStopPts)
+        manualStop = entryPrice + manualStopPts
+        maxAllowedStop = entryPrice + maxStopDistancePts
+
+        slPrice := stopMode == "Manual Only" ? manualStop : stopMode == "Technical" ? technicalStop : math.min(technicalStop, maxAllowedStop)
+
         trailSL := slPrice
 
     targetsValid = f_targetsValid(tradeDir, entryPrice, t1Price, t2Price, t3Price)
@@ -1195,14 +1355,40 @@ if newSetup
         t3Price := fbT3
         targetsValid := f_targetsValid(tradeDir, entryPrice, t1Price, t2Price, t3Price)
 
-    // If still invalid, block the plan.
-    // This prevents bad cases like bullish T3 below entry or bearish T1 above entry.
-    if not targetsValid
+    riskValid = f_planRiskValid(tradeDir, entryPrice, slPrice, t1Price)
+    planValid = targetsValid and riskValid
+
+    planRiskPts := f_riskPts(tradeDir, entryPrice, slPrice)
+    planT1RewardPts := f_rewardPts(tradeDir, entryPrice, t1Price)
+    planT1R := f_rMultiple(planRiskPts, planT1RewardPts)
+
+    planRiskStatus := riskValid ? "PASS" : "FAIL"
+    planProbClass := targetsValid ? f_satyProbClass(t1Price) : "NO TARGET"
+    planContextClass := f_contextClass(tradeDir)
+
+    counterHtfBlocked = blockCounterHTF and planContextClass == "COUNTER HTF"
+    lowProbBlocked = blockLowProbabilityT1 and (planProbClass == "RUNNER" or planProbClass == "STRONG MOM")
+
+    if counterHtfBlocked or lowProbBlocked
+        planValid := false
+        planRiskStatus := counterHtfBlocked ? "BLOCK COUNTER HTF" : "BLOCK LOW PROB"
+
+    currentGrade := f_qualityGrade(planValid, planProbClass, planContextClass)
+
+    planType := currentGrade == "A+" ? "PREMIUM" :
+         currentGrade == "A" ? "NORMAL" :
+         currentGrade == "B" or currentGrade == "B-" ? "AGGRESSIVE" :
+         currentGrade == "C" ? "RUNNER/LOW PROB" :
+         "BLOCKED"
+
+    // If target path or risk/reward is invalid, block the plan.
+    if not planValid
         activeTrade := false
-        tradeStatus := "No Valid Target"
+        tradeStatus := "Invalid Risk/Target"
         currentSetup := candidateSetupName + " EXTENDED"
         currentSetupKey := candidateSetupKey
-        currentGrade := candidateGrade
+        currentGrade := "BLOCK"
+        planType := "BLOCKED"
 
         entryPrice := na
         t1Price := na
@@ -1217,7 +1403,7 @@ if newSetup
         entryEvent := false
 
         if showPlan
-            label.new(bar_index, close, candidateSetupName + "\nNO VALID TARGET", style=label.style_label_left, color=color.gray, textcolor=color.white, size=plannerLabelSize)
+            label.new(bar_index, close, candidateSetupName + "\nINVALID RISK/TARGET\n" + planRiskStatus, style=label.style_label_left, color=color.gray, textcolor=color.white, size=plannerLabelSize)
 
     if activeTrade
         lastTrailAlertSL := trailSL
@@ -1253,7 +1439,7 @@ if newSetup
         if useT3
             t3Label := label.new(labelX, t3Price + tickSpace * 3, "T3\n" + str.tostring(t3Price, format.mintick), style=label.style_label_left, color=color.blue, textcolor=color.white, size=plannerLabelSize)
 
-        statusLabel := label.new(labelX, entryPrice + tickSpace * 4, currentSetup + "\nACTIVE", style=label.style_label_left, color=planColor, textcolor=color.white, size=plannerLabelSize)
+        statusLabel := label.new(labelX, entryPrice + tickSpace * 4, currentSetup + "\nACTIVE\n" + currentGrade + " / " + planType, style=label.style_label_left, color=planColor, textcolor=color.white, size=plannerLabelSize)
 
     if activeTrade
         newBullEvent := tradeDir == 1
@@ -1304,7 +1490,7 @@ if activeTrade and not newSetup
                 label.set_textcolor(statusLabel, color.white)
 
     else if stopHit and conservativeStops
-        tradeStatus := "Stopped"
+        tradeStatus := t3WasHit ? "Runner Stopped After T3" : t2WasHit ? "Stopped After T2" : t1WasHit ? "Stopped BE/After T1" : "Stopped Before T1"
         stopEvent := true
         activeTrade := false
 
@@ -1315,7 +1501,7 @@ if activeTrade and not newSetup
             f_clearPlanLinesKeepStatus()
 
         if not na(statusLabel)
-            label.set_text(statusLabel, currentSetup + "\nSTOPPED")
+            label.set_text(statusLabel, currentSetup + "\n" + tradeStatus)
             label.set_color(statusLabel, color.orange)
             label.set_textcolor(statusLabel, color.black)
 
@@ -1340,6 +1526,7 @@ if activeTrade and not newSetup
                     trailState := "SL BE"
 
                 trailEvent := true
+
                 if showPlan and not na(trailSL)
                     if not na(slLine)
                         line.delete(slLine)
@@ -1351,7 +1538,7 @@ if activeTrade and not newSetup
 
                     slLine := line.new(bar_index, trailSL, bar_index + lineBars, trailSL, extend=extend.right, color=color.orange, width=lineWidth + 2, style=line.style_dashed)
 
-                    slLabel := label.new(lxTrail, trailSL - tickSpaceTrail, trailState + "\n" + str.tostring(trailSL, format.mintick), style=label.style_label_left, color=color.orange,textcolor=color.black, size=plannerLabelSize)
+                    slLabel := label.new(lxTrail, trailSL - tickSpaceTrail, trailState + "\n" + str.tostring(trailSL, format.mintick), style=label.style_label_left, color=color.orange, textcolor=color.black, size=plannerLabelSize)
 
             if not na(statusLabel)
                 label.set_text(statusLabel, currentSetup + "\nT1 HIT")
@@ -1402,12 +1589,29 @@ if activeTrade and not newSetup
             t3Event := true
 
             if trailMode == "Prior Target"
-                if tradeDir == 1
-                    trailSL := math.max(trailSL, t3Price)
-                    trailState := "SL T3"
-                if tradeDir == -1
-                    trailSL := math.min(trailSL, t3Price)
-                    trailState := "SL T3"
+                if runnerTrailAfterT3 == "T2"
+                    if tradeDir == 1
+                        trailSL := math.max(trailSL, t2Price)
+                    if tradeDir == -1
+                        trailSL := math.min(trailSL, t2Price)
+                    trailState := "RUNNER SL T2"
+
+                else if runnerTrailAfterT3 == "T3"
+                    if tradeDir == 1
+                        trailSL := math.max(trailSL, t3Price)
+                    if tradeDir == -1
+                        trailSL := math.min(trailSL, t3Price)
+                    trailState := "RUNNER SL T3"
+
+                else if runnerTrailAfterT3 == "Ribbon Pivot"
+                    if tradeDir == 1
+                        trailSL := math.max(trailSL, rPivot)
+                    if tradeDir == -1
+                        trailSL := math.min(trailSL, rPivot)
+                    trailState := "RUNNER SL RIBBON"
+
+                else
+                    trailState := "RUNNER OPEN"
 
                 trailEvent := true
 
@@ -1560,7 +1764,7 @@ if activeTrade and not newSetup
         // Only used when conservativeStops = false.
         // -------------------------------
         if stopHit and not conservativeStops
-            tradeStatus := "Stopped"
+            tradeStatus := t3WasHit ? "Runner Stopped After T3" : t2WasHit ? "Stopped After T2" : t1WasHit ? "Stopped BE/After T1" : "Stopped Before T1"
             stopEvent := true
             activeTrade := false
 
@@ -1571,7 +1775,7 @@ if activeTrade and not newSetup
                 f_clearPlanLinesKeepStatus()
 
             if not na(statusLabel)
-                label.set_text(statusLabel, currentSetup + "\nSTOPPED")
+                label.set_text(statusLabel, currentSetup + "\n" + tradeStatus)
                 label.set_color(statusLabel, color.orange)
                 label.set_textcolor(statusLabel, color.black)
 
@@ -1741,15 +1945,15 @@ if useDynamicAlerts and barstate.isconfirmed
         alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"' + currentSetup + '","price":"' + str.tostring(entryPrice) + '","entry":"' + str.tostring(entryPrice) + '","t1":"' + str.tostring(t1Price) + '","t2":"' + str.tostring(t2Price) + '","t3":"' + str.tostring(t3Price) + '","sl":"' + str.tostring(slPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","atr_level":"' + atrLevelName + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"ENTRY","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
 
     if t1Event
-        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"T1 HIT","price":"' + str.tostring(t1Price) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
+        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"T1 HIT","price":"' + str.tostring(t1Price) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","atr_level":"' + f_atrLevelName(t1Price, tradeDir) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
 
     if t2Event
-        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"T2 HIT","price":"' + str.tostring(t2Price) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
+        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"T2 HIT","price":"' + str.tostring(t2Price) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","atr_level":"' + f_atrLevelName(t2Price, tradeDir) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
 
     if t3Event
         t3Signal = t3Behavior == "Complete Trade" ? "EXIT" : "TARGET"
         t3Condition = t3Behavior == "Complete Trade" ? "T3 HIT - COMPLETED" : "T3 HIT - RUNNER"
-        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"' + t3Condition + '","price":"' + str.tostring(t3Price) + '","entry":"' + str.tostring(entryPrice) + '","t1":"' + str.tostring(t1Price) + '","t2":"' + str.tostring(t2Price) + '","t3":"' + str.tostring(t3Price) + '","sl":"' + str.tostring(slPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"' + t3Signal + '","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
+        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"' + t3Condition + '","price":"' + str.tostring(t3Price) + '","entry":"' + str.tostring(entryPrice) + '","t1":"' + str.tostring(t1Price) + '","t2":"' + str.tostring(t2Price) + '","t3":"' + str.tostring(t3Price) + '","sl":"' + str.tostring(slPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","atr_level":"' + f_atrLevelName(t3Price, tradeDir) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"' + t3Signal + '","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
 
     if runnerEvent
         alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"RUNNER AFTER T3","price":"' + str.tostring(close) + '","entry":"' + str.tostring(entryPrice) + '","t1":"' + str.tostring(t1Price) + '","t2":"' + str.tostring(t2Price) + '","t3":"' + str.tostring(t3Price) + '","sl":"' + str.tostring(slPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TRAIL","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
@@ -1761,7 +1965,7 @@ if useDynamicAlerts and barstate.isconfirmed
         alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"BIAS INVALIDATED","price":"' + str.tostring(close) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"EXIT","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
     
     if runnerNextHitEvent
-        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"RUNNER NEXT HIT","price":"' + str.tostring(lastRunnerHitPrice) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","next_target":"' + str.tostring(runnerTargetPrice) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
+        alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"RUNNER NEXT HIT","price":"' + str.tostring(lastRunnerHitPrice) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","next_target":"' + str.tostring(runnerTargetPrice) + '","atr_level":"' + f_atrLevelName(lastRunnerHitPrice, tradeDir) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)
 
     if runnerMaxEvent
         alert('{"ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","condition":"RUNNER MAX TARGET","price":"' + str.tostring(lastRunnerHitPrice) + '","entry":"' + str.tostring(entryPrice) + '","trail_sl":"' + str.tostring(trailSL) + '","setup":"' + currentSetupKey + '","grade":"' + currentGrade + '","direction":"' + dirAlert + '","signal":"TARGET","secret":"' + tvSecret + '"}', alert.freq_once_per_bar_close)

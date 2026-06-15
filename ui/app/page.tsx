@@ -8,6 +8,7 @@ import FlowPanel from "./components/FlowPanel";
 import ChatPanel from "./components/ChatPanel";
 import CommandPalette from "./components/CommandPalette";
 import MobileSheet from "./components/MobileSheet";
+import MobileSignalStream from "./components/MobileSignalStream";
 import MorningBriefBanner from "./components/MorningBriefBanner";
 import ChartStrip from "./components/ChartStrip";
 import SessionBar from "./components/SessionBar";
@@ -81,7 +82,8 @@ export default function Home() {
   const [atrApplied, setAtrApplied] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"chat" | "levels" | "commands">("chat");
+  const [mobileTab, setMobileTab] = useState<"chat" | "levels" | "commands" | "signals">("chat");
+  const [signalsOpen, setSignalsOpen] = useState(false);
   const [chartInterval, setChartInterval] = useState("3");
   const { alerts, isUnread, markRead } = useAlerts();
   const satyAtrRef = useRef<string>("");
@@ -297,10 +299,11 @@ export default function Home() {
     ? Math.ceil((deskOpenTime.getTime() - new Date(deskOpenTime.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24))
     : "—";
 
-  const handleMobileTab = (tab: "chat" | "levels" | "commands") => {
+  const handleMobileTab = (tab: "chat" | "levels" | "commands" | "signals") => {
     setMobileTab(tab);
     if (tab === "levels") setLevelsOpen(true);
     if (tab === "commands") { setPaletteOpen(true); setMobileTab("chat"); }
+    if (tab === "signals") setSignalsOpen(true);
   };
 
   return (
@@ -393,6 +396,14 @@ export default function Home() {
         loading={loading}
       />
 
+      <MobileSignalStream
+        open={signalsOpen}
+        onClose={() => { setSignalsOpen(false); setMobileTab("chat"); }}
+        alerts={alerts}
+        isUnread={isUnread}
+        markRead={markRead}
+      />
+
       <MobileSheet
         open={levelsOpen}
         onClose={() => { setLevelsOpen(false); setMobileTab("chat"); }}
@@ -422,6 +433,13 @@ export default function Home() {
         <button className="bnav-item" onClick={() => handleMobileTab("commands")}>
           <span className="bnav-icon">⌨️</span>
           Commands
+        </button>
+        <button
+          className={`bnav-item ${mobileTab === "signals" ? "active" : ""}`}
+          onClick={() => handleMobileTab("signals")}
+        >
+          <span className="bnav-icon">📡</span>
+          Signals
         </button>
       </nav>
     </>
