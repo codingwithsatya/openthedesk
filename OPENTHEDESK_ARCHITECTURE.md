@@ -1,5 +1,6 @@
 # OpenTheDesk — Architecture & Engineering Reference
-**Last updated: June 7, 2026 — evening session**
+
+**Last updated: June 15, 2026 — afternoon session**
 
 This document is the single source of truth for OpenTheDesk. Any Claude session working on this project must read this before touching any code.
 
@@ -19,49 +20,66 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 
 ## What's Live Today
 
-| Feature | Status |
-|---------|--------|
-| 0DTE Desk — chat, all commands, PREMARKET, chart vision | ✅ Live |
-| Analyzer — real options chain, greeks, dual Claude verdicts | ✅ Live |
-| Analyzer — dark terminal theme redesign | ✅ Live |
-| Screener — 15 tickers parallel, ribbon filter | ✅ Live |
-| Auth (Clerk), observability (LangSmith) | ✅ Live |
-| Reliability — retry backoff, keep-alive, timeouts | ✅ Live |
-| TradingView webhook — unified /webhook/tv handles all 3 feeds | ✅ Live |
-| Alert cards — colored by setup/direction, trade plan, internals row | ✅ Live |
-| Trade Plan card — Pine-computed T1/T2/T3/SL from Manual Planner | ✅ Live |
-| Internals snapshot — TRIN/ADD/VOLD attached to every trade alert | ✅ Live |
-| Internals heartbeat — USI:TRIN/ADD/VOLD/PCC via TV every 3m | ✅ Live |
-| Manual Planner v3.3.6 — Full Saty Runner Manager | ✅ Live |
-| ATR Levels v3.1 Clean Extended — full Saty ladder, Day/Multiday mode | ✅ Live |
-| OTD Internals Heartbeat v2.2 — market internals data feed | ✅ Live |
-| Internals live widget — TRIN/ADD/VOLD/PCC/bias sidebar widget | ✅ Live |
-| Multi-chart upload + drag-drop + paste from clipboard | ✅ Live |
-| Chart context selector (TRADE IDEA / IN TRADE / PREMARKET / PTR-FAST) | ✅ Live |
-| Live data injection for trade commands | ✅ Live |
-| Dynamic max_tokens — long commands 4096, fast commands 2048 | ✅ Live |
-| Market internals rule — context not gate (never blocks trades) | ✅ Live |
-| Target levels rule — flags when within 1pt of T1/T2/T3 | ✅ Live |
-| Unusual Whales — manual text input v1 | ✅ Live |
-| Journal UI — /journal page with 3 charts, trade table | ✅ Live |
-| Journal persistence — Supabase trade_journal | ✅ Live |
-| Alert persistence — Supabase tv_alerts | ✅ Live |
-| Session persistence — Supabase user_sessions | ✅ Live |
-| Clerk JWT middleware — user_id from verified token | ✅ Live |
-| Chat → journal entry (natural language logging) | ✅ Live |
-| 0DTE Watchlist — Mag7 + SPY/QQQ/XLK/XLF/SMH, ribbon + ATR levels | ✅ Live |
-| Quick Read — card expand, Haiku 0DTE brief, Bull Above / Bear Below | ✅ Live |
-| Morning Brief — full bias engine, Mag7, news, economic calendar | ✅ Live |
-| Desk state machine — Open/Closed with localStorage persistence | ✅ Live |
-| Market hours enforcement — desk locked outside 9:30–16:00 ET weekdays | ✅ Live |
-| Auto-close desk at 16:15 ET | ✅ Live |
-| User-specific greeting — Clerk firstName, time-aware | ✅ Live |
-| Agent (LangGraph, tool use) | 🔲 Planned |
-| Alert card → journal (Took This Trade button) | 🔲 Next |
-| Unusual Whales API v2 — auto-fetch live flow data | 🔲 Planned |
-| RAG knowledge base — Voyage AI + pgvector for Saty playbook | 🔲 Planned |
-| Earnings scanner | 🔲 Planned |
-| Mobile push notifications | 🔲 Planned |
+| Feature                                                                   | Status                             |
+| ------------------------------------------------------------------------- | ---------------------------------- |
+| 0DTE Desk — chat, all commands, PREMARKET, chart vision                   | ✅ Live                            |
+| Analyzer — real options chain, greeks, dual Claude verdicts               | ✅ Live                            |
+| Analyzer — dark terminal theme redesign                                   | ✅ Live                            |
+| Screener — 15 tickers parallel, ribbon filter                             | ✅ Live                            |
+| Auth (Clerk), observability (LangSmith)                                   | ✅ Live                            |
+| Reliability — retry backoff, keep-alive, timeouts                         | ✅ Live                            |
+| TradingView webhook — unified /webhook/tv handles all 3 feeds             | ✅ Live                            |
+| Alert cards — colored by setup/direction, trade plan, internals row       | ✅ Live                            |
+| Trade Plan card — Pine-computed T1/T2/T3/SL from Manual Planner           | ✅ Live                            |
+| Internals snapshot — TRIN/ADD/VOLD attached to every trade alert          | ✅ Live                            |
+| Internals heartbeat — USI:TRIN/ADD/VOLD/PCC via TV every 3m               | ✅ Live                            |
+| Manual Planner v3.3.9 — Saty Probability + Quality Engine                 | ✅ Live                            |
+| ATR Levels v3.1 Clean Extended — full Saty ladder, Day/Multiday mode      | ✅ Live                            |
+| OTD Internals Heartbeat v2.2 — market internals data feed                 | ✅ Live                            |
+| Internals live widget — TRIN/ADD/VOLD/PCC/bias sidebar widget             | ✅ Live                            |
+| Multi-chart upload + drag-drop + paste from clipboard                     | ✅ Live                            |
+| Chart context selector (TRADE IDEA / IN TRADE / PREMARKET / PTR-FAST)     | ✅ Live                            |
+| Live data injection for trade commands                                    | ✅ Live                            |
+| Dynamic max_tokens — long commands 4096, fast commands 2048               | ✅ Live                            |
+| Market internals rule — context not gate (never blocks trades)            | ✅ Live                            |
+| Target levels rule — flags when within 1pt of T1/T2/T3                    | ✅ Live                            |
+| Unusual Whales — manual text input v1                                     | ✅ Live                            |
+| Journal UI — /journal page with 3 charts, trade table                     | ✅ Live                            |
+| Journal persistence — Supabase trade_journal                              | ✅ Live                            |
+| Alert persistence — Supabase tv_alerts                                    | ✅ Live                            |
+| Session persistence — Supabase user_sessions                              | ✅ Live                            |
+| Clerk JWT middleware — user_id from verified token                        | ✅ Live                            |
+| Chat → journal entry (natural language logging)                           | ✅ Live                            |
+| 0DTE Watchlist — Mag7 + SPY/QQQ/XLK/XLF/SMH, ribbon + ATR levels          | ✅ Live                            |
+| Quick Read — card expand, Haiku 0DTE brief, Bull Above / Bear Below       | ✅ Live                            |
+| Morning Brief — full bias engine, Mag7, news, economic calendar           | ✅ Live                            |
+| Desk state machine — Open/Closed with localStorage persistence            | ✅ Live                            |
+| Market hours enforcement — desk locked outside 9:30–16:00 ET weekdays     | ✅ Live                            |
+| Auto-close desk at 16:15 ET                                               | ✅ Live                            |
+| User-specific greeting — Clerk firstName, time-aware                      | ✅ Live                            |
+| Three-column terminal layout — Levels / Chat / Signal Stream              | ✅ Live                            |
+| Morning Brief banner — pinned strip showing bias + Mag7 + warning         | ✅ Live                            |
+| Session stats bar — TD number, trades, P&L, budget used                   | ✅ Live                            |
+| Chart strip — timeframe pills + Open Chart ↗ button                       | ✅ Live                            |
+| Signal Stream — permanent right panel, alert cards with Took/Skip         | ✅ Live                            |
+| Header SPX price + VIX + ATR strip                                        | ✅ Live                            |
+| TradingView Charting Library — application submitted, awaiting approval   | ⏳ Pending                         |
+| Signal Stream → "Took This Trade" — entry premium, open trade saved       | ✅ Live                            |
+| Journal → Close Trade — exit premium, P&L = (exit−entry premium)×100      | ✅ Live                            |
+| Journal → Edit trade — exit price, grade, notes inline edit               | ✅ Live                            |
+| trade_journal schema — status, entry_premium, exit_premium columns        | ✅ Live                            |
+| Journal stats — only closed trades with real pnl counted                  | ✅ Live                            |
+| Signal card logged/skipped state — persisted in localStorage              | ✅ Live                            |
+| Signal stream cleanup — mobile capped at 5 (priority for today's ENTRY)   | ✅ Live                            |
+| Mobile Signals tab — bottom sheet, Took/Skip, same-day actionability gate | ✅ Live                            |
+| Embedded SPX chart (Lightweight Charts)                                   | ❌ Abandoned — yfinance unreliable |
+| Claude process review — auto-analysis on trade close                      | 🔲 Next                            |
+| Full SPX chart with indicators (TradingView Charting Library)             | 🔲 Pending approval                |
+| Agent (LangGraph, tool use)                                               | 🔲 Planned                         |
+| Unusual Whales API v2 — auto-fetch live flow data                         | 🔲 Planned                         |
+| RAG knowledge base — Voyage AI + pgvector for Saty playbook               | 🔲 Planned                         |
+| Earnings scanner                                                          | 🔲 Planned                         |
+| Mobile push notifications                                                 | 🔲 Planned                         |
 
 ---
 
@@ -73,6 +91,7 @@ Branch: main (auto-deploys to Railway + Vercel on push)
 ```
 
 ### Folder structure
+
 ```
 openthedesk/
 ├── main.py              # FastAPI backend — all endpoints
@@ -84,44 +103,50 @@ openthedesk/
 ├── nixpacks.toml        # Railway deployment config
 ├── .env                 # API keys (never commit)
 ├── pine/
-│   ├── openthedesk_manual_planner.pine    # Manual Planner v3.3.6 (Full Saty Runner Manager)
+│   ├── openthedesk_manual_planner.pine    # Manual Planner v3.3.9 (SATY PROBABILITY + QUALITY ENGINE)
 │   ├── openthedesk_atr_clean.pine         # ATR Levels v3.1 Clean Extended (full ladder)
 │   └── otd_internals_heartbeat.pine       # OTD Internals Heartbeat v2.2
 └── ui/
-    ├── app/
-    │   ├── page.tsx              # 0DTE Desk — desk state machine, morning brief, chat
-    │   ├── analyzer/page.tsx     # Analyzer — watchlist, quick read, full analysis
-    │   ├── journal/page.tsx      # Journal (/journal)
-    │   ├── layout.tsx            # ClerkProvider + auth
-    │   └── globals.css           # Design tokens + shared styles + glassmorphism
+    └── app/
+        ├── page.tsx              # 0DTE Desk — desk state machine, morning brief, chat
+        ├── analyzer/page.tsx     # Analyzer — watchlist, quick read, full analysis
+        ├── journal/page.tsx      # Journal (/journal)
+        ├── layout.tsx            # ClerkProvider + auth
+        └── globals.css           # Design tokens + shared styles + glassmorphism
     └── app/components/
-        ├── Header.tsx            # Nav + desk open/closed indicator + session timer
+        ├── Header.tsx            # Nav + desk open/closed indicator + SPX price strip
         ├── AlertPanel.tsx        # useAlerts hook + AlertDrawer (SSE) + TradePlan card
         ├── InternalsWidget.tsx   # Live internals widget — polls /internals every 30s
         ├── LevelsPanel.tsx       # ATR levels + 0DTE options sidebar (mounts InternalsWidget)
         ├── ChatPanel.tsx         # Main chat interface + empty state + morning brief wiring
         ├── CommandPalette.tsx    # / commands modal
         ├── QuickActions.tsx      # Quick action buttons — state-aware (open vs closed)
-        └── MobileSheet.tsx       # Mobile bottom sheet for levels
+        ├── MobileSheet.tsx       # Mobile bottom sheet for levels
+        ├── MorningBriefBanner.tsx # Pinned brief strip — bias, Mag7, warning, levels
+        ├── ChartStrip.tsx        # Timeframe pills + Open Chart ↗ button
+        ├── SessionBar.tsx        # TD number, trades, P&L, budget used bar
+        ├── MobileSignalStream.tsx # Mobile bottom sheet — signal cards, Took/Skip, capped at 5
+        └── SignalStream.tsx      # Permanent right panel — alert cards with Took/Skip
 ```
 
 ---
 
 ## Infrastructure
 
-| Service | Platform | URL / Notes |
-|---------|----------|-------------|
-| Frontend | Vercel | https://openthedesk.vercel.app |
-| Backend | Railway | https://openthedesk-production.up.railway.app |
-| Auth | Clerk | Google sign-in, single user (Satya) |
-| LLM | Anthropic API | claude-sonnet-4-6 + claude-haiku-4-5-20251001 |
-| Market data | Tradier | api.tradier.com/v1 (production brokerage) |
-| Fundamentals | yfinance | Mag7 + context instruments + India stocks |
-| Trading rules | Google Doc | Fetched via context.py on startup |
-| Observability | LangSmith | wrap_anthropic() at startup |
-| Database | Supabase | https://xxxx.supabase.co — live, 3 tables |
+| Service       | Platform      | URL / Notes                                                    |
+| ------------- | ------------- | -------------------------------------------------------------- |
+| Frontend      | Vercel        | https://openthedesk.vercel.app                                 |
+| Backend       | Railway       | https://openthedesk-production.up.railway.app                  |
+| Auth          | Clerk         | Google sign-in, single user (Satya)                            |
+| LLM           | Anthropic API | claude-sonnet-4-6 + claude-haiku-4-5-20251001                  |
+| Market data   | Tradier       | api.tradier.com/v1 (production brokerage)                      |
+| Fundamentals  | yfinance      | Mag7 + context instruments + ^SPX intraday (^SPX symbol works) |
+| Trading rules | Google Doc    | Fetched via context.py on startup                              |
+| Observability | LangSmith     | wrap_anthropic() at startup                                    |
+| Database      | Supabase      | https://xxxx.supabase.co — live, 3 tables                      |
 
 ### Environment variables — backend (Railway + .env)
+
 ```
 ANTHROPIC_API_KEY=
 TRADIER_TOKEN=           # Production brokerage token (Level 6 options)
@@ -136,6 +161,7 @@ PORT=8000                # Railway sets automatically
 ```
 
 ### Environment variables — frontend (Vercel)
+
 ```
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=
 NEXT_PUBLIC_API_URL=     # Railway backend URL
@@ -148,6 +174,7 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=   # Supabase anon key (safe for frontend, RLS enf
 ## Backend — main.py
 
 ### Pydantic models
+
 ```python
 ChatRequest:           message, session_id, atr (optional)
 RefreshRequest:        session_id
@@ -156,14 +183,20 @@ QuickAnalyzeRequest:   ticker, price, ribbon_state, compression, po_value,
                        call_trigger, put_trigger, gg_open_call, gg_open_put,
                        atr_14, change_pct
 JournalEntryPayload:   date, ticker, setup, direction,
-                       entry_price, exit_price, contracts,
-                       pnl (optional), grade, process_grade, notes (optional)
+                       entry_price, entry_premium (optional),
+                       exit_price (optional), exit_premium (optional),
+                       contracts, pnl (optional), grade (optional),
+                       process_grade (optional), notes (optional),
+                       status ("open"|"closed", default "open")
+JournalUpdatePayload:  exit_price, exit_premium, entry_premium,
+                       pnl, grade, process_grade, notes, status (all optional)
 ```
 
 Note: TVAlertPayload and InternalsPayload Pydantic models were REMOVED.
 /webhook/tv now uses raw Request body parsing — handles any TV payload format.
 
 ### Endpoints
+
 ```
 GET  /health                  → status check
 GET  /ping                    → keep-alive probe
@@ -186,9 +219,11 @@ GET  /alerts/stream           → SSE stream — pushes alerts to frontend
 POST /journal/entry           → create journal entry (Clerk JWT required)
 GET  /journal/entries         → fetch journal entries (Clerk JWT required)
 GET  /journal/stats           → journal statistics (Clerk JWT required)
+PATCH /journal/entry/{id}  → update journal entry (Clerk JWT required)
 ```
 
 ### Global state
+
 ```python
 INTERNALS_CACHE: dict   # Latest internals snapshot from TV heartbeat (in-memory, intentional)
 TV_ALERTS: list[dict]   # In-memory cache only — source of truth is Supabase tv_alerts
@@ -198,6 +233,7 @@ sessions: dict          # In-memory fallback only — source of truth is Supabas
 ```
 
 ### Supabase client
+
 ```python
 from supabase import create_client, Client
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
@@ -206,6 +242,7 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 ```
 
 ### Clerk JWT middleware
+
 ```python
 async def get_current_user(authorization: str = Header(...)) -> str:
     token = authorization.replace("Bearer ", "")
@@ -221,6 +258,7 @@ async def get_current_user(authorization: str = Header(...)) -> str:
 ```
 
 ### Model routing
+
 ```python
 SONNET = "claude-sonnet-4-6"
 HAIKU  = "claude-haiku-4-5-20251001"
@@ -239,6 +277,7 @@ _LONG_COMMANDS = {
 ```
 
 ### Chat → journal intent detection
+
 ```python
 # In /chat, before routing to Claude:
 # 1. _is_command_message() — skip if known command prefix
@@ -249,6 +288,7 @@ _LONG_COMMANDS = {
 ```
 
 ### Morning Brief — /morning-brief
+
 ```python
 # Runs three parallel operations:
 # 1. get_market_summary() — SPX/VIX/ATR levels
@@ -276,9 +316,14 @@ _LONG_COMMANDS = {
 # VIX > 30 → RISK: HIGH minimum
 # VIX > 40 → RISK: EXTREME, no 0DTE
 # News unavailable → brief still generates from market data
+
+# Frontend: runMorningBrief() calls POST /morning-brief directly
+# Reads data.morning_brief from JSON response
+# Sets briefLoading state — button shows "⏳ Preparing Brief..."
 ```
 
 ### 0DTE Watchlist — /watchlist
+
 ```python
 _MAG7 = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL"]
 _CONTEXT_INSTRUMENTS = ["QQQ", "SPY", "XLK", "XLF", "SMH"]
@@ -294,6 +339,7 @@ _ZERO_DTE_ELIGIBLE = {all above}  # static — daily options available
 ```
 
 ### Quick Read — /quick-analyze
+
 ```python
 # POST — accepts watchlist ticker data
 # Haiku, max_tokens=512
@@ -312,7 +358,101 @@ _ZERO_DTE_ELIGIBLE = {all above}  # static — daily options available
 
 ## Frontend — Desk (ui/app/page.tsx)
 
+### Three-column terminal layout
+
+```
+┌─────────────┬──────────────────────┬──────────────┐
+│  LEFT       │  CENTER              │  RIGHT       │
+│  180px      │  flex: 1             │  260px       │
+│             │                      │              │
+│  LevelsPanel│  ChartStrip (36px)   │  SignalStream│
+│  (ATR +     │  SessionBar (32px)   │  (permanent  │
+│   Internals │  ChatPanel (flex)    │   alert      │
+│   + Options)│  QuickActions        │   cards)     │
+│             │  ChatInput           │              │
+└─────────────┴──────────────────────┴──────────────┘
+
+CSS classes:
+.otd-layout   → height:100dvh, flex column
+.otd-columns  → grid 180px 1fr 260px
+.otd-center   → flex column, min-height:0
+.otd-left     → bg-card, border-right, overflow-y:auto
+.signal-stream → bg-card, border-left, flex column
+```
+
+### Morning Brief Banner
+
+```
+Pinned strip below header — visible after brief is run
+Shows: bias badge | Mag7 alignment | ⚠ warning | Bull/Bear levels | Full Brief ↗
+Parsed from last assistant message containing "MARKET BIAS:"
+CSS: .brief-banner, .brief-bias-badge, .brief-mag7, .brief-warning-pill
+```
+
+### ChartStrip
+
+```
+Always-visible 36px strip at top of center column
+- Timeframe pills: 1m 3m 5m 15m 1H
+- "Open Xm Chart ↗" button → opens TradingView saved layout
+  URL: https://www.tradingview.com/chart/4sntynIK/?interval={tf}
+- NO iframe embed — TradingView blocks SP:SPX in iframes
+
+NOTE: TradingView Charting Library application submitted.
+When approved, replace button with full embedded chart.
+Chart layout ID: 4sntynIK (Satya's saved SPX layout)
+```
+
+### SessionBar
+
+```
+32px bar showing: TD{number} | Trades 0/3 | P&L +$0 | W/L | Loss limit bar
+Data: currently defaults (0) — real data from /journal/stats planned next session
+```
+
+### SignalStream
+
+```
+Permanent right panel — 260px wide
+Uses same useAlerts hook as AlertPanel (same SSE connection, not duplicated)
+Shows: last 8 alerts newest first
+Each SignalCard:
+- Setup pill (colored by direction)
+- Grade pill
+- Time
+- Price (large monospace)
+- T1/T2/T3/SL 2x2 grid
+- Internals pills (TRIN/ADD colored)
+- [✓ Took] [✗ Skip] for ENTRY signals from TODAY only (isActionable gate — older un-actioned ENTRY alerts show as info-only cards, no buttons)
+- Older alerts fade to 50% opacity
+Footer: Today's P&L and trades count
+```
+
+### MobileSignalStream
+
+```
+Mobile-only bottom sheet, triggered by 4th bottom-nav tab "📡 Signals"
+(alongside Chat / Levels / Commands)
+Receives same alerts/isUnread/markRead props from page.tsx — reuses the
+existing useAlerts SSE connection, no duplicate subscription
+Capped at 5 cards (vs desktop's 8)
+Priority: any active (unlogged, unskipped) ENTRY alert from TODAY is
+always included in the 5, even if newer non-ENTRY alerts from other
+tickers would otherwise push it out
+Same-day actionability gate (shared concept with desktop SignalCard):
+- isActionable = isEntry && isFromToday(alert.ts)
+- Took/Skip and entry-premium form only render if isActionable
+- Older ENTRY alerts (not from today) show as informational cards only
+  (price, T1/T2/T3/SL, internals) — no buttons, since logging them now
+  would create a journal entry with a misleading date
+- "today" = browser-local date (fine for CST; would need ET-based check
+  if used heavily from other timezones)
+formatRelative rolls over to days ("3d") past 24h, on both mobile and
+desktop SignalStream
+```
+
 ### Desk state machine
+
 ```typescript
 // States: CLOSED → OPEN → CLOSED
 // Persisted in localStorage:
@@ -336,6 +476,7 @@ canOpenDesk = marketStatus === "open"  // 9:30–16:00 ET weekdays only
 ```
 
 ### Morning Brief flow
+
 ```typescript
 // runMorningBrief():
 //   1. setBriefLoading(true) → button shows "⏳ Preparing Brief..."
@@ -346,6 +487,7 @@ canOpenDesk = marketStatus === "open"  // 9:30–16:00 ET weekdays only
 ```
 
 ### Greeting
+
 ```typescript
 const { user } = useUser();  // Clerk hook
 const firstName = user?.firstName
@@ -357,16 +499,20 @@ getGreeting() → "Good morning" | "Good afternoon" | "Good evening"
 ```
 
 ### QuickActions — state-aware
+
 ```
 DESK CLOSED: [🌅 Morning Brief] [Open the Desk — disabled if market closed]
 DESK OPEN:   [PTR-FAST] [PREMARKET] [/ Commands] [Close Desk]
 ```
 
 ### Hydration fix
+
 ```typescript
 // Both Header.tsx and QuickActions.tsx use:
 const [mounted, setMounted] = useState(false);
-useEffect(() => { setMounted(true); }, []);
+useEffect(() => {
+  setMounted(true);
+}, []);
 
 // All deskOpen-dependent rendering uses (mounted && deskOpen)
 // suppressHydrationWarning on affected elements
@@ -378,30 +524,21 @@ useEffect(() => { setMounted(true); }, []);
 ## Frontend — Analyzer (ui/app/analyzer/page.tsx)
 
 ### WatchlistPanel
+
 ```typescript
 // Fetches GET /watchlist on mount
 // Two sections: "Mag 7" and "Market Context"
 // TickerCard — glassmorphism, ribbon glow, compression ring
-// Click card → expands inline (card-expand CSS animation)
+// Click card → expands inline (card-expand CSS animation, max-height: 1200px)
 // Quick Read loads from /quick-analyze on first expand
 // Cached per ticker — no re-fetch on re-expand
 // "Full Analysis →" button → triggers existing analyze() flow
 // Only one card expanded at a time
-```
-
-### TickerCard design
-```
-- glass-card class + glow-bull/glow-bear/glow-mixed
-- Ribbon badge with glow
-- 0DTE badge (cyan) if zero_dte_eligible
-- Compression ring (orange pulsing) if compression=true
-- BULL ABOVE / BEAR BELOW trigger levels
-- PO bar: gradient fill, green→teal positive, red→orange negative
-- Expanded: BIAS colored, prices cyan, IV/PREMIUM italic gray
-- Full Analysis button: gradient blue→purple
+// alignSelf: "start" on each card — prevents grid stretching
 ```
 
 ### Full Analysis result card
+
 ```
 Dark terminal theme (#0a0e17)
 - Top ribbon glow line (green BULLISH / red BEARISH)
@@ -421,6 +558,7 @@ Dark terminal theme (#0a0e17)
 ## Database — Supabase
 
 ### Tables
+
 ```sql
 trade_journal (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -441,6 +579,12 @@ trade_journal (
 )
 -- RLS: user_id = auth.jwt()->>'sub'
 -- Index: (user_id, created_at DESC)
+-- June 10 additions:
+-- status text DEFAULT 'closed'        ("open" | "closed")
+-- entry_premium numeric               (options premium paid)
+-- exit_premium numeric                (options premium sold)
+-- exit_price, pnl, grade made NULLABLE for open trades
+-- P&L formula: (exit_premium − entry_premium) × contracts × 100
 
 tv_alerts (
   alert_id uuid PRIMARY KEY,
@@ -468,6 +612,7 @@ user_sessions (
 ```
 
 ### Data flow
+
 ```
 tv_alerts:      TradingView → /webhook/tv → Supabase (no user context)
 trade_journal:  /chat intent or /journal/entry → Supabase (Clerk user_id)
@@ -482,12 +627,18 @@ INTERNALS_CACHE stays in-memory — heartbeat data is transient, not persisted
 ## TradingView Pipeline
 
 ### Signal sources (all fire on 3m bar close)
+
 ```
-Manual Planner v3.3.6    → ENTRY/TARGET/TRAIL/STOP/EXIT alerts
+Manual Planner v3.3.9    → ENTRY/TARGET/TRAIL/STOP/EXIT alerts
                             Sends: ticker, timeframe, condition, price,
                                    entry, t1, t2, t3, sl, trail_sl,
                                    setup, grade, direction, signal,
                                    atr_level, secret
+                            atr_level included on ENTRY, T1 HIT, T2 HIT,
+                            T3 HIT, and RUNNER NEXT HIT (v3.3.9) — other
+                            alert types (STOP, INVALIDATED, REVERSAL EXIT,
+                            RUNNER AFTER T3, RUNNER MAX TARGET, TRAILING SL
+                            UPDATED) do not carry atr_level
 ATR Levels v3.1 Clean    → Optional backup target/stop alerts only
                             setup="ATR_TARGET" or "ATR_STOP"
 Internals Heartbeat v2.2 → type="internals", TRIN/ADD/VOLD/PCC/bias
@@ -495,6 +646,7 @@ Internals Heartbeat v2.2 → type="internals", TRIN/ADD/VOLD/PCC/bias
 ```
 
 ### Webhook routing (/webhook/tv)
+
 ```python
 if data.get("type") == "internals" or data.get("signal") == "INTERNALS":
     → _handle_internals()  # updates INTERNALS_CACHE only, no SSE broadcast
@@ -503,10 +655,34 @@ else:
 ```
 
 ### Alert display types (frontend card accent)
+
 ```
 "entry"  → ENTRY signal, direction BULL/BEAR
 "update" → TRAIL or TARGET signal
 "stop"   → EXIT, STOP, or REVERSAL condition
+```
+
+### Chart integration status
+
+```
+TradingView embed: BLOCKED — SP:SPX not available in any free widget
+  - advanced-chart widget: blocked
+  - widgetembed iframe: blocked
+  - saved layout iframe: blocked (X-Frame-Options)
+
+Workaround in place: ChartStrip "Open Chart ↗" button
+  → opens https://www.tradingview.com/chart/4sntynIK/?interval={tf}
+  → loads Satya's saved SPX layout with Manual Planner + ATR levels
+
+TradingView Charting Library: APPLICATION SUBMITTED June 8, 2026
+  → awaiting approval (2-5 business days)
+  → will enable full SP:SPX embed with Cboe real-time data
+  → Satya has: Premium plan + Cboe Global Indices Feed + CME Group
+
+yfinance SPX data: ^SPX symbol works (NOT ^GSPC)
+  → hist = yf.Ticker("^SPX").history(interval="5m", start=..., end=...)
+  → returns 78 bars for a trading day
+  → available for Lightweight Charts bridge build when ready
 ```
 
 ---
@@ -514,6 +690,7 @@ else:
 ## Reliability Patterns
 
 ### with_retry()
+
 ```python
 def with_retry(fn, max_attempts=3):
     for attempt in range(max_attempts):
@@ -524,12 +701,14 @@ def with_retry(fn, max_attempts=3):
 ```
 
 ### Two Anthropic clients
+
 ```python
 client        = Anthropic(timeout=60.0)   # /chat, /analyze, /morning-brief
 stream_client = Anthropic(timeout=120.0)  # /analyze-chart, /premarket
 ```
 
 ### Railway keep-alive
+
 ```python
 if now.weekday() < 5 and 9 <= now.hour < 16:
     await http.get(f"http://localhost:{port}/ping")
@@ -551,11 +730,13 @@ if now.weekday() < 5 and 9 <= now.hour < 16:
            Click it → session opener runs automatically
            Header: ● DESK OPEN + session timer starts
 
-9:30+ ET  TradingView alerts → alert drawer fills
+9:30+ ET  TradingView alerts → Signal Stream right panel fills
+           Click "Open Chart ↗" → TradingView opens in new tab
            PTR-FAST before any entry
            Take trade
            "took GG Bear at 7390, exited 7378" → auto-journals
-           Or: [Took This Trade] button on alert card (planned)
+           Take trade → [✓ Took] on signal card → enter entry premium → saves as OPEN
+           Exit trade → /journal → Close Trade → enter exit premium → P&L computed
 
 4:00 PM   Desk auto-closes at 4:15 ET
            EOD runs automatically
@@ -566,59 +747,72 @@ if now.weekday() < 5 and 9 <= now.hour < 16:
 
 ## Known Bugs Fixed — Do Not Repeat
 
-| # | Bug | Fix |
-|---|-----|-----|
-| 1 | Tradier /options/ → 302 | Always /markets/options/ prefix |
-| 2 | yfinance NaN → json crash | sanitize() before every return |
-| 3 | Ribbon wrong EMAs | 8/21/34 not 8/21/48 |
-| 4 | options_chain always null | Call get_options_chain_for_analysis() in US block |
-| 5 | Analyzer response cut off | max_tokens Haiku=2048, Sonnet=1536 |
-| 6 | Railway port not bound | nixpacks.toml + read PORT from env |
-| 7 | Git submodule in ui/ | Delete ui/.git before git add |
-| 8 | System env overrides .env | unset ANTHROPIC_API_KEY in terminal |
-| 9 | 0DTE picking deep ITM | Delta filter → budget → ATR target cascade |
-| 10 | TV webhook header blocked | Accept secret from body OR header |
-| 11 | Alert badge auto-clearing | Remove markAllRead() from bell onClick |
-| 12 | No Anthropic timeouts | Two clients: 60s + 120s |
-| 13 | Railway cold starts | _keep_alive() background task |
-| 14 | Missing retry on 529 | with_retry() on all Claude calls |
-| 15 | setup/grade/direction missing | Added to alert dict from raw payload |
-| 16 | markRead marking all above | Set<string> readIds replaces lastSeenId |
-| 17 | Accent bar not visible | alignSelf:stretch child div |
-| 18 | ATR not passing to snapshot | Pass atr param through all callers |
-| 19 | Pine Script plot limit | hex const colors = 48 plots total |
-| 20 | V▼ firing in green cloud | cloud_bull = ema8≥ema21 AND ema21≥ema34 |
-| 21 | GG not firing at open | Two-tier cloud gate + PO bypass |
-| 22 | Wrong ATR key names | gg_complete_call/put confirmed |
-| 23 | TV webhook 422 Pydantic | Raw Request body — no Pydantic model |
-| 24 | Internals NaN card in drawer | SSE guard: if alert.type==="internals" return |
-| 25 | Internals 422 from TV | Raw Request body in _handle_internals |
-| 26 | Backend recalculating levels | Pine sends T1/T2/T3/SL — use directly |
-| 27 | yfinance $^TRIN broken | get_market_internals() returns None — TV heartbeat is source |
-| 28 | /webhook/internals separate | Consolidated into /webhook/tv router |
-| 29 | Internals bias field dropped | _handle_internals() stores bias from v2.2 payload |
-| 30 | REVERSAL EXIT no accent color | display_type="stop" covers EXIT+REVERSAL conditions |
-| 31 | InternalsWidget always offline | ts vs received_at key mismatch — backend stores received_at |
-| 32 | Header PDC crash on load | marketData!.atr_levels → optional chaining + ?? '—' |
-| 33 | Supabase init crash Python 3.13 | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0 |
-| 34 | TS Authorization header type error | Record<string, string> + imperative if(token) assignment |
-| 35 | Chat journal intent false negative | Two-step: YES/NO Haiku check → extraction → _save_journal_entry() |
-| 36 | Watchlist card grid stretching | alignSelf: "start" on TickerCard + align-items: start on grid |
-| 37 | Hydration mismatch desk state | mounted flag + suppressHydrationWarning in Header + QuickActions |
-| 38 | Morning Brief calling /chat | runMorningBrief() calls /morning-brief directly, reads data.morning_brief |
-| 39 | Desk open on weekend refresh | localStorage auto-clears if >12h old on mount |
+| #   | Bug                                                                                    | Fix                                                                                                |
+| --- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | Tradier /options/ → 302                                                                | Always /markets/options/ prefix                                                                    |
+| 2   | yfinance NaN → json crash                                                              | sanitize() before every return                                                                     |
+| 3   | Ribbon wrong EMAs                                                                      | 8/21/34 not 8/21/48                                                                                |
+| 4   | options_chain always null                                                              | Call get_options_chain_for_analysis() in US block                                                  |
+| 5   | Analyzer response cut off                                                              | max_tokens Haiku=2048, Sonnet=1536                                                                 |
+| 6   | Railway port not bound                                                                 | nixpacks.toml + read PORT from env                                                                 |
+| 7   | Git submodule in ui/                                                                   | Delete ui/.git before git add                                                                      |
+| 8   | System env overrides .env                                                              | unset ANTHROPIC_API_KEY in terminal                                                                |
+| 9   | 0DTE picking deep ITM                                                                  | Delta filter → budget → ATR target cascade                                                         |
+| 10  | TV webhook header blocked                                                              | Accept secret from body OR header                                                                  |
+| 11  | Alert badge auto-clearing                                                              | Remove markAllRead() from bell onClick                                                             |
+| 12  | No Anthropic timeouts                                                                  | Two clients: 60s + 120s                                                                            |
+| 13  | Railway cold starts                                                                    | \_keep_alive() background task                                                                     |
+| 14  | Missing retry on 529                                                                   | with_retry() on all Claude calls                                                                   |
+| 15  | setup/grade/direction missing                                                          | Added to alert dict from raw payload                                                               |
+| 16  | markRead marking all above                                                             | Set<string> readIds replaces lastSeenId                                                            |
+| 17  | Accent bar not visible                                                                 | alignSelf:stretch child div                                                                        |
+| 18  | ATR not passing to snapshot                                                            | Pass atr param through all callers                                                                 |
+| 19  | Pine Script plot limit                                                                 | hex const colors = 48 plots total                                                                  |
+| 20  | V▼ firing in green cloud                                                               | cloud_bull = ema8≥ema21 AND ema21≥ema34                                                            |
+| 21  | GG not firing at open                                                                  | Two-tier cloud gate + PO bypass                                                                    |
+| 22  | Wrong ATR key names                                                                    | gg_complete_call/put confirmed                                                                     |
+| 23  | TV webhook 422 Pydantic                                                                | Raw Request body — no Pydantic model                                                               |
+| 24  | Internals NaN card in drawer                                                           | SSE guard: if alert.type==="internals" return                                                      |
+| 25  | Internals 422 from TV                                                                  | Raw Request body in \_handle_internals                                                             |
+| 26  | Backend recalculating levels                                                           | Pine sends T1/T2/T3/SL — use directly                                                              |
+| 27  | yfinance $^TRIN broken                                                                 | get_market_internals() returns None — TV heartbeat is source                                       |
+| 28  | /webhook/internals separate                                                            | Consolidated into /webhook/tv router                                                               |
+| 29  | Internals bias field dropped                                                           | \_handle_internals() stores bias from v2.2 payload                                                 |
+| 30  | REVERSAL EXIT no accent color                                                          | display_type="stop" covers EXIT+REVERSAL conditions                                                |
+| 31  | InternalsWidget always offline                                                         | ts vs received_at key mismatch — backend stores received_at                                        |
+| 32  | Header PDC crash on load                                                               | marketData!.atr_levels → optional chaining + ?? '—'                                                |
+| 33  | Supabase init crash Python 3.13                                                        | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0                                                    |
+| 34  | TS Authorization header type error                                                     | Record<string, string> + imperative if(token) assignment                                           |
+| 35  | Chat journal intent false negative                                                     | Two-step: YES/NO Haiku check → extraction → \_save_journal_entry()                                 |
+| 36  | Watchlist card grid stretching                                                         | alignSelf: "start" on TickerCard + align-items: start on grid                                      |
+| 37  | Hydration mismatch desk state                                                          | mounted flag + suppressHydrationWarning in Header + QuickActions                                   |
+| 38  | Morning Brief calling /chat                                                            | runMorningBrief() calls /morning-brief directly, reads data.morning_brief                          |
+| 39  | Desk open on weekend refresh                                                           | localStorage auto-clears if >12h old on mount                                                      |
+| 40  | CSS variables outside :root                                                            | New design tokens must be inside existing :root block in globals.css                               |
+| 41  | otd-columns not rendering grid                                                         | height: 100% required on .otd-columns alongside flex: 1                                            |
+| 42  | SP:SPX iframe blocked                                                                  | TradingView blocks all index embedding — use Open Chart ↗ button                                   |
+| 43  | ^GSPC yfinance broken                                                                  | Use ^SPX symbol instead — returns 78 bars per trading day                                          |
+| 44  | supabase not installed in venv                                                         | pip install supabase==2.7.4 httpx==0.27.0 gotrue==2.7.0                                            |
+| 45  | exit_price NOT NULL blocks open trades                                                 | ALTER COLUMN exit_price/pnl/grade DROP NOT NULL                                                    |
+| 46  | Signal card state resets on SSE update                                                 | loggedIds/skippedIds lifted to parent + localStorage                                               |
+| 47  | P&L computed from SPX points not premium                                               | P&L = (exit_premium − entry_premium) × contracts × 100                                             |
+| 48  | Mobile had no Signal Stream — bell-icon AlertDrawer only, no Took/Skip                 | Added 4th bottom-nav tab "📡 Signals" → MobileSignalStream bottom sheet                            |
+| 49  | Old ENTRY alerts (days-old) still showed Took/Skip on refresh, both desktop and mobile | isActionable = isEntry && isFromToday(alert.ts) gate added to both SignalCard and MobileSignalCard |
+| 50  | formatRelative capped at hours ("75h") for old alerts                                  | Added day rollover — "3d" past 24h, both desktop and mobile                                        |
 
 ---
 
 ## Saty Trading System Reference
 
 ### Account — Phase 2
+
 ```
 ~$1,625 · Max 1 contract · Max $3–4 premium
 A/A+ setups only · Max loss -$150/session · Max 3 trades/day
 ```
 
 ### Internals — context not gate
+
 ```
 Internals inform, never block (confirmed by Saty).
 TRIN >1.2 bearish pressure | TRIN <0.8 bullish pressure
@@ -628,6 +822,7 @@ PCC >1.2 bearish | <0.8 bullish
 ```
 
 ### Ribbon cloud reading
+
 ```
 Read the CLOUD (filled area) — not the candle color
 Green/teal = BULLISH = calls eligible
@@ -637,6 +832,7 @@ Gray candles INSIDE green cloud = compression — NOT bearish
 ```
 
 ### ATR levels (v3.1 Clean Extended — full Saty ladder)
+
 ```
 Trigger:     PDC ± ATR × 0.236
 GG Open:     PDC ± ATR × 0.382   → T1 (first target)
@@ -644,18 +840,14 @@ GG Open:     PDC ± ATR × 0.382   → T1 (first target)
 GG Complete: PDC ± ATR × 0.618   → T2 (golden ratio exit)
 78.6%:       PDC ± ATR × 0.786
 Full ATR:    PDC ± ATR × 1.000   → T3 full day target
-123.6%:      PDC ± ATR × 1.236   } Extension levels —
-138.2%:      PDC ± ATR × 1.382   } show_extensions=false
-150%:        PDC ± ATR × 1.500   } by default,
-161.8%:      PDC ± ATR × 1.618   } togglable in
-178.6%:      PDC ± ATR × 1.786   } TradingView
-200%:        PDC ± ATR × 2.000   }
+123.6%–200%: Extension levels, show_extensions=false by default
 
 ATR mode: Day (Daily PDC/ATR) or Multiday (Weekly PDC/ATR)
 session.extended used for accurate overnight PDC
 ```
 
 ### Trade execution timeframe
+
 ```
 1H  → Bias read only
 15m → Setup confirmation context
@@ -664,7 +856,8 @@ session.extended used for accurate overnight PDC
       Backend attaches internals snapshot
 ```
 
-### Setup definitions (Manual Planner v3.3.6)
+### Setup definitions (Manual Planner v3.3.9)
+
 ```
 GG          = 38.2% GG Open toward 61.8% GG Complete
 FLAG        = pullback into 13/21 EMA zone while ribbon stacked ≥5 bars
@@ -674,24 +867,40 @@ BT          = call/put trigger backtest
 ORB RETEST  = 10m opening range break + retest (CST 08:30–08:40)
 
 ORB Visual Box (v3.3.3+):
-- CST-aware ORB range: 08:30–08:40 (orbSession input, orbTimezone="America/Chicago")
-- ORB High / Low lines drawn green/red, extend right
-- ORB Mid line optional (dashed yellow)
-- Labels placed after ORB window closes
-- orbBullBroken / orbBearBroken flags gate ORB Retest setup
-- oneORBTradePerDirection = true — one retest per direction per day
+- CST-aware: 08:30–08:40 America/Chicago
+- orbBullBroken / orbBearBroken gate ORB Retest
+- oneORBTradePerDirection = true
 - Daily reset on isNewDay
 
 Runner Manager (v3.3.6):
-- Full Saty ladder target engine: f_bullNextAfter() / f_bearNextAfter()
-  walk complete ATR ladder (PDC ±0.236 through ±2.0 ATR) to find T1/T2/T3
-- iVOMY/VOMY full-ladder fix: targets found from any position on ladder
-- f_targetsValid() blocks plans where targets point wrong direction
-- Fallback: Points or R/R if Saty ladder exhausted
-- Runner after T3: runnerActive flag, progressive NEXT target manager
-- SL trails: BE after T1 → T1 after T2 → T3 after T3 → NEXT after each runner
-- atr_level field in ENTRY alert JSON: f_atrLevelName() maps price to level name
-- Mobile display profile: smaller lines/labels
+- f_bullNextAfter() / f_bearNextAfter() walk full ATR ladder
+- f_targetsValid() blocks wrong-direction plans
+- Fallback: Points or R/R if ladder exhausted
+- Runner after T3: progressive NEXT target manager
+- SL trails: BE → T1 → T3 → NEXT
+- atr_level field in ENTRY JSON: f_atrLevelName()
+- Mobile display profile
+
+v3.3.7 additions:
+- Risk quality engine: Stop Mode (Manual Only / Technical / Capped
+  Technical), min T1 reward points, max stop distance, min T1 R multiple
+- Invalid Risk/Target blocker
+
+v3.3.8 additions:
+- Saty probability classification for T1 (f_satyProbClass)
+- Context classification: Aligned / Ribbon OK / Mixed / Counter HTF / Weak
+- Final setup grade: A+ / A / B / B- / C / BLOCK, plan type label
+
+v3.3.9 additions:
+- atr_level (via f_atrLevelName) now included in T1 HIT, T2 HIT, T3 HIT,
+  and RUNNER NEXT HIT alert JSON — previously only ENTRY had it
+- Enables frontend ATR Level Probability lookups (cascade %, e.g.
+  "38.2% GG Open → 80% historical continuation to 50% Mid") keyed off
+  the level associated with each milestone, not just T1 at entry
+- Backend pass-through for atr_level on these new alert types not yet
+  verified — _handle_trade_alert/SSE/Supabase confirmed generic for
+  ENTRY; confirm same for T1/T2/T3/Runner-Next before building the
+  probability badge UI
 ```
 
 ---
@@ -699,18 +908,29 @@ Runner Manager (v3.3.6):
 ## Prioritized Feature Backlog
 
 ### Do next — in order
-1. **Alert card → journal** — "Took This Trade" button on alert card, inline form for exit price + contracts, one-click journal entry
-2. **Agent (LangGraph)** — 6 tools, /agent endpoint, proactive alerts
-3. **WEEKLY REVIEW wired to Supabase** — fetch real trade_journal data instead of context-only
+
+1. Claude process review — Haiku auto-analysis on Close Trade
+   - Add process_review TEXT column to trade_journal in Supabase
+   - POST /journal/review/{entry_id} — Haiku reads trade, returns verdict
+   - Display in Process Review panel on journal page
+2. Backend atr_level pass-through verification — confirm T1/T2/T3/
+   Runner-Next alerts carry atr_level through \_handle_trade_alert →
+   SSE → Supabase tv_alerts without field whitelisting
+3. ATR Level Probability badge — frontend lookup table (Tezak/@tesrak
+   cascade data) + inline badge on Signal Stream cards, keyed off
+   atr_level (depends on #2)
+4. SessionBar real data — wire to /journal/stats, show today's P&L + trades
+5. Full TV Charting Library embed — when TradingView approves
+6. WEEKLY REVIEW wired to Supabase
 
 ### After that
+
+- Agent (LangGraph) — 6 tools, /agent endpoint, proactive alerts
 - Unusual Whales API v2 — auto-fetch live flow data
 - RAG knowledge base — Voyage AI + pgvector
 - Earnings scanner
 - Mobile push notifications (PWA)
-- Watchlist management
-- GEX heat map overlay on PREMARKET
 
 ---
 
-*Single source of truth. Update after every build session. Any Claude session must read this before touching any code.*
+_Single source of truth. Update after every build session. Any Claude session must read this before touching any code._
