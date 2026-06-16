@@ -1,4 +1,12 @@
 "use client";
+import Link from "next/link";
+
+interface ChallengeInfo {
+  dayNumber: number;
+  currentBalance: number;
+  wins: number;
+  losses: number;
+}
 
 interface SessionBarProps {
   tdNumber: string | number;
@@ -8,6 +16,7 @@ interface SessionBarProps {
   losses: number;
   budgetUsed: number;
   budgetLimit: number;
+  challenge?: ChallengeInfo | null;
 }
 
 export default function SessionBar({
@@ -18,6 +27,7 @@ export default function SessionBar({
   losses,
   budgetUsed: _budgetUsed,
   budgetLimit,
+  challenge,
 }: SessionBarProps) {
   const lossAmount = pnl < 0 ? Math.abs(pnl) : 0;
   const lossPercent = budgetLimit > 0 ? Math.min(100, (lossAmount / budgetLimit) * 100) : 0;
@@ -63,6 +73,26 @@ export default function SessionBar({
         </div>
         <span style={{ color: "#64748b" }}>${budgetLimit}</span>
       </div>
+      {challenge && (
+        <div style={{ marginLeft: 14, paddingLeft: 14, borderLeft: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", gap: 5 }}>
+          <Link
+            href="/challenge"
+            style={{
+              fontSize: 10,
+              fontFamily: "var(--font-jetbrains-mono), monospace",
+              color: "#22d3ee",
+              textDecoration: "none",
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+            }}
+          >
+            <span style={{ color: "#475569" }}>Day {challenge.dayNumber}/90</span>
+            <span style={{ color: "#f1f5f9" }}>${challenge.currentBalance.toLocaleString()}</span>
+            <span style={{ color: "#94a3b8" }}>{challenge.wins}W·{challenge.losses}L</span>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

@@ -27,7 +27,9 @@ export default function Home() {
 
   const getMarketStatus = () => {
     const now = new Date();
-    const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+    const et = new Date(
+      now.toLocaleString("en-US", { timeZone: "America/New_York" }),
+    );
     const day = et.getDay();
     const h = et.getHours();
     const m = et.getMinutes();
@@ -41,10 +43,13 @@ export default function Home() {
   const marketStatus = getMarketStatus();
   const canOpenDesk = marketStatus === "open";
   const marketStatusLabel =
-    marketStatus === "open" ? "Market Open" :
-    marketStatus === "premarket" ? "Pre-Market" :
-    marketStatus === "weekend" ? "Weekend" :
-    "Market Closed";
+    marketStatus === "open"
+      ? "Market Open"
+      : marketStatus === "premarket"
+        ? "Pre-Market"
+        : marketStatus === "weekend"
+          ? "Weekend"
+          : "Market Closed";
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -58,7 +63,9 @@ export default function Home() {
         const hoursAgo = (Date.now() - openedAt.getTime()) / (1000 * 60 * 60);
         return hoursAgo < 12;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return false;
   });
   const [deskOpenTime, setDeskOpenTime] = useState<Date | null>(() => {
@@ -71,7 +78,9 @@ export default function Home() {
         const hoursAgo = (Date.now() - openedAt.getTime()) / (1000 * 60 * 60);
         if (hoursAgo < 12) return openedAt;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
     return null;
   });
   const [sessionDuration, setSessionDuration] = useState("");
@@ -82,18 +91,33 @@ export default function Home() {
   const [atrApplied, setAtrApplied] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [levelsOpen, setLevelsOpen] = useState(false);
-  const [mobileTab, setMobileTab] = useState<"chat" | "levels" | "commands" | "signals">("chat");
+  const [mobileTab, setMobileTab] = useState<
+    "chat" | "levels" | "commands" | "signals"
+  >("chat");
   const [signalsOpen, setSignalsOpen] = useState(false);
   const [chartInterval, setChartInterval] = useState("3");
+  const [challengeInfo, setChallengeInfo] = useState<{
+    dayNumber: number;
+    currentBalance: number;
+    wins: number;
+    losses: number;
+  } | null>(null);
   const { alerts, isUnread, markRead } = useAlerts();
   const satyAtrRef = useRef<string>("");
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => { satyAtrRef.current = satyAtr; }, [satyAtr]);
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: "smooth" }); }, [messages]);
+  useEffect(() => {
+    satyAtrRef.current = satyAtr;
+  }, [satyAtr]);
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
 
   useEffect(() => {
-    if (!deskOpen || !deskOpenTime) { setSessionDuration(""); return; }
+    if (!deskOpen || !deskOpenTime) {
+      setSessionDuration("");
+      return;
+    }
     const tick = () => {
       const diff = Math.floor((Date.now() - deskOpenTime.getTime()) / 1000);
       const h = Math.floor(diff / 3600);
@@ -109,7 +133,9 @@ export default function Home() {
     const checkAutoClose = () => {
       if (!deskOpen) return;
       const now = new Date();
-      const et = new Date(now.toLocaleString("en-US", { timeZone: "America/New_York" }));
+      const et = new Date(
+        now.toLocaleString("en-US", { timeZone: "America/New_York" }),
+      );
       const mins = et.getHours() * 60 + et.getMinutes();
       if (mins >= 975) {
         setDeskOpen(false);
@@ -117,7 +143,9 @@ export default function Home() {
         try {
           localStorage.removeItem("otd_desk_open");
           localStorage.removeItem("otd_desk_open_time");
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     };
     checkAutoClose();
@@ -126,17 +154,68 @@ export default function Home() {
   }, [deskOpen]);
 
   const fetchMarketData = (atrOverride?: number) => {
-    const atr = atrOverride ?? (satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined);
-    const url = atr && !isNaN(atr) && atr > 0 ? `${API}/market-data?atr=${atr}` : `${API}/market-data`;
-    fetch(url).then((r) => r.json()).then((data) => {
-      setMarketData(data);
-      if (atrOverride) setAtrApplied(true);
-    }).catch(() => {});
+    const atr =
+      atrOverride ??
+      (satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined);
+    const url =
+      atr && !isNaN(atr) && atr > 0
+        ? `${API}/market-data?atr=${atr}`
+        : `${API}/market-data`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        setMarketData(data);
+        if (atrOverride) setAtrApplied(true);
+      })
+      .catch(() => {});
   };
 
   useEffect(() => {
     fetchMarketData();
     const interval = setInterval(() => fetchMarketData(), 60_000);
+
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+
+        // Load challenge stats
+        const challengeRes = await fetch(`${API}/challenge/stats`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (challengeRes.ok) {
+          const d = await challengeRes.json();
+          if (d.active && d.stats) {
+            setChallengeInfo({
+              dayNumber: d.day_number,
+              currentBalance: d.stats.current_balance,
+              wins: d.stats.wins,
+              losses: d.stats.losses,
+            });
+          }
+        }
+
+        // Restore chat history after navigation
+        const historyRes = await fetch(`${API}/session/${SESSION_ID}/history`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (historyRes.ok) {
+          const data = await historyRes.json();
+          if (data.history && data.history.length > 0) {
+            setMessages(
+              data.history.map((m: { role: string; content: string }) => ({
+                role: m.role as "user" | "assistant",
+                content: m.content,
+                model: "claude-sonnet-4-6",
+              })),
+            );
+          }
+        }
+      } catch {
+        /* silent */
+      }
+    })();
+
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -148,37 +227,64 @@ export default function Home() {
     setLoading(true);
     try {
       const token = await getToken();
-      const authHeader: Record<string, string> = { "Content-Type": "application/json" };
+      const authHeader: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
       if (token) authHeader["Authorization"] = `Bearer ${token}`;
 
       if (msg === "MORNING BRIEF") {
-        const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
+        const atrVal = satyAtrRef.current
+          ? parseFloat(satyAtrRef.current)
+          : undefined;
         const res = await fetch(`${API}/morning-brief`, {
           method: "POST",
           headers: authHeader,
-          body: JSON.stringify({ message: "MORNING BRIEF", session_id: SESSION_ID, ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}) }),
+          body: JSON.stringify({
+            message: "MORNING BRIEF",
+            session_id: SESSION_ID,
+            ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}),
+          }),
         });
         const data = await res.json();
-        setMessages((prev) => [...prev, { role: "assistant", content: data.morning_brief, model: "claude-sonnet-4-6" }]);
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            content: data.morning_brief,
+            model: "claude-sonnet-4-6",
+          },
+        ]);
         return;
       }
 
       if (msg === "PREMARKET") {
-        const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
+        const atrVal = satyAtrRef.current
+          ? parseFloat(satyAtrRef.current)
+          : undefined;
         const res = await fetch(`${API}/premarket`, {
           method: "POST",
           headers: authHeader,
-          body: JSON.stringify({ message: "PREMARKET", session_id: SESSION_ID, ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}) }),
+          body: JSON.stringify({
+            message: "PREMARKET",
+            session_id: SESSION_ID,
+            ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}),
+          }),
         });
         const reader = res.body!.getReader();
         const decoder = new TextDecoder();
         let reply = "";
-        setMessages((prev) => [...prev, { role: "assistant", content: "", model: "claude-sonnet-4-6" }]);
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant", content: "", model: "claude-sonnet-4-6" },
+        ]);
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
           reply += decoder.decode(value);
-          setMessages((prev) => [...prev.slice(0, -1), { role: "assistant", content: reply, model: "claude-sonnet-4-6" }]);
+          setMessages((prev) => [
+            ...prev.slice(0, -1),
+            { role: "assistant", content: reply, model: "claude-sonnet-4-6" },
+          ]);
         }
         return;
       }
@@ -189,7 +295,10 @@ export default function Home() {
         body: JSON.stringify({ message: msg, session_id: SESSION_ID }),
       });
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply, model: data.model }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: data.reply, model: data.model },
+      ]);
       if (msg === "Open the Desk") {
         const now = new Date();
         setDeskOpen(true);
@@ -197,10 +306,15 @@ export default function Home() {
         try {
           localStorage.setItem("otd_desk_open", "true");
           localStorage.setItem("otd_desk_open_time", now.toISOString());
-        } catch { /* ignore */ }
+        } catch {
+          /* ignore */
+        }
       }
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant", content: "⚠️ Could not reach the desk." }]);
+      setMessages((prev) => [
+        ...prev,
+        { role: "assistant", content: "⚠️ Could not reach the desk." },
+      ]);
     } finally {
       setLoading(false);
     }
@@ -210,13 +324,24 @@ export default function Home() {
     setRefreshing(true);
     try {
       const token = await getToken();
-      const authHeader: Record<string, string> = { "Content-Type": "application/json" };
+      const authHeader: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
       if (token) authHeader["Authorization"] = `Bearer ${token}`;
-      await fetch(`${API}/refresh-context`, { method: "POST", headers: authHeader, body: JSON.stringify({ session_id: SESSION_ID }) });
+      await fetch(`${API}/refresh-context`, {
+        method: "POST",
+        headers: authHeader,
+        body: JSON.stringify({ session_id: SESSION_ID }),
+      });
       setMessages([]);
       setDeskOpen(false);
       setDeskOpenTime(null);
-      try { localStorage.removeItem("otd_desk_open"); localStorage.removeItem("otd_desk_open_time"); } catch { /* ignore */ }
+      try {
+        localStorage.removeItem("otd_desk_open");
+        localStorage.removeItem("otd_desk_open_time");
+      } catch {
+        /* ignore */
+      }
     } finally {
       setRefreshing(false);
     }
@@ -226,36 +351,79 @@ export default function Home() {
     const token = await getToken();
     const authHeader: Record<string, string> = {};
     if (token) authHeader["Authorization"] = `Bearer ${token}`;
-    await fetch(`${API}/session/${SESSION_ID}`, { method: "DELETE", headers: authHeader });
+    await fetch(`${API}/session/${SESSION_ID}`, {
+      method: "DELETE",
+      headers: authHeader,
+    });
     setMessages([]);
     setDeskOpen(false);
     setDeskOpenTime(null);
-    try { localStorage.removeItem("otd_desk_open"); localStorage.removeItem("otd_desk_open_time"); } catch { /* ignore */ }
+    try {
+      localStorage.removeItem("otd_desk_open");
+      localStorage.removeItem("otd_desk_open_time");
+    } catch {
+      /* ignore */
+    }
   };
 
-  const handleAtrChange = (val: string) => { setSatyAtr(val); setAtrApplied(false); };
-  const handleAtrApply = (val: number) => { fetchMarketData(val); };
-  const handleAtrReset = () => { setSatyAtr(""); setAtrApplied(false); satyAtrRef.current = ""; fetchMarketData(undefined); };
+  const handleAtrChange = (val: string) => {
+    setSatyAtr(val);
+    setAtrApplied(false);
+  };
+  const handleAtrApply = (val: number) => {
+    fetchMarketData(val);
+  };
+  const handleAtrReset = () => {
+    setSatyAtr("");
+    setAtrApplied(false);
+    satyAtrRef.current = "";
+    fetchMarketData(undefined);
+  };
 
   const runMorningBrief = async () => {
     if (briefLoading) return;
     setBriefLoading(true);
-    setMessages((prev) => [...prev, { role: "user" as const, content: "MORNING BRIEF" }]);
+    setMessages((prev) => [
+      ...prev,
+      { role: "user" as const, content: "MORNING BRIEF" },
+    ]);
     try {
       const token = await getToken();
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      const headers: Record<string, string> = {
+        "Content-Type": "application/json",
+      };
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const atrVal = satyAtrRef.current ? parseFloat(satyAtrRef.current) : undefined;
+      const atrVal = satyAtrRef.current
+        ? parseFloat(satyAtrRef.current)
+        : undefined;
       const res = await fetch(`${API}/morning-brief`, {
         method: "POST",
         headers,
-        body: JSON.stringify({ message: "MORNING BRIEF", session_id: SESSION_ID, ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}) }),
+        body: JSON.stringify({
+          message: "MORNING BRIEF",
+          session_id: SESSION_ID,
+          ...(atrVal && !isNaN(atrVal) && atrVal > 0 ? { atr: atrVal } : {}),
+        }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
-      setMessages((prev) => [...prev, { role: "assistant" as const, content: data.morning_brief, model: "claude-sonnet-4-6" }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content: data.morning_brief,
+          model: "claude-sonnet-4-6",
+        },
+      ]);
     } catch {
-      setMessages((prev) => [...prev, { role: "assistant" as const, content: "⚠️ Morning Brief failed to load. Check your connection and try again." }]);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant" as const,
+          content:
+            "⚠️ Morning Brief failed to load. Check your connection and try again.",
+        },
+      ]);
     } finally {
       setBriefLoading(false);
     }
@@ -266,15 +434,25 @@ export default function Home() {
     const now = new Date();
     setDeskOpen(true);
     setDeskOpenTime(now);
-    try { localStorage.setItem("otd_desk_open", "true"); localStorage.setItem("otd_desk_open_time", now.toISOString()); } catch { /* ignore */ }
+    try {
+      localStorage.setItem("otd_desk_open", "true");
+      localStorage.setItem("otd_desk_open_time", now.toISOString());
+    } catch {
+      /* ignore */
+    }
     await sendMessage("Open the Desk");
   };
 
   // Parse bias/Mag7 from the last morning brief assistant message
   const briefData = useMemo(() => {
-    const briefMsg = [...messages].reverse().find(
-      (m) => m.role === "assistant" && m.content.includes("BIAS") && m.content.length > 200,
-    );
+    const briefMsg = [...messages]
+      .reverse()
+      .find(
+        (m) =>
+          m.role === "assistant" &&
+          m.content.includes("BIAS") &&
+          m.content.length > 200,
+      );
     if (!briefMsg) return null;
     const text = briefMsg.content;
     const biasMatch = text.match(/BIAS[:\s*_]*([A-Z][A-Z\s\-]+?)(?:\n|$)/i);
@@ -296,13 +474,20 @@ export default function Home() {
   }, [messages]);
 
   const tdNumber = deskOpenTime
-    ? Math.ceil((deskOpenTime.getTime() - new Date(deskOpenTime.getFullYear(), 0, 1).getTime()) / (1000 * 60 * 60 * 24))
+    ? Math.ceil(
+        (deskOpenTime.getTime() -
+          new Date(deskOpenTime.getFullYear(), 0, 1).getTime()) /
+          (1000 * 60 * 60 * 24),
+      )
     : "—";
 
   const handleMobileTab = (tab: "chat" | "levels" | "commands" | "signals") => {
     setMobileTab(tab);
     if (tab === "levels") setLevelsOpen(true);
-    if (tab === "commands") { setPaletteOpen(true); setMobileTab("chat"); }
+    if (tab === "commands") {
+      setPaletteOpen(true);
+      setMobileTab("chat");
+    }
     if (tab === "signals") setSignalsOpen(true);
   };
 
@@ -327,7 +512,9 @@ export default function Home() {
           warning={briefData?.warning ?? ""}
           bullLevel={briefData?.bullLevel ?? null}
           bearLevel={briefData?.bearLevel ?? null}
-          onExpand={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+          onExpand={() =>
+            bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+          }
         />
 
         <div className="otd-columns">
@@ -349,7 +536,10 @@ export default function Home() {
 
           {/* Center — chart + session bar + chat */}
           <div className="otd-center">
-            <ChartStrip interval={chartInterval} onIntervalChange={setChartInterval} />
+            <ChartStrip
+              interval={chartInterval}
+              onIntervalChange={setChartInterval}
+            />
             <SessionBar
               tdNumber={tdNumber}
               trades={0}
@@ -358,6 +548,7 @@ export default function Home() {
               losses={0}
               budgetUsed={0}
               budgetLimit={500}
+              challenge={challengeInfo}
             />
             <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
               <ChatPanel
@@ -398,7 +589,10 @@ export default function Home() {
 
       <MobileSignalStream
         open={signalsOpen}
-        onClose={() => { setSignalsOpen(false); setMobileTab("chat"); }}
+        onClose={() => {
+          setSignalsOpen(false);
+          setMobileTab("chat");
+        }}
         alerts={alerts}
         isUnread={isUnread}
         markRead={markRead}
@@ -406,7 +600,10 @@ export default function Home() {
 
       <MobileSheet
         open={levelsOpen}
-        onClose={() => { setLevelsOpen(false); setMobileTab("chat"); }}
+        onClose={() => {
+          setLevelsOpen(false);
+          setMobileTab("chat");
+        }}
         marketData={marketData}
         satyAtr={satyAtr}
         atrApplied={atrApplied}
@@ -418,7 +615,10 @@ export default function Home() {
       <nav className="bottom-nav">
         <button
           className={`bnav-item ${mobileTab === "chat" ? "active" : ""}`}
-          onClick={() => { setLevelsOpen(false); setMobileTab("chat"); }}
+          onClick={() => {
+            setLevelsOpen(false);
+            setMobileTab("chat");
+          }}
         >
           <span className="bnav-icon">💬</span>
           Chat
@@ -430,7 +630,10 @@ export default function Home() {
           <span className="bnav-icon">📊</span>
           Levels
         </button>
-        <button className="bnav-item" onClick={() => handleMobileTab("commands")}>
+        <button
+          className="bnav-item"
+          onClick={() => handleMobileTab("commands")}
+        >
           <span className="bnav-icon">⌨️</span>
           Commands
         </button>

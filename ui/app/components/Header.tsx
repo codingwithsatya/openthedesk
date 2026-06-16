@@ -1,9 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { UserButton } from "@clerk/nextjs";
+import { UserButton, useAuth } from "@clerk/nextjs";
 import { MarketData } from "../types";
 import { useAlerts, AlertDrawer } from "./AlertPanel";
+
+const _HDR_API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 interface HeaderProps {
   deskOpen: boolean;
@@ -11,7 +13,7 @@ interface HeaderProps {
   onRefresh: () => void;
   onClearSession: () => void;
   marketData: MarketData | null;
-  activePage?: "desk" | "analyzer" | "journal";
+  activePage?: "desk" | "analyzer" | "journal" | "challenge";
   sessionDuration?: string;
 }
 
@@ -24,10 +26,29 @@ export default function Header({
   activePage = "desk",
   sessionDuration,
 }: HeaderProps) {
+  const { getToken } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [challengeActive, setChallengeActive] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const { alerts, alertCount, markAllRead, markRead, isUnread } = useAlerts();
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch(`${_HDR_API}/challenge/status`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const d = await res.json();
+          setChallengeActive(d.active === true);
+        }
+      } catch {}
+    })();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const spxPrice = marketData
     ? (marketData.spx.last ?? marketData.spx.close ?? 0).toFixed(2)
@@ -94,6 +115,29 @@ export default function Header({
             {navLink("/", "Desk", activePage === "desk")}
             {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
             {navLink("/journal", "Journal", activePage === "journal")}
+            <Link
+              href="/challenge"
+              style={{
+                padding: "5px 12px",
+                borderRadius: 7,
+                fontSize: 12,
+                fontWeight: 600,
+                fontFamily: "var(--font-inter), sans-serif",
+                textDecoration: "none",
+                background: activePage === "challenge" ? "#1e3a5f" : "transparent",
+                color: activePage === "challenge" ? "white" : "#64748b",
+                border: `1px solid ${activePage === "challenge" ? "#2d5a8e" : "transparent"}`,
+                transition: "all 0.15s",
+                display: "flex",
+                alignItems: "center",
+                gap: 5,
+              }}
+            >
+              Challenge
+              {mounted && challengeActive && (
+                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+              )}
+            </Link>
           </div>
         </div>
 

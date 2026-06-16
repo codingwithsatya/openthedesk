@@ -5,7 +5,7 @@ import asyncio
 import json
 import httpx
 import anthropic
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta, date as date_type
 from zoneinfo import ZoneInfo
 from fastapi import FastAPI, HTTPException, UploadFile, File, Request, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
@@ -95,6 +95,8 @@ Return ONLY a valid JSON object with these exact keys:
   "direction": "BULL",
   "entry_price": 7390.0,
   "exit_price": 7378.0,
+  "entry_premium": 2.50,
+  "exit_premium": 3.80,
   "contracts": 1,
   "pnl": null,
   "grade": "A",
@@ -105,10 +107,12 @@ Return ONLY a valid JSON object with these exact keys:
 Rules:
 - ticker defaults to "SPX" if not mentioned
 - contracts defaults to 1 if not mentioned
+- entry_premium: the options premium PAID to enter (e.g. "entry premium 2.50" → 2.50), null if not mentioned
+- exit_premium: the options premium RECEIVED on exit (e.g. "exit premium 3.80" → 3.80), null if not mentioned
 - pnl: use the dollar value if user stated it explicitly, else null
-  (backend will calculate from entry/exit)
+  (backend will calculate from entry/exit premium if both provided)
 - grade and process_grade default to "A" if not mentioned
-- notes: capture any extra context (e.g. "stopped correctly", "FOMO entry")
+- notes: capture any extra context NOT already captured in other fields
 - If entry_price or exit_price cannot be determined, return {"error": "missing_fields", "missing": ["field1"]}
 - Return ONLY the JSON object. No markdown. No explanation. No backticks."""
 
@@ -253,7 +257,14 @@ def _save_journal_entry(fields: dict, user_id: str) -> dict:
 
     pnl = fields.get("pnl")
     if pnl is None:
-        pnl = _calc_pnl(direction, entry_price, exit_price, contracts)
+        entry_premium = fields.get("entry_premium")
+        exit_premium = fields.get("exit_premium")
+        if entry_premium is not None and exit_premium is not None:
+            # Use premium-based P&L (correct for options)
+            pnl = (float(exit_premium) - float(entry_premium)) * contracts * 100
+        else:
+            # Fallback to price-based (shouldn't happen for options trades)
+            pnl = _calc_pnl(direction, entry_price, exit_price, contracts)
     pnl = round(float(pnl), 2)
 
     internals = {k: INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
@@ -267,17 +278,21 @@ def _save_journal_entry(fields: dict, user_id: str) -> dict:
         "direction":     direction,
         "entry_price":   entry_price,
         "exit_price":    exit_price,
+        "entry_premium": float(fields.get("entry_premium") or 0) or None,
+        "exit_premium":  float(fields.get("exit_premium") or 0) or None,
         "contracts":     contracts,
         "pnl":           pnl,
         "grade":         fields.get("grade", "A"),
         "process_grade": fields.get("process_grade", "A"),
         "notes":         fields.get("notes") or "",
+        "status":        "closed",
         "internals":     internals,
     }
 
     if _sb:
+        actual_id = None
         try:
-            _sb.table("trade_journal").insert({
+            result = _sb.table("trade_journal").insert({
                 "user_id":       user_id,
                 "date":          entry["date"],
                 "ticker":        entry["ticker"],
@@ -285,15 +300,27 @@ def _save_journal_entry(fields: dict, user_id: str) -> dict:
                 "direction":     entry["direction"],
                 "entry_price":   entry["entry_price"],
                 "exit_price":    entry["exit_price"],
+                "entry_premium": entry["entry_premium"],
+                "exit_premium":  entry["exit_premium"],
                 "contracts":     entry["contracts"],
                 "pnl":           entry["pnl"],
                 "grade":         entry["grade"],
                 "process_grade": entry["process_grade"],
                 "notes":         entry["notes"],
+                "status":        entry["status"],
                 "internals":     entry["internals"],
             }).execute()
+            if result.data and len(result.data) > 0:
+                actual_id = result.data[0]["id"]
+                entry["id"] = actual_id
         except Exception as _e:
             print(f"[WARN] chat→journal insert failed: {_e}")
+
+        if actual_id:
+            try:
+                write_challenge_entry(user_id, entry, actual_id)
+            except Exception as _ce:
+                print(f"[WARN] challenge write failed: {_ce}")
 
     JOURNAL_ENTRIES.insert(0, entry)
     return entry
@@ -382,7 +409,8 @@ async def get_current_user(authorization: str = Header(...)) -> str:
     """Extract user_id from Clerk JWT. Never trusts request body for identity."""
     try:
         token = authorization.removeprefix("Bearer ").strip()
-        payload = pyjwt.decode(token, options={"verify_signature": False}, algorithms=["RS256"])
+        payload = pyjwt.decode(
+            token, options={"verify_signature": False}, algorithms=["RS256"])
         user_id = payload.get("sub")
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token")
@@ -432,8 +460,9 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
     # Load session history: Supabase first, fallback to in-memory
     if _sb:
         try:
-            row = _sb.table("user_sessions").select("history").eq("user_id", user_id).eq("session_id", request.session_id).maybe_single().execute()
-            if row.data:
+            row = _sb.table("user_sessions").select("history").eq("user_id", user_id).eq(
+                "session_id", request.session_id).maybe_single().execute()
+            if row and row.data:
                 sessions[request.session_id] = row.data["history"]
         except Exception as _e:
             print(f"[WARN] session load failed: {_e}")
@@ -551,7 +580,7 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
                 "session_id": request.session_id,
                 "history": history,
                 "updated_at": datetime.now(timezone.utc).isoformat(),
-            }, on_conflict="user_id,session_id").execute()
+            }).execute()
         except Exception as _e:
             print(f"[WARN] session save failed: {_e}")
 
@@ -561,6 +590,22 @@ async def chat(request: ChatRequest, user_id: str = Depends(get_current_user)):
         "session_id": request.session_id,
         "turns": len(history) // 2
     }
+
+
+@app.get("/session/{session_id}/history")
+async def get_session_history(session_id: str, user_id: str = Depends(get_current_user)):
+    """Return session chat history for frontend restoration after navigation."""
+    try:
+        if _sb:
+            result = _sb.table("user_sessions").select("history").eq(
+                "user_id", user_id).eq("session_id", session_id).execute()
+            if result.data and len(result.data) > 0:
+                return {"history": result.data[0]["history"] or []}
+        # Fallback to in-memory
+        return {"history": sessions.get(session_id, [])}
+    except Exception as _e:
+        print(f"[WARN] session history fetch failed: {_e}")
+        return {"history": []}
 
 
 @app.post("/analyze-chart")
@@ -840,8 +885,10 @@ async def morning_brief(request: ChatRequest, _user_id: str = Depends(get_curren
 
     async def _fetch_watchlist():
         from analyzer import get_watchlist_data
-        _eligible = {"NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL", "QQQ", "SPY"}
-        tickers = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL", "SPY", "QQQ"]
+        _eligible = {"NVDA", "TSLA", "META", "AMZN",
+                     "AAPL", "MSFT", "GOOGL", "QQQ", "SPY"}
+        tickers = ["NVDA", "TSLA", "META", "AMZN",
+                   "AAPL", "MSFT", "GOOGL", "SPY", "QQQ"]
         results = await asyncio.gather(
             *[asyncio.to_thread(get_watchlist_data, t, _eligible) for t in tickers]
         )
@@ -851,23 +898,24 @@ async def morning_brief(request: ChatRequest, _user_id: str = Depends(get_curren
         _fetch_market(), _fetch_watchlist(), _fetch_market_news()
     )
 
-    spx   = market.get("spx", {})
-    vix   = market.get("vix", {})
+    spx = market.get("spx", {})
+    vix = market.get("vix", {})
     atr_l = market.get("atr_levels", {})
-    trin  = INTERNALS_CACHE.get("trin")
+    trin = INTERNALS_CACHE.get("trin")
     add_v = INTERNALS_CACHE.get("add")
-    vold  = INTERNALS_CACHE.get("vold")
-    pcc   = INTERNALS_CACHE.get("pcc")
+    vold = INTERNALS_CACHE.get("vold")
+    pcc = INTERNALS_CACHE.get("pcc")
 
     watch_lines = []
     spy_state = "N/A"
     qqq_state = "N/A"
     for r in watchlist_results:
-        t      = r.get("ticker", "")
+        t = r.get("ticker", "")
         ribbon = r.get("ribbon_state", "MIXED")
-        comp   = "●" if r.get("compression") else " "
-        chg    = f"{r.get('change_pct', 0):+.2f}%" if r.get("change_pct") is not None else "N/A"
-        po     = r.get("po_value") or 0
+        comp = "●" if r.get("compression") else " "
+        chg = f"{r.get('change_pct', 0):+.2f}%" if r.get(
+            "change_pct") is not None else "N/A"
+        po = r.get("po_value") or 0
         po_zone = ("accumulation" if po < -61.8 else
                    "distribution" if po > 61.8 else
                    "neutral")
@@ -909,7 +957,8 @@ MAG 7 + CONTEXT:
 {chr(10).join(watch_lines)}
 """
 
-    all_empty = not any([news_data["economic_calendar"], news_data["gap_movers"], news_data["catalyst_news"]])
+    all_empty = not any([news_data["economic_calendar"],
+                        news_data["gap_movers"], news_data["catalyst_news"]])
     if all_empty:
         news_block = "\n─────────────────────────────────────────\nNEWS DATA: unavailable — proceeding with market data only\n─────────────────────────────────────────\n"
     else:
@@ -951,7 +1000,8 @@ async def refresh_context(request: RefreshRequest, user_id: str = Depends(get_cu
     sessions.pop(request.session_id, None)
     if _sb:
         try:
-            _sb.table("user_sessions").delete().eq("user_id", user_id).eq("session_id", request.session_id).execute()
+            _sb.table("user_sessions").delete().eq("user_id", user_id).eq(
+                "session_id", request.session_id).execute()
         except Exception as _e:
             print(f"[WARN] session delete failed: {_e}")
     return {"status": "refreshed", "chars": len(LIVE_CONTEXT)}
@@ -963,7 +1013,8 @@ async def clear_session(session_id: str, user_id: str = Depends(get_current_user
     sessions.pop(session_id, None)
     if _sb:
         try:
-            _sb.table("user_sessions").delete().eq("user_id", user_id).eq("session_id", session_id).execute()
+            _sb.table("user_sessions").delete().eq(
+                "user_id", user_id).eq("session_id", session_id).execute()
         except Exception as _e:
             print(f"[WARN] session delete failed: {_e}")
     return {"cleared": session_id}
@@ -1248,7 +1299,7 @@ _ZERO_DTE_ELIGIBLE = {
     "NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL",
     "QQQ", "SPY", "XLK", "XLF", "SMH",
 }
-_MAG7               = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL"]
+_MAG7 = ["NVDA", "TSLA", "META", "AMZN", "AAPL", "MSFT", "GOOGL"]
 _CONTEXT_INSTRUMENTS = ["QQQ", "SPY", "XLK", "XLF", "SMH"]
 
 
@@ -1394,8 +1445,10 @@ async def watchlist():
         order = {"BULLISH": 0, "BEARISH": 1, "MIXED": 2}
         return (order.get(r.get("ribbon_state", "MIXED"), 2), -abs(r.get("change_pct") or 0))
 
-    mag7_results     = sorted([r for r in results if r["ticker"] in _MAG7], key=_sort_key)
-    context_results  = sorted([r for r in results if r["ticker"] in _CONTEXT_INSTRUMENTS], key=_sort_key)
+    mag7_results = sorted(
+        [r for r in results if r["ticker"] in _MAG7], key=_sort_key)
+    context_results = sorted(
+        [r for r in results if r["ticker"] in _CONTEXT_INSTRUMENTS], key=_sort_key)
 
     return {
         "mag7":         mag7_results,
@@ -1588,7 +1641,8 @@ def get_alerts(limit: int = 20):
     limit = min(limit, 50)
     if _sb:
         try:
-            res = _sb.table("tv_alerts").select("*").order("ts", desc=True).limit(limit).execute()
+            res = _sb.table("tv_alerts").select(
+                "*").order("ts", desc=True).limit(limit).execute()
             rows = res.data or []
             for r in rows:
                 if "alert_id" in r:
@@ -1598,6 +1652,37 @@ def get_alerts(limit: int = 20):
             print(f"[WARN] tv_alerts fetch failed: {_e}")
     sliced = TV_ALERTS[:limit]
     return {"alerts": sliced, "count": len(sliced)}
+
+
+@app.get("/alerts/read-state")
+async def get_alert_read_state(user_id: str = Depends(get_current_user)):
+    if _sb:
+        try:
+            res = _sb.table("alert_reads").select("read_ids").eq(
+                "user_id", user_id).limit(1).execute()
+            if res.data:
+                return {"read_ids": res.data[0].get("read_ids") or []}
+        except Exception as _e:
+            print(f"[WARN] alert_reads fetch failed: {_e}")
+    return {"read_ids": []}
+
+
+class AlertReadPayload(BaseModel):
+    read_ids: list[str]
+
+
+@app.post("/alerts/read")
+async def save_alert_read_state(payload: AlertReadPayload, user_id: str = Depends(get_current_user)):
+    if _sb:
+        try:
+            _sb.table("alert_reads").upsert({
+                "user_id": user_id,
+                "read_ids": payload.read_ids,
+                "updated_at": datetime.now(timezone.utc).isoformat(),
+            }, on_conflict="user_id").execute()
+        except Exception as _e:
+            print(f"[WARN] alert_reads upsert failed: {_e}")
+    return {"ok": True}
 
 
 @app.get("/alerts/stream")
@@ -1727,10 +1812,260 @@ JOURNAL_ENTRIES: list[dict] = [
 ]
 
 
+# ── Challenge Helpers ────────────────────────────────────────────────────────
+# Safe no-ops when no active challenge exists. Never block primary flows.
+
+def get_active_challenge(user_id: str) -> dict | None:
+    """Return the single active challenge row for user_id, or None."""
+    if not _sb:
+        return None
+    try:
+        res = _sb.table("challenges").select("*")\
+            .eq("user_id", user_id)\
+            .eq("status", "active")\
+            .limit(1)\
+            .execute()
+        return res.data[0] if res.data else None
+    except Exception as _e:
+        print(f"[WARN] get_active_challenge failed: {_e}")
+        return None
+
+
+def compute_trading_day_number(start_date) -> int:
+    """Count Mon–Fri days from start_date to today ET inclusive (no holiday adjustment)."""
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    start = date_type.fromisoformat(str(start_date)) if not isinstance(
+        start_date, date_type) else start_date
+    count = 0
+    current = start
+    while current <= today:
+        if current.weekday() < 5:
+            count += 1
+        current += timedelta(days=1)
+    return max(1, count)
+
+
+def write_challenge_entry(user_id: str, trade: dict, source_entry_id: str) -> None:
+    """Link trade_journal row to active challenge — 4-field insert, no field duplication."""
+    if not _sb:
+        return
+    try:
+        challenge = get_active_challenge(user_id)
+        if not challenge:
+            return
+        day_number = compute_trading_day_number(challenge["start_date"])
+        _sb.table("challenge_entries").insert({
+            "challenge_id":    challenge["id"],
+            "user_id":         user_id,
+            "source_entry_id": source_entry_id,
+            "day_number":      day_number,
+        }).execute()
+    except Exception as _e:
+        print(f"[WARN] write_challenge_entry failed: {_e}")
+
+
+class StartChallengePayload(BaseModel):
+    name: str = "90-Day Challenge"
+    start_balance: float = 500
+    monthly_target: float = 1000
+
+
+@app.post("/challenge/start")
+async def start_challenge(payload: StartChallengePayload, user_id: str = Depends(get_current_user)):
+    existing = get_active_challenge(user_id)
+    if existing:
+        raise HTTPException(
+            status_code=409, detail="An active challenge already exists.")
+    if not _sb:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    try:
+        today = datetime.now(ZoneInfo("America/New_York")).date().isoformat()
+        row = {
+            "user_id":        user_id,
+            "start_date":     today,
+            "start_balance":  payload.start_balance,
+            "target_days":    90,
+            "status":         "active",
+        }
+        # name + monthly_target require: ALTER TABLE challenges ADD COLUMN IF NOT EXISTS name text DEFAULT '90-Day Challenge'; ADD COLUMN IF NOT EXISTS monthly_target float DEFAULT 1000;
+        try:
+            row["name"] = payload.name
+            row["monthly_target"] = payload.monthly_target
+        except Exception:
+            pass
+        res = _sb.table("challenges").insert(row).execute()
+        if not res.data:
+            raise HTTPException(
+                status_code=500, detail="Insert returned no data")
+        return res.data[0]
+    except HTTPException:
+        raise
+    except Exception as _e:
+        raise HTTPException(status_code=500, detail=str(_e))
+
+
+@app.get("/challenge/status")
+async def get_challenge_status(user_id: str = Depends(get_current_user)):
+    challenge = get_active_challenge(user_id)
+    if not challenge:
+        return {"active": False}
+    day_number = compute_trading_day_number(challenge["start_date"])
+    return {**challenge, "active": True, "day_number": day_number}
+
+
+def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
+    closed = [t for t in trades if t.get("pnl") is not None]
+    wins = [t for t in closed if (t.get("pnl") or 0) > 0]
+    losses = [t for t in closed if (t.get("pnl") or 0) <= 0]
+    total_pnl = round(sum(t.get("pnl", 0) or 0 for t in closed), 2)
+    avg_winner = round(
+        sum(t.get("pnl", 0) or 0 for t in wins) / len(wins), 2) if wins else 0.0
+    avg_loser = round(sum(t.get("pnl", 0) or 0 for t in losses) /
+                      len(losses), 2) if losses else 0.0
+    win_rate = round(len(wins) / len(closed) * 100, 1) if closed else 0.0
+    setup_pnl: dict[str, float] = {}
+    for t in closed:
+        s = (t.get("setup") or "Unknown").upper()
+        setup_pnl[s] = setup_pnl.get(s, 0) + (t.get("pnl") or 0)
+    best_setup = max(
+        setup_pnl, key=lambda k: setup_pnl[k]) if setup_pnl else None
+    grades = {"A_plus": 0, "A": 0, "B": 0, "C": 0}
+    for t in closed:
+        pg = t.get("process_grade") or ""
+        if pg == "A+":
+            grades["A_plus"] += 1
+        elif pg == "A":
+            grades["A"] += 1
+        elif pg == "B":
+            grades["B"] += 1
+        elif pg == "C":
+            grades["C"] += 1
+    return {
+        "total_trades": len(closed),
+        "wins": len(wins),
+        "losses": len(losses),
+        "win_rate": win_rate,
+        "total_pnl": total_pnl,
+        "current_balance": round(start_balance + total_pnl, 2),
+        "avg_winner": avg_winner,
+        "avg_loser": avg_loser,
+        "best_setup": best_setup,
+        "process_grades": grades,
+    }
+
+
+def _challenge_build_calendar(start_date_str: str, trades: list[dict]) -> list[dict]:
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    start = date_type.fromisoformat(str(start_date_str))
+    by_date: dict[str, list[dict]] = {}
+    for t in trades:
+        d = t.get("date") or ""
+        if d:
+            by_date.setdefault(str(d)[:10], []).append(t)
+    result = []
+    current = start
+    while current <= today:
+        if current.weekday() < 5:
+            day_str = current.isoformat()
+            day_trades = by_date.get(day_str, [])
+            if day_trades:
+                net = sum(t.get("pnl", 0) or 0 for t in day_trades)
+                status = "win" if net > 0 else "loss"
+            else:
+                status = "no_trade"
+            result.append({"date": day_str, "status": status})
+        current += timedelta(days=1)
+    return result
+
+
+def _challenge_build_lessons(trades: list[dict]) -> list[dict]:
+    losing = [t for t in trades if (t.get("pnl") or 0) < 0]
+    by_setup: dict[str, list[dict]] = {}
+    for t in losing:
+        s = (t.get("setup") or "Unknown").upper()
+        by_setup.setdefault(s, []).append(t)
+    lessons = []
+    for setup, items in sorted(by_setup.items(), key=lambda x: len(x[1]), reverse=True)[:3]:
+        verdicts = [t.get("process_review")
+                    or "" for t in items if t.get("process_review")]
+        summary = " | ".join(v[:120] for v in verdicts[:2]
+                             ) if verdicts else "No process review yet"
+        lessons.append({"setup": setup, "losses": len(
+            items), "verdict_summary": summary})
+    return lessons
+
+
+def _fetch_challenge_trades(challenge_id: str, user_id: str) -> list[dict]:
+    """Fetch all closed trade_journal rows linked to this challenge via JOIN."""
+    if not _sb:
+        return []
+    try:
+        ce_res = _sb.table("challenge_entries").select("source_entry_id")\
+            .eq("challenge_id", challenge_id).execute()
+        source_ids = [r["source_entry_id"]
+                      for r in (ce_res.data or []) if r.get("source_entry_id")]
+        if not source_ids:
+            return []
+        tj_res = _sb.table("trade_journal").select("*")\
+            .in_("id", source_ids)\
+            .eq("user_id", user_id)\
+            .eq("status", "closed")\
+            .order("created_at", desc=False)\
+            .execute()
+        return tj_res.data or []
+    except Exception as _e:
+        print(f"[WARN] _fetch_challenge_trades failed: {_e}")
+        return []
+
+
+@app.get("/challenge/stats")
+async def get_challenge_stats(user_id: str = Depends(get_current_user)):
+    challenge = get_active_challenge(user_id)
+    if not challenge:
+        return {"active": False}
+    day_number = compute_trading_day_number(challenge["start_date"])
+    trades = _fetch_challenge_trades(challenge["id"], user_id)
+    start_balance = challenge.get("start_balance") or 500
+    stats = _challenge_compute_stats(trades, start_balance)
+    calendar = _challenge_build_calendar(challenge["start_date"], trades)
+    lessons = _challenge_build_lessons(trades)
+    return {
+        "active": True,
+        "challenge": challenge,
+        "day_number": day_number,
+        "stats": stats,
+        "calendar": calendar,
+        "lessons": lessons,
+    }
+
+
+@app.get("/challenge/all")
+async def get_all_challenges(user_id: str = Depends(get_current_user)):
+    if not _sb:
+        return {"challenges": []}
+    try:
+        res = _sb.table("challenges").select("*")\
+            .eq("user_id", user_id)\
+            .order("created_at", desc=True)\
+            .execute()
+        challenges = res.data or []
+        result = []
+        for ch in challenges:
+            trades = _fetch_challenge_trades(ch["id"], user_id)
+            start_balance = ch.get("start_balance") or 500
+            stats = _challenge_compute_stats(trades, start_balance)
+            result.append({**ch, "stats": stats})
+        return {"challenges": result}
+    except Exception as _e:
+        print(f"[WARN] get_all_challenges failed: {_e}")
+        return {"challenges": []}
+
+
 @app.post("/journal/entry")
 async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depends(get_current_user)):
     pnl = payload.pnl if payload.pnl is not None else (
-        _calc_pnl(payload.direction, payload.entry_price, payload.exit_price, payload.contracts)
+        _calc_pnl(payload.direction, payload.entry_price,
+                  payload.exit_price, payload.contracts)
         if payload.exit_price is not None else None
     )
     internals = get_market_internals()
@@ -1758,7 +2093,7 @@ async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depe
     }
     if _sb:
         try:
-            _sb.table("trade_journal").insert({
+            result = _sb.table("trade_journal").insert({
                 "user_id":        user_id,
                 "date":           entry["date"],
                 "ticker":         entry["ticker"],
@@ -1776,10 +2111,109 @@ async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depe
                 "status":         entry["status"],
                 "internals":      entry["internals"],
             }).execute()
+            if result.data and len(result.data) > 0:
+                entry["id"] = result.data[0]["id"]
         except Exception as _e:
             print(f"[WARN] trade_journal insert failed: {_e}")
     JOURNAL_ENTRIES.insert(0, entry)
-    return {"status": "created", "id": entry["id"], "pnl": entry["pnl"]}
+    if entry.get("id"):
+        write_challenge_entry(user_id, entry, entry["id"])
+        return {"status": "created", "id": entry["id"], "pnl": entry["pnl"]}
+
+
+# ── Process Review Engine ────────────────────────────────────────────────────
+# Requires trade_journal.process_review (text, nullable) column.
+# Migration: ALTER TABLE trade_journal ADD COLUMN IF NOT EXISTS process_review text;
+
+_PROCESS_REVIEW_SYSTEM = """You are a trading process coach for a 0DTE SPX options trader.
+Evaluate execution quality — not just outcome (P&L). Focus on plan adherence, risk discipline, and exit quality.
+
+PHASE 2 RULES (must be followed):
+- Account: ~$500 challenge
+- Max 1 contract, premium $3–4 range, A or A+ setups only
+- Max loss -$150/session, max 3 trades/day
+- Dollar stop = premium paid - $1.00 (always honored)
+
+Output ONLY valid JSON, no markdown or extra text:
+{"grade": "A", "verdict": "2–3 sentence process evaluation"}
+
+grade must be exactly one of: A+, A, B, C"""
+
+
+def _build_review_prompt(row: dict) -> str:
+    internals = row.get("internals") or {}
+    parts = [
+        f"Setup: {row.get('setup', '?')} | Direction: {row.get('direction', '?')}",
+        f"Entry price: {row.get('entry_price')} | Entry premium: ${row.get('entry_premium', '?')}",
+        f"Exit price: {row.get('exit_price', '?')} | Exit premium: ${row.get('exit_premium', '?')}",
+        f"P&L: ${row.get('pnl', '?')} | Contracts: {row.get('contracts', 1)}",
+        f"Pine signal grade: {row.get('grade', '?')}",
+    ]
+    trin, add = internals.get("trin"), internals.get("add")
+    if trin is not None or add is not None:
+        parts.append(f"Internals at entry: TRIN={trin}, ADD={add}")
+    notes = (row.get("notes") or "")[:300]
+    if notes:
+        parts.append(f"Signal notes: {notes}")
+    return "\n".join(parts)
+
+
+def _run_process_review(entry_id: str, user_id: str, row: dict) -> dict:
+    """Sync: call Haiku to grade the trade process, write result back to Supabase."""
+    prompt = _build_review_prompt(row)
+    try:
+        r = with_retry(lambda: client.messages.create(
+            model=HAIKU,
+            max_tokens=512,
+            system=_PROCESS_REVIEW_SYSTEM,
+            messages=[
+                {"role": "user", "content": f"Review this trade:\n{prompt}"}],
+        ))
+        raw = r.content[0].text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        parsed = json.loads(raw)
+        grade = parsed.get("grade", "B")
+        verdict = parsed.get("verdict", raw)
+    except Exception as _pe:
+        print(f"[WARN] process review parse failed: {_pe}")
+        grade = "B"
+        verdict = "Review could not be completed — try Re-run Review."
+
+    if _sb:
+        try:
+            _sb.table("trade_journal").update({
+                "process_grade": grade,
+                "process_review": verdict,
+            }).eq("id", entry_id).eq("user_id", user_id).execute()
+        except Exception as _we:
+            print(f"[WARN] process_review write failed: {_we}")
+
+    return {"grade": grade, "verdict": verdict}
+
+
+@app.post("/journal/review/{entry_id}")
+async def run_process_review(entry_id: str, user_id: str = Depends(get_current_user)):
+    if not _sb:
+        raise HTTPException(status_code=503, detail="Database not configured")
+    try:
+        res = _sb.table("trade_journal").select(
+            "*").eq("id", entry_id).eq("user_id", user_id).execute()
+        if not res.data:
+            raise HTTPException(
+                status_code=404, detail="Entry not found or not yours")
+        row = res.data[0]
+        if row.get("status") != "closed":
+            raise HTTPException(
+                status_code=400, detail="Trade must be closed before review")
+        review = await asyncio.to_thread(_run_process_review, entry_id, user_id, row)
+        return {"status": "reviewed", "entry_id": entry_id, **review}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.patch("/journal/entry/{entry_id}")
@@ -1791,7 +2225,8 @@ async def update_journal_entry(
     if not _sb:
         raise HTTPException(status_code=503, detail="Database not configured")
     try:
-        update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
+        update_data = {k: v for k, v in payload.model_dump().items()
+                       if v is not None}
         if not update_data:
             return {"status": "no changes"}
         result = _sb.table("trade_journal")\
@@ -1800,8 +2235,19 @@ async def update_journal_entry(
             .eq("user_id", user_id)\
             .execute()
         if not result.data:
-            raise HTTPException(status_code=404, detail="Entry not found or not yours")
-        return {"status": "updated", "entry": result.data[0]}
+            raise HTTPException(
+                status_code=404, detail="Entry not found or not yours")
+        row = result.data[0]
+        response: dict = {"status": "updated", "entry": row}
+        if payload.status == "closed":
+            try:
+                review = await asyncio.to_thread(_run_process_review, entry_id, user_id, row)
+                response["review"] = review
+            except Exception as _re:
+                print(f"[WARN] auto process review failed: {_re}")
+        return response
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1811,7 +2257,8 @@ def get_journal_entries(limit: int = 50, user_id: str = Depends(get_current_user
     limit = min(limit, 200)
     if _sb:
         try:
-            res = _sb.table("trade_journal").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
+            res = _sb.table("trade_journal").select(
+                "*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
             rows = res.data or []
             return {"entries": rows, "count": len(rows)}
         except Exception as _e:
@@ -1825,7 +2272,8 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
     entries = JOURNAL_ENTRIES
     if _sb:
         try:
-            res = _sb.table("trade_journal").select("*").eq("user_id", user_id).order("created_at", desc=True).limit(200).execute()
+            res = _sb.table("trade_journal").select(
+                "*").eq("user_id", user_id).order("created_at", desc=True).limit(200).execute()
             entries = res.data or []
         except Exception as _e:
             print(f"[WARN] trade_journal stats fetch failed: {_e}")

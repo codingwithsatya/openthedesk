@@ -1,5 +1,6 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
+import { useAuth } from "@clerk/nextjs";
 
 export interface TVAlert {
   id: string;
@@ -125,14 +126,61 @@ function saveReadIds(ids: Set<string>) {
   localStorage.setItem(LS_KEY, JSON.stringify(arr));
 }
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 // ── useAlerts hook ────────────────────────────────────────────
 export function useAlerts() {
+  const { getToken } = useAuth();
   const [alerts, setAlerts] = useState<TVAlert[]>([]);
-  const [readIds, setReadIds] = useState<Set<string>>(new Set());
+  const [readIds, setReadIds] = useState<Set<string>>(loadReadIds);
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Fetch remote read state once on mount and merge with localStorage
   useEffect(() => {
-    setReadIds(loadReadIds());
+    const run = async () => {
+      try {
+        const token = await getToken();
+        if (!token) return;
+        const res = await fetch(`${API}/alerts/read-state`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const data = await res.json();
+        const remoteIds: string[] = data.read_ids ?? [];
+        if (remoteIds.length === 0) return;
+        setReadIds((prev) => {
+          const merged = new Set(prev);
+          remoteIds.forEach((id) => merged.add(id));
+          saveReadIds(merged);
+          return merged;
+        });
+      } catch {}
+    };
+    run();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Debounced sync — fires 2s after the last markRead/markAllRead call
+  const scheduleSync = useCallback(
+    (ids: Set<string>) => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = setTimeout(async () => {
+        try {
+          const token = await getToken();
+          if (!token) return;
+          await fetch(`${API}/alerts/read`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ read_ids: Array.from(ids) }),
+          });
+        } catch {}
+      }, 2000);
+    },
+    [getToken],
+  );
 
   useEffect(() => {
     const base = process.env.NEXT_PUBLIC_API_URL ?? "";
@@ -155,7 +203,7 @@ export function useAlerts() {
       if (e.data === "ping") return;
       try {
         const alert: TVAlert = JSON.parse(e.data);
-        if (alert.type === "internal") return; // skip internal-only alerts
+        if (alert.type === "internal") return;
         setAlerts((prev) => {
           if (prev.some((a) => a.id === alert.id)) return prev;
           return [alert, ...prev];
@@ -165,23 +213,28 @@ export function useAlerts() {
     return () => es.close();
   }, []);
 
-  const markRead = useCallback((id: string) => {
-    setReadIds((prev) => {
-      const next = new Set(prev);
-      next.add(id);
-      saveReadIds(next);
-      return next;
-    });
-  }, []);
+  const markRead = useCallback(
+    (id: string) => {
+      setReadIds((prev) => {
+        const next = new Set(prev);
+        next.add(id);
+        saveReadIds(next);
+        scheduleSync(next);
+        return next;
+      });
+    },
+    [scheduleSync],
+  );
 
   const markAllRead = useCallback(() => {
     setReadIds((prev) => {
       const next = new Set(prev);
       alerts.forEach((a) => next.add(a.id));
       saveReadIds(next);
+      scheduleSync(next);
       return next;
     });
-  }, [alerts]);
+  }, [alerts, scheduleSync]);
 
   const alertCount = alerts.filter((a) => !readIds.has(a.id)).length;
   const isUnread = useCallback(
