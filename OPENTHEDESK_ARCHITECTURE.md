@@ -1,6 +1,6 @@
 # OpenTheDesk — Architecture & Engineering Reference
 
-**Last updated: June 15, 2026 — afternoon session**
+**Last updated: June 15, 2026 — late night session**
 
 This document is the single source of truth for OpenTheDesk. Any Claude session working on this project must read this before touching any code.
 
@@ -20,66 +20,72 @@ The name comes from the session trigger phrase: "Open the Desk" — spoken at th
 
 ## What's Live Today
 
-| Feature                                                                   | Status                             |
-| ------------------------------------------------------------------------- | ---------------------------------- |
-| 0DTE Desk — chat, all commands, PREMARKET, chart vision                   | ✅ Live                            |
-| Analyzer — real options chain, greeks, dual Claude verdicts               | ✅ Live                            |
-| Analyzer — dark terminal theme redesign                                   | ✅ Live                            |
-| Screener — 15 tickers parallel, ribbon filter                             | ✅ Live                            |
-| Auth (Clerk), observability (LangSmith)                                   | ✅ Live                            |
-| Reliability — retry backoff, keep-alive, timeouts                         | ✅ Live                            |
-| TradingView webhook — unified /webhook/tv handles all 3 feeds             | ✅ Live                            |
-| Alert cards — colored by setup/direction, trade plan, internals row       | ✅ Live                            |
-| Trade Plan card — Pine-computed T1/T2/T3/SL from Manual Planner           | ✅ Live                            |
-| Internals snapshot — TRIN/ADD/VOLD attached to every trade alert          | ✅ Live                            |
-| Internals heartbeat — USI:TRIN/ADD/VOLD/PCC via TV every 3m               | ✅ Live                            |
-| Manual Planner v3.3.9 — Saty Probability + Quality Engine                 | ✅ Live                            |
-| ATR Levels v3.1 Clean Extended — full Saty ladder, Day/Multiday mode      | ✅ Live                            |
-| OTD Internals Heartbeat v2.2 — market internals data feed                 | ✅ Live                            |
-| Internals live widget — TRIN/ADD/VOLD/PCC/bias sidebar widget             | ✅ Live                            |
-| Multi-chart upload + drag-drop + paste from clipboard                     | ✅ Live                            |
-| Chart context selector (TRADE IDEA / IN TRADE / PREMARKET / PTR-FAST)     | ✅ Live                            |
-| Live data injection for trade commands                                    | ✅ Live                            |
-| Dynamic max_tokens — long commands 4096, fast commands 2048               | ✅ Live                            |
-| Market internals rule — context not gate (never blocks trades)            | ✅ Live                            |
-| Target levels rule — flags when within 1pt of T1/T2/T3                    | ✅ Live                            |
-| Unusual Whales — manual text input v1                                     | ✅ Live                            |
-| Journal UI — /journal page with 3 charts, trade table                     | ✅ Live                            |
-| Journal persistence — Supabase trade_journal                              | ✅ Live                            |
-| Alert persistence — Supabase tv_alerts                                    | ✅ Live                            |
-| Session persistence — Supabase user_sessions                              | ✅ Live                            |
-| Clerk JWT middleware — user_id from verified token                        | ✅ Live                            |
-| Chat → journal entry (natural language logging)                           | ✅ Live                            |
-| 0DTE Watchlist — Mag7 + SPY/QQQ/XLK/XLF/SMH, ribbon + ATR levels          | ✅ Live                            |
-| Quick Read — card expand, Haiku 0DTE brief, Bull Above / Bear Below       | ✅ Live                            |
-| Morning Brief — full bias engine, Mag7, news, economic calendar           | ✅ Live                            |
-| Desk state machine — Open/Closed with localStorage persistence            | ✅ Live                            |
-| Market hours enforcement — desk locked outside 9:30–16:00 ET weekdays     | ✅ Live                            |
-| Auto-close desk at 16:15 ET                                               | ✅ Live                            |
-| User-specific greeting — Clerk firstName, time-aware                      | ✅ Live                            |
-| Three-column terminal layout — Levels / Chat / Signal Stream              | ✅ Live                            |
-| Morning Brief banner — pinned strip showing bias + Mag7 + warning         | ✅ Live                            |
-| Session stats bar — TD number, trades, P&L, budget used                   | ✅ Live                            |
-| Chart strip — timeframe pills + Open Chart ↗ button                       | ✅ Live                            |
-| Signal Stream — permanent right panel, alert cards with Took/Skip         | ✅ Live                            |
-| Header SPX price + VIX + ATR strip                                        | ✅ Live                            |
-| TradingView Charting Library — application submitted, awaiting approval   | ⏳ Pending                         |
-| Signal Stream → "Took This Trade" — entry premium, open trade saved       | ✅ Live                            |
-| Journal → Close Trade — exit premium, P&L = (exit−entry premium)×100      | ✅ Live                            |
-| Journal → Edit trade — exit price, grade, notes inline edit               | ✅ Live                            |
-| trade_journal schema — status, entry_premium, exit_premium columns        | ✅ Live                            |
-| Journal stats — only closed trades with real pnl counted                  | ✅ Live                            |
-| Signal card logged/skipped state — persisted in localStorage              | ✅ Live                            |
-| Signal stream cleanup — mobile capped at 5 (priority for today's ENTRY)   | ✅ Live                            |
-| Mobile Signals tab — bottom sheet, Took/Skip, same-day actionability gate | ✅ Live                            |
-| Embedded SPX chart (Lightweight Charts)                                   | ❌ Abandoned — yfinance unreliable |
-| Claude process review — auto-analysis on trade close                      | 🔲 Next                            |
-| Full SPX chart with indicators (TradingView Charting Library)             | 🔲 Pending approval                |
-| Agent (LangGraph, tool use)                                               | 🔲 Planned                         |
-| Unusual Whales API v2 — auto-fetch live flow data                         | 🔲 Planned                         |
-| RAG knowledge base — Voyage AI + pgvector for Saty playbook               | 🔲 Planned                         |
-| Earnings scanner                                                          | 🔲 Planned                         |
-| Mobile push notifications                                                 | 🔲 Planned                         |
+| Feature                                                                             | Status                             |
+| ----------------------------------------------------------------------------------- | ---------------------------------- |
+| 0DTE Desk — chat, all commands, PREMARKET, chart vision                             | ✅ Live                            |
+| Analyzer — real options chain, greeks, dual Claude verdicts                         | ✅ Live                            |
+| Analyzer — dark terminal theme redesign                                             | ✅ Live                            |
+| Screener — 15 tickers parallel, ribbon filter                                       | ✅ Live                            |
+| Auth (Clerk), observability (LangSmith)                                             | ✅ Live                            |
+| Reliability — retry backoff, keep-alive, timeouts                                   | ✅ Live                            |
+| TradingView webhook — unified /webhook/tv handles all 3 feeds                       | ✅ Live                            |
+| Alert cards — colored by setup/direction, trade plan, internals row                 | ✅ Live                            |
+| Trade Plan card — Pine-computed T1/T2/T3/SL from Manual Planner                     | ✅ Live                            |
+| Internals snapshot — TRIN/ADD/VOLD attached to every trade alert                    | ✅ Live                            |
+| Internals heartbeat — USI:TRIN/ADD/VOLD/PCC via TV every 3m                         | ✅ Live                            |
+| Manual Planner v3.3.9 — Saty Probability + Quality Engine                           | ✅ Live                            |
+| ATR Levels v3.1 Clean Extended — full Saty ladder, Day/Multiday mode                | ✅ Live                            |
+| OTD Internals Heartbeat v2.2 — market internals data feed                           | ✅ Live                            |
+| Internals live widget — TRIN/ADD/VOLD/PCC/bias sidebar widget                       | ✅ Live                            |
+| Multi-chart upload + drag-drop + paste from clipboard                               | ✅ Live                            |
+| Chart context selector (TRADE IDEA / IN TRADE / PREMARKET / PTR-FAST)               | ✅ Live                            |
+| Live data injection for trade commands                                              | ✅ Live                            |
+| Dynamic max_tokens — long commands 4096, fast commands 2048                         | ✅ Live                            |
+| Market internals rule — context not gate (never blocks trades)                      | ✅ Live                            |
+| Target levels rule — flags when within 1pt of T1/T2/T3                              | ✅ Live                            |
+| Unusual Whales — manual text input v1                                               | ✅ Live                            |
+| Journal UI — /journal page with 3 charts, trade table                               | ✅ Live                            |
+| Journal persistence — Supabase trade_journal                                        | ✅ Live                            |
+| Alert persistence — Supabase tv_alerts                                              | ✅ Live                            |
+| Session persistence — Supabase user_sessions                                        | ✅ Live                            |
+| Clerk JWT middleware — user_id from verified token                                  | ✅ Live                            |
+| Chat → journal entry (natural language logging)                                     | ✅ Live                            |
+| 0DTE Watchlist — Mag7 + SPY/QQQ/XLK/XLF/SMH, ribbon + ATR levels                    | ✅ Live                            |
+| Quick Read — card expand, Haiku 0DTE brief, Bull Above / Bear Below                 | ✅ Live                            |
+| Morning Brief — full bias engine, Mag7, news, economic calendar                     | ✅ Live                            |
+| Desk state machine — Open/Closed with localStorage persistence                      | ✅ Live                            |
+| Market hours enforcement — desk locked outside 9:30–16:00 ET weekdays               | ✅ Live                            |
+| Auto-close desk at 16:15 ET                                                         | ✅ Live                            |
+| User-specific greeting — Clerk firstName, time-aware                                | ✅ Live                            |
+| Three-column terminal layout — Levels / Chat / Signal Stream                        | ✅ Live                            |
+| Morning Brief banner — pinned strip showing bias + Mag7 + warning                   | ✅ Live                            |
+| Session stats bar — TD number, trades, P&L, budget used                             | ✅ Live                            |
+| Chart strip — timeframe pills + Open Chart ↗ button                                 | ✅ Live                            |
+| Signal Stream — permanent right panel, alert cards with Took/Skip                   | ✅ Live                            |
+| Header SPX price + VIX + ATR strip                                                  | ✅ Live                            |
+| Signal Stream → "Took This Trade" — entry premium, open trade saved                 | ✅ Live                            |
+| Journal → Close Trade — exit premium, P&L = (exit−entry premium)×100                | ✅ Live                            |
+| Journal → Edit trade — exit price, grade, notes inline edit                         | ✅ Live                            |
+| trade_journal schema — status, entry_premium, exit_premium columns                  | ✅ Live                            |
+| Journal stats — only closed trades with real pnl counted                            | ✅ Live                            |
+| Signal card logged/skipped state — persisted in localStorage                        | ✅ Live                            |
+| Signal stream cleanup — mobile capped at 5 (priority for today's ENTRY)             | ✅ Live                            |
+| Mobile Signals tab — bottom sheet, Took/Skip, same-day actionability gate           | ✅ Live                            |
+| 90-Day Challenge — /challenge page, calendar, process grades, lessons               | ✅ Live                            |
+| Challenge tracking — challenge_entries links to trade_journal via source_entry_id   | ✅ Live                            |
+| Challenge parallel write — all journal paths write to challenge_entries when active | ✅ Live                            |
+| Chat journal P&L — uses entry/exit premium not SPX price points                     | ✅ Live                            |
+| Session history restore — chat persists across navigation via /session/{id}/history | ✅ Live                            |
+| Alert read-state sync — alert_reads table syncs read/unread across devices          | ✅ Live                            |
+| TradingView Charting Library — application submitted, awaiting approval             | ⏳ Pending                         |
+| Embedded SPX chart (Lightweight Charts)                                             | ❌ Abandoned — yfinance unreliable |
+| Claude process review — auto-analysis on trade close                                | 🔲 Next                            |
+| Full SPX chart with indicators (TradingView Charting Library)                       | 🔲 Pending approval                |
+| Agent (LangGraph, tool use)                                                         | 🔲 Planned                         |
+| Unusual Whales API v2 — auto-fetch live flow data                                   | 🔲 Planned                         |
+| RAG knowledge base — Voyage AI + pgvector for Saty playbook                         | 🔲 Planned                         |
+| Earnings scanner                                                                    | 🔲 Planned                         |
+| Mobile push notifications                                                           | 🔲 Planned                         |
 
 ---
 
@@ -111,6 +117,7 @@ openthedesk/
         ├── page.tsx              # 0DTE Desk — desk state machine, morning brief, chat
         ├── analyzer/page.tsx     # Analyzer — watchlist, quick read, full analysis
         ├── journal/page.tsx      # Journal (/journal)
+        ├── challenge/page.tsx     # 90-Day Challenge dashboard
         ├── layout.tsx            # ClerkProvider + auth
         └── globals.css           # Design tokens + shared styles + glassmorphism
     └── app/components/
@@ -126,7 +133,8 @@ openthedesk/
         ├── ChartStrip.tsx        # Timeframe pills + Open Chart ↗ button
         ├── SessionBar.tsx        # TD number, trades, P&L, budget used bar
         ├── MobileSignalStream.tsx # Mobile bottom sheet — signal cards, Took/Skip, capped at 5
-        └── SignalStream.tsx      # Permanent right panel — alert cards with Took/Skip
+        ├── SignalStream.tsx      # Permanent right panel — alert cards with Took/Skip
+        └── StartChallengeModal.tsx  # Challenge start modal
 ```
 
 ---
@@ -220,6 +228,14 @@ POST /journal/entry           → create journal entry (Clerk JWT required)
 GET  /journal/entries         → fetch journal entries (Clerk JWT required)
 GET  /journal/stats           → journal statistics (Clerk JWT required)
 PATCH /journal/entry/{id}  → update journal entry (Clerk JWT required)
+POST /challenge/start         → create active challenge (Clerk JWT required)
+GET  /challenge/status        → active challenge + day_number (Clerk JWT required)
+GET  /challenge/stats         → full stats: calendar, grades, lessons (Clerk JWT required)
+GET  /challenge/all           → all challenges with stats (Clerk JWT required)
+GET  /session/{id}/history    → session chat history for frontend restore (Clerk JWT required)
+GET  /alerts/read-state       → fetch read IDs for user (Clerk JWT required)
+POST /alerts/read             → upsert read IDs (Clerk JWT required)
+POST /journal/review/{id}     → manual re-run process review (Clerk JWT required)
 ```
 
 ### Global state
@@ -609,6 +625,38 @@ user_sessions (
   PRIMARY KEY (user_id, session_id)
 )
 -- RLS: user_id = auth.jwt()->>'sub'
+
+challenges (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text NOT NULL,
+  start_date date NOT NULL,
+  start_balance numeric NOT NULL DEFAULT 500,
+  target_days int NOT NULL DEFAULT 90,
+  status text NOT NULL DEFAULT 'active',
+  name text DEFAULT '90-Day Challenge',
+  monthly_target float DEFAULT 1000,
+  created_at timestamptz DEFAULT now()
+)
+-- RLS: user_id = auth.jwt()->>'sub'
+
+challenge_entries (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  challenge_id uuid NOT NULL REFERENCES challenges(id),
+  source_entry_id uuid NOT NULL,  -- FK to trade_journal.id
+  user_id text NOT NULL,
+  day_number int NOT NULL,
+  created_at timestamptz DEFAULT now()
+)
+-- RLS: user_id = auth.jwt()->>'sub'
+-- Reference-only linking table — NO duplicated trade fields
+-- All trade data queried via JOIN on source_entry_id → trade_journal.id
+
+alert_reads (
+  user_id text PRIMARY KEY,
+  read_ids text[] DEFAULT '{}',
+  updated_at timestamptz DEFAULT now()
+)
+-- RLS: user_id = auth.jwt()->>'sub'
 ```
 
 ### Data flow
@@ -747,58 +795,61 @@ if now.weekday() < 5 and 9 <= now.hour < 16:
 
 ## Known Bugs Fixed — Do Not Repeat
 
-| #   | Bug                                                                                    | Fix                                                                                                |
-| --- | -------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| 1   | Tradier /options/ → 302                                                                | Always /markets/options/ prefix                                                                    |
-| 2   | yfinance NaN → json crash                                                              | sanitize() before every return                                                                     |
-| 3   | Ribbon wrong EMAs                                                                      | 8/21/34 not 8/21/48                                                                                |
-| 4   | options_chain always null                                                              | Call get_options_chain_for_analysis() in US block                                                  |
-| 5   | Analyzer response cut off                                                              | max_tokens Haiku=2048, Sonnet=1536                                                                 |
-| 6   | Railway port not bound                                                                 | nixpacks.toml + read PORT from env                                                                 |
-| 7   | Git submodule in ui/                                                                   | Delete ui/.git before git add                                                                      |
-| 8   | System env overrides .env                                                              | unset ANTHROPIC_API_KEY in terminal                                                                |
-| 9   | 0DTE picking deep ITM                                                                  | Delta filter → budget → ATR target cascade                                                         |
-| 10  | TV webhook header blocked                                                              | Accept secret from body OR header                                                                  |
-| 11  | Alert badge auto-clearing                                                              | Remove markAllRead() from bell onClick                                                             |
-| 12  | No Anthropic timeouts                                                                  | Two clients: 60s + 120s                                                                            |
-| 13  | Railway cold starts                                                                    | \_keep_alive() background task                                                                     |
-| 14  | Missing retry on 529                                                                   | with_retry() on all Claude calls                                                                   |
-| 15  | setup/grade/direction missing                                                          | Added to alert dict from raw payload                                                               |
-| 16  | markRead marking all above                                                             | Set<string> readIds replaces lastSeenId                                                            |
-| 17  | Accent bar not visible                                                                 | alignSelf:stretch child div                                                                        |
-| 18  | ATR not passing to snapshot                                                            | Pass atr param through all callers                                                                 |
-| 19  | Pine Script plot limit                                                                 | hex const colors = 48 plots total                                                                  |
-| 20  | V▼ firing in green cloud                                                               | cloud_bull = ema8≥ema21 AND ema21≥ema34                                                            |
-| 21  | GG not firing at open                                                                  | Two-tier cloud gate + PO bypass                                                                    |
-| 22  | Wrong ATR key names                                                                    | gg_complete_call/put confirmed                                                                     |
-| 23  | TV webhook 422 Pydantic                                                                | Raw Request body — no Pydantic model                                                               |
-| 24  | Internals NaN card in drawer                                                           | SSE guard: if alert.type==="internals" return                                                      |
-| 25  | Internals 422 from TV                                                                  | Raw Request body in \_handle_internals                                                             |
-| 26  | Backend recalculating levels                                                           | Pine sends T1/T2/T3/SL — use directly                                                              |
-| 27  | yfinance $^TRIN broken                                                                 | get_market_internals() returns None — TV heartbeat is source                                       |
-| 28  | /webhook/internals separate                                                            | Consolidated into /webhook/tv router                                                               |
-| 29  | Internals bias field dropped                                                           | \_handle_internals() stores bias from v2.2 payload                                                 |
-| 30  | REVERSAL EXIT no accent color                                                          | display_type="stop" covers EXIT+REVERSAL conditions                                                |
-| 31  | InternalsWidget always offline                                                         | ts vs received_at key mismatch — backend stores received_at                                        |
-| 32  | Header PDC crash on load                                                               | marketData!.atr_levels → optional chaining + ?? '—'                                                |
-| 33  | Supabase init crash Python 3.13                                                        | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0                                                    |
-| 34  | TS Authorization header type error                                                     | Record<string, string> + imperative if(token) assignment                                           |
-| 35  | Chat journal intent false negative                                                     | Two-step: YES/NO Haiku check → extraction → \_save_journal_entry()                                 |
-| 36  | Watchlist card grid stretching                                                         | alignSelf: "start" on TickerCard + align-items: start on grid                                      |
-| 37  | Hydration mismatch desk state                                                          | mounted flag + suppressHydrationWarning in Header + QuickActions                                   |
-| 38  | Morning Brief calling /chat                                                            | runMorningBrief() calls /morning-brief directly, reads data.morning_brief                          |
-| 39  | Desk open on weekend refresh                                                           | localStorage auto-clears if >12h old on mount                                                      |
-| 40  | CSS variables outside :root                                                            | New design tokens must be inside existing :root block in globals.css                               |
-| 41  | otd-columns not rendering grid                                                         | height: 100% required on .otd-columns alongside flex: 1                                            |
-| 42  | SP:SPX iframe blocked                                                                  | TradingView blocks all index embedding — use Open Chart ↗ button                                   |
-| 43  | ^GSPC yfinance broken                                                                  | Use ^SPX symbol instead — returns 78 bars per trading day                                          |
-| 44  | supabase not installed in venv                                                         | pip install supabase==2.7.4 httpx==0.27.0 gotrue==2.7.0                                            |
-| 45  | exit_price NOT NULL blocks open trades                                                 | ALTER COLUMN exit_price/pnl/grade DROP NOT NULL                                                    |
-| 46  | Signal card state resets on SSE update                                                 | loggedIds/skippedIds lifted to parent + localStorage                                               |
-| 47  | P&L computed from SPX points not premium                                               | P&L = (exit_premium − entry_premium) × contracts × 100                                             |
-| 48  | Mobile had no Signal Stream — bell-icon AlertDrawer only, no Took/Skip                 | Added 4th bottom-nav tab "📡 Signals" → MobileSignalStream bottom sheet                            |
-| 49  | Old ENTRY alerts (days-old) still showed Took/Skip on refresh, both desktop and mobile | isActionable = isEntry && isFromToday(alert.ts) gate added to both SignalCard and MobileSignalCard |
-| 50  | formatRelative capped at hours ("75h") for old alerts                                  | Added day rollover — "3d" past 24h, both desktop and mobile                                        |
+| #   | Bug                                                                                          | Fix                                                                                                |
+| --- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| 1   | Tradier /options/ → 302                                                                      | Always /markets/options/ prefix                                                                    |
+| 2   | yfinance NaN → json crash                                                                    | sanitize() before every return                                                                     |
+| 3   | Ribbon wrong EMAs                                                                            | 8/21/34 not 8/21/48                                                                                |
+| 4   | options_chain always null                                                                    | Call get_options_chain_for_analysis() in US block                                                  |
+| 5   | Analyzer response cut off                                                                    | max_tokens Haiku=2048, Sonnet=1536                                                                 |
+| 6   | Railway port not bound                                                                       | nixpacks.toml + read PORT from env                                                                 |
+| 7   | Git submodule in ui/                                                                         | Delete ui/.git before git add                                                                      |
+| 8   | System env overrides .env                                                                    | unset ANTHROPIC_API_KEY in terminal                                                                |
+| 9   | 0DTE picking deep ITM                                                                        | Delta filter → budget → ATR target cascade                                                         |
+| 10  | TV webhook header blocked                                                                    | Accept secret from body OR header                                                                  |
+| 11  | Alert badge auto-clearing                                                                    | Remove markAllRead() from bell onClick                                                             |
+| 12  | No Anthropic timeouts                                                                        | Two clients: 60s + 120s                                                                            |
+| 13  | Railway cold starts                                                                          | \_keep_alive() background task                                                                     |
+| 14  | Missing retry on 529                                                                         | with_retry() on all Claude calls                                                                   |
+| 15  | setup/grade/direction missing                                                                | Added to alert dict from raw payload                                                               |
+| 16  | markRead marking all above                                                                   | Set<string> readIds replaces lastSeenId                                                            |
+| 17  | Accent bar not visible                                                                       | alignSelf:stretch child div                                                                        |
+| 18  | ATR not passing to snapshot                                                                  | Pass atr param through all callers                                                                 |
+| 19  | Pine Script plot limit                                                                       | hex const colors = 48 plots total                                                                  |
+| 20  | V▼ firing in green cloud                                                                     | cloud_bull = ema8≥ema21 AND ema21≥ema34                                                            |
+| 21  | GG not firing at open                                                                        | Two-tier cloud gate + PO bypass                                                                    |
+| 22  | Wrong ATR key names                                                                          | gg_complete_call/put confirmed                                                                     |
+| 23  | TV webhook 422 Pydantic                                                                      | Raw Request body — no Pydantic model                                                               |
+| 24  | Internals NaN card in drawer                                                                 | SSE guard: if alert.type==="internals" return                                                      |
+| 25  | Internals 422 from TV                                                                        | Raw Request body in \_handle_internals                                                             |
+| 26  | Backend recalculating levels                                                                 | Pine sends T1/T2/T3/SL — use directly                                                              |
+| 27  | yfinance $^TRIN broken                                                                       | get_market_internals() returns None — TV heartbeat is source                                       |
+| 28  | /webhook/internals separate                                                                  | Consolidated into /webhook/tv router                                                               |
+| 29  | Internals bias field dropped                                                                 | \_handle_internals() stores bias from v2.2 payload                                                 |
+| 30  | REVERSAL EXIT no accent color                                                                | display_type="stop" covers EXIT+REVERSAL conditions                                                |
+| 31  | InternalsWidget always offline                                                               | ts vs received_at key mismatch — backend stores received_at                                        |
+| 32  | Header PDC crash on load                                                                     | marketData!.atr_levels → optional chaining + ?? '—'                                                |
+| 33  | Supabase init crash Python 3.13                                                              | supabase==2.7.4 + httpx==0.27.0 + gotrue==2.7.0                                                    |
+| 34  | TS Authorization header type error                                                           | Record<string, string> + imperative if(token) assignment                                           |
+| 35  | Chat journal intent false negative                                                           | Two-step: YES/NO Haiku check → extraction → \_save_journal_entry()                                 |
+| 36  | Watchlist card grid stretching                                                               | alignSelf: "start" on TickerCard + align-items: start on grid                                      |
+| 37  | Hydration mismatch desk state                                                                | mounted flag + suppressHydrationWarning in Header + QuickActions                                   |
+| 38  | Morning Brief calling /chat                                                                  | runMorningBrief() calls /morning-brief directly, reads data.morning_brief                          |
+| 39  | Desk open on weekend refresh                                                                 | localStorage auto-clears if >12h old on mount                                                      |
+| 40  | CSS variables outside :root                                                                  | New design tokens must be inside existing :root block in globals.css                               |
+| 41  | otd-columns not rendering grid                                                               | height: 100% required on .otd-columns alongside flex: 1                                            |
+| 42  | SP:SPX iframe blocked                                                                        | TradingView blocks all index embedding — use Open Chart ↗ button                                   |
+| 43  | ^GSPC yfinance broken                                                                        | Use ^SPX symbol instead — returns 78 bars per trading day                                          |
+| 44  | supabase not installed in venv                                                               | pip install supabase==2.7.4 httpx==0.27.0 gotrue==2.7.0                                            |
+| 45  | exit_price NOT NULL blocks open trades                                                       | ALTER COLUMN exit_price/pnl/grade DROP NOT NULL                                                    |
+| 46  | Signal card state resets on SSE update                                                       | loggedIds/skippedIds lifted to parent + localStorage                                               |
+| 47  | P&L computed from SPX points not premium                                                     | P&L = (exit_premium − entry_premium) × contracts × 100                                             |
+| 48  | Mobile had no Signal Stream — bell-icon AlertDrawer only, no Took/Skip                       | Added 4th bottom-nav tab "📡 Signals" → MobileSignalStream bottom sheet                            |
+| 49  | Old ENTRY alerts (days-old) still showed Took/Skip on refresh, both desktop and mobile       | isActionable = isEntry && isFromToday(alert.ts) gate added to both SignalCard and MobileSignalCard |
+| 50  | formatRelative capped at hours ("75h") for old alerts                                        | Added day rollover — "3d" past 24h, both desktop and mobile                                        |
+| 51  | @import "tailwindcss" in globals.css broke custom CSS classes in dev                         | Removed the import line                                                                            |
+| 52  | challenge_entries UUID mismatch — locally-generated UUID didn't match Supabase-assigned UUID | Capture result.data[0]["id"] after insert in both POST /journal/entry and \_save_journal_entry()   |
+| 53  | \_extract_journal_fields didn't extract entry_premium/exit_premium — dumped to notes         | Added both fields to \_JOURNAL_EXTRACT_SYSTEM JSON template with explicit extraction rules         |
 
 ---
 
@@ -909,19 +960,17 @@ v3.3.9 additions:
 
 ### Do next — in order
 
-1. Claude process review — Haiku auto-analysis on Close Trade
-   - Add process_review TEXT column to trade_journal in Supabase
-   - POST /journal/review/{entry_id} — Haiku reads trade, returns verdict
-   - Display in Process Review panel on journal page
-2. Backend atr_level pass-through verification — confirm T1/T2/T3/
+1. user_sessions write fix — on_conflict upsert not writing to Supabase;
+   remove on_conflict param (PK is user_id+session_id, auto-resolves)
+2. Signal read/unread visual — unread cards should have subtle accent vs read cards
+3. Backend atr_level pass-through verification — confirm T1/T2/T3/
    Runner-Next alerts carry atr_level through \_handle_trade_alert →
    SSE → Supabase tv_alerts without field whitelisting
-3. ATR Level Probability badge — frontend lookup table (Tezak/@tesrak
-   cascade data) + inline badge on Signal Stream cards, keyed off
-   atr_level (depends on #2)
-4. SessionBar real data — wire to /journal/stats, show today's P&L + trades
-5. Full TV Charting Library embed — when TradingView approves
-6. WEEKLY REVIEW wired to Supabase
+4. ATR Level Probability badge — frontend lookup table (Tezak/@tesrak
+   cascade data) + inline badge on Signal Stream cards (depends on #3)
+5. SessionBar real data — wire to /journal/stats, show today's P&L + trades
+6. Full TV Charting Library embed — when TradingView approves
+7. WEEKLY REVIEW wired to Supabase
 
 ### After that
 
@@ -930,6 +979,32 @@ v3.3.9 additions:
 - RAG knowledge base — Voyage AI + pgvector
 - Earnings scanner
 - Mobile push notifications (PWA)
+
+---
+
+## Key Learnings & Blocked Approaches
+
+- **challenge_entries is a THIN LINKING TABLE only** — never duplicate
+  trade_journal fields into it; always JOIN back to trade_journal via
+  source_entry_id. All trade data lives in trade_journal.
+- **After Supabase insert, always capture result.data[0]["id"]** as the
+  real UUID — never use a locally-generated uuid.uuid4() as source_entry_id
+  since Supabase assigns its own UUID on insert.
+- **@import "tailwindcss" in globals.css breaks custom CSS class resolution**
+  in Next.js dev mode — never add this import.
+- **\_JOURNAL_EXTRACT_SYSTEM prompt must explicitly list every field** to
+  extract; unlisted fields get dumped into "notes" by Haiku regardless of
+  how clearly they appear in the user message.
+- **on_conflict parameter in Supabase Python upsert is unnecessary** when
+  upserting on the primary key — omit it; the client resolves on PK
+  automatically.
+- **maybe_single().execute() returns None (not a result object) when no row
+  exists** in supabase==2.7.4 — always guard with `if row and row.data:`
+  not just `if row.data:`.
+- **Saty 90-Day Challenge context** — the challenge is about proving
+  consistency across different market conditions before sizing up, not about
+  hitting a P&L target. Process grade (did you follow the system) is the
+  primary metric, not win/loss. Reference: Saty Mahajan's X post.
 
 ---
 
