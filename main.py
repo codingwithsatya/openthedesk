@@ -1719,6 +1719,7 @@ class JournalEntryPayload(BaseModel):
     entry_premium: Optional[float] = None
     exit_price: Optional[float] = None
     exit_premium: Optional[float] = None
+    stop_loss_premium: Optional[float] = None
     contracts: int = 1
     pnl: Optional[float] = None
     grade: Optional[str] = None
@@ -1731,6 +1732,7 @@ class JournalUpdatePayload(BaseModel):
     exit_price: Optional[float] = None
     exit_premium: Optional[float] = None
     entry_premium: Optional[float] = None
+    stop_loss_premium: Optional[float] = None
     pnl: Optional[float] = None
     grade: Optional[str] = None
     process_grade: Optional[str] = None
@@ -1913,6 +1915,17 @@ async def get_challenge_status(user_id: str = Depends(get_current_user)):
     return {**challenge, "active": True, "day_number": day_number}
 
 
+# A+=5.0, A=4.0, B=3.0, C=2.0 — display mapping, not an externally enforced scale
+_PROCESS_GRADE_SCORES: dict[str, float] = {"A+": 5.0, "A": 4.0, "B": 3.0, "C": 2.0}
+# Grade rank used to pick best-per-day; A+ beats A beats B beats C
+_GRADE_RANK: dict[str, int] = {"A+": 4, "A": 3, "B": 2, "C": 1}
+
+
+def _best_grade_of(trades: list[dict]) -> str | None:
+    grades = [g for t in trades if (g := (t.get("grade") or "")) in _GRADE_RANK]
+    return max(grades, key=lambda g: _GRADE_RANK[g]) if grades else None
+
+
 def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
     closed = [t for t in trades if t.get("pnl") is not None]
     wins = [t for t in closed if (t.get("pnl") or 0) > 0]
@@ -1940,6 +1953,9 @@ def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
             grades["B"] += 1
         elif pg == "C":
             grades["C"] += 1
+    pg_scores = [_PROCESS_GRADE_SCORES[pg] for t in closed
+                 if (pg := t.get("process_grade") or "") in _PROCESS_GRADE_SCORES]
+    avg_process_grade = round(sum(pg_scores) / len(pg_scores), 2) if pg_scores else None
     return {
         "total_trades": len(closed),
         "wins": len(wins),
@@ -1951,6 +1967,7 @@ def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
         "avg_loser": avg_loser,
         "best_setup": best_setup,
         "process_grades": grades,
+        "avg_process_grade": avg_process_grade,
     }
 
 
@@ -1963,18 +1980,73 @@ def _challenge_build_calendar(start_date_str: str, trades: list[dict]) -> list[d
         if d:
             by_date.setdefault(str(d)[:10], []).append(t)
     result = []
+    td_counter = 0
     current = start
     while current <= today:
         if current.weekday() < 5:
+            td_counter += 1
             day_str = current.isoformat()
             day_trades = by_date.get(day_str, [])
             if day_trades:
-                net = sum(t.get("pnl", 0) or 0 for t in day_trades)
+                net = round(sum(t.get("pnl", 0) or 0 for t in day_trades), 2)
                 status = "win" if net > 0 else "loss"
             else:
+                net = 0.0
                 status = "no_trade"
-            result.append({"date": day_str, "status": status})
+            result.append({
+                "date": day_str,
+                "td_number": td_counter,
+                "status": status,
+                "day_pnl": net,
+                "trade_count": len(day_trades),
+                "best_grade": _best_grade_of(day_trades),
+            })
         current += timedelta(days=1)
+    return result
+
+
+def _challenge_build_streaks(calendar: list[dict]) -> dict:
+    """Win streak stats from calendar (win/loss days only, not no-trade)."""
+    traded = [c for c in calendar if c["status"] in ("win", "loss")]
+    current = 0
+    for c in reversed(traded):
+        if c["status"] == "win":
+            current += 1
+        else:
+            break
+    best = 0
+    run = 0
+    for c in traded:
+        if c["status"] == "win":
+            run += 1
+            best = max(best, run)
+        else:
+            run = 0
+    return {"current": current, "best": best}
+
+
+def _challenge_build_grade_breakdown(calendar: list[dict]) -> dict:
+    """Grade distribution using each traded day's best trade grade."""
+    a_plus = sum(1 for c in calendar if c.get("best_grade") == "A+")
+    a = sum(1 for c in calendar if c.get("best_grade") == "A")
+    b = sum(1 for c in calendar if c.get("best_grade") == "B")
+    c = sum(1 for c in calendar if c.get("best_grade") == "C")
+    return {"a_plus": a_plus, "a": a, "b": b, "c": c, "total": a_plus + a + b + c}
+
+
+def _challenge_build_equity(trades: list[dict], start_balance: float) -> list[dict]:
+    """Per-day balance snapshots ordered chronologically across ALL trade dates.
+    Includes weekend dates so the final balance always equals start_balance + total_pnl."""
+    by_date: dict[str, float] = {}
+    for t in trades:
+        d = str(t.get("date") or "")[:10]
+        if d:
+            by_date[d] = round(by_date.get(d, 0.0) + (t.get("pnl") or 0), 2)
+    running = start_balance
+    result = []
+    for day_str in sorted(by_date.keys()):
+        running = round(running + by_date[day_str], 2)
+        result.append({"date": day_str, "pnl": by_date[day_str], "balance": running})
     return result
 
 
@@ -2026,9 +2098,17 @@ async def get_challenge_stats(user_id: str = Depends(get_current_user)):
     day_number = compute_trading_day_number(challenge["start_date"])
     trades = _fetch_challenge_trades(challenge["id"], user_id)
     start_balance = challenge.get("start_balance") or 500
-    stats = _challenge_compute_stats(trades, start_balance)
-    calendar = _challenge_build_calendar(challenge["start_date"], trades)
-    lessons = _challenge_build_lessons(trades)
+    start_date_str = str(challenge["start_date"])[:10]
+    # Only trades on or after start_date belong to the challenge window.
+    # Trades linked before the challenge officially began are excluded from
+    # all per-day views (calendar, streak grid, equity curve) and from stats.
+    in_window = [t for t in trades if str(t.get("date") or "")[:10] >= start_date_str]
+    stats = _challenge_compute_stats(in_window, start_balance)
+    calendar = _challenge_build_calendar(challenge["start_date"], in_window)
+    lessons = _challenge_build_lessons(in_window)
+    equity = _challenge_build_equity(in_window, start_balance)
+    streaks = _challenge_build_streaks(calendar)
+    grade_breakdown = _challenge_build_grade_breakdown(calendar)
     return {
         "active": True,
         "challenge": challenge,
@@ -2036,7 +2116,85 @@ async def get_challenge_stats(user_id: str = Depends(get_current_user)):
         "stats": stats,
         "calendar": calendar,
         "lessons": lessons,
+        "equity": equity,
+        "streaks": streaks,
+        "grade_breakdown": grade_breakdown,
     }
+
+
+@app.get("/challenge/day/{date}")
+async def get_challenge_day(date: str, user_id: str = Depends(get_current_user)):
+    challenge = get_active_challenge(user_id)
+    if not challenge:
+        raise HTTPException(status_code=404, detail="No active challenge")
+    if not _sb:
+        raise HTTPException(status_code=503, detail="Database unavailable")
+    start_date_str = str(challenge["start_date"])[:10]
+    if date < start_date_str:
+        raise HTTPException(status_code=400, detail="Date is before challenge start date")
+    try:
+        ce_res = _sb.table("challenge_entries").select("source_entry_id")\
+            .eq("challenge_id", challenge["id"]).execute()
+        source_ids = [r["source_entry_id"] for r in (ce_res.data or []) if r.get("source_entry_id")]
+        if not source_ids:
+            return {"date": date, "trades": [], "day_pnl": 0.0, "balance_after": None,
+                    "win_rate": None, "avg_r_multiple": None}
+        tj_res = _sb.table("trade_journal").select("*")\
+            .in_("id", source_ids)\
+            .eq("user_id", user_id)\
+            .eq("status", "closed")\
+            .eq("date", date)\
+            .order("created_at", desc=False)\
+            .execute()
+        day_trades = tj_res.data or []
+        day_pnl = round(sum(t.get("pnl") or 0 for t in day_trades), 2)
+        all_trades = _fetch_challenge_trades(challenge["id"], user_id)
+        start_balance = challenge.get("start_balance") or 500
+        in_window = [t for t in all_trades if str(t.get("date") or "")[:10] >= start_date_str]
+        equity = _challenge_build_equity(in_window, start_balance)
+        balance_after = None
+        for point in equity:
+            if point["date"] <= date:
+                balance_after = point["balance"]
+        # Day-level metrics
+        day_wins = [t for t in day_trades if (t.get("pnl") or 0) > 0]
+        day_win_rate = round(len(day_wins) / len(day_trades) * 100, 1) if day_trades else None
+        r_vals = [r for t in day_trades if (r := _compute_r_multiple(
+            t.get("entry_premium"), t.get("exit_premium"), t.get("stop_loss_premium")
+        )) is not None]
+        avg_r_multiple = round(sum(r_vals) / len(r_vals), 2) if r_vals else None
+        return {
+            "date": date,
+            "day_pnl": day_pnl,
+            "balance_after": balance_after,
+            "win_rate": day_win_rate,
+            "avg_r_multiple": avg_r_multiple,
+            "trades": [
+                {
+                    "id": t.get("id"),
+                    "setup": t.get("setup"),
+                    "direction": t.get("direction"),
+                    "entry_premium": t.get("entry_premium"),
+                    "exit_premium": t.get("exit_premium"),
+                    "stop_loss_premium": t.get("stop_loss_premium"),
+                    "r_multiple": _compute_r_multiple(
+                        t.get("entry_premium"), t.get("exit_premium"), t.get("stop_loss_premium")
+                    ),
+                    "contracts": t.get("contracts") or 1,
+                    "pnl": t.get("pnl"),
+                    "grade": t.get("grade"),
+                    "process_grade": t.get("process_grade"),
+                    "process_review": t.get("process_review"),
+                    "grade_factors": t.get("grade_factors"),
+                    "notes": t.get("notes"),
+                }
+                for t in day_trades
+            ],
+        }
+    except HTTPException:
+        raise
+    except Exception as _e:
+        raise HTTPException(status_code=500, detail=str(_e))
 
 
 @app.get("/challenge/all")
@@ -2090,26 +2248,28 @@ async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depe
         "notes": payload.notes or "",
         "status": payload.status,
         "internals": internals,
+        "stop_loss_premium": payload.stop_loss_premium,
     }
     if _sb:
         try:
             result = _sb.table("trade_journal").insert({
-                "user_id":        user_id,
-                "date":           entry["date"],
-                "ticker":         entry["ticker"],
-                "setup":          entry["setup"],
-                "direction":      entry["direction"],
-                "entry_price":    entry["entry_price"],
-                "entry_premium":  entry["entry_premium"],
-                "exit_price":     entry["exit_price"],
-                "exit_premium":   entry["exit_premium"],
-                "contracts":      entry["contracts"],
-                "pnl":            entry["pnl"],
-                "grade":          entry["grade"],
-                "process_grade":  entry["process_grade"],
-                "notes":          entry["notes"],
-                "status":         entry["status"],
-                "internals":      entry["internals"],
+                "user_id":            user_id,
+                "date":               entry["date"],
+                "ticker":             entry["ticker"],
+                "setup":              entry["setup"],
+                "direction":          entry["direction"],
+                "entry_price":        entry["entry_price"],
+                "entry_premium":      entry["entry_premium"],
+                "exit_price":         entry["exit_price"],
+                "exit_premium":       entry["exit_premium"],
+                "stop_loss_premium":  entry["stop_loss_premium"],
+                "contracts":          entry["contracts"],
+                "pnl":                entry["pnl"],
+                "grade":              entry["grade"],
+                "process_grade":      entry["process_grade"],
+                "notes":              entry["notes"],
+                "status":             entry["status"],
+                "internals":          entry["internals"],
             }).execute()
             if result.data and len(result.data) > 0:
                 entry["id"] = result.data[0]["id"]
@@ -2122,8 +2282,25 @@ async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depe
 
 
 # ── Process Review Engine ────────────────────────────────────────────────────
-# Requires trade_journal.process_review (text, nullable) column.
-# Migration: ALTER TABLE trade_journal ADD COLUMN IF NOT EXISTS process_review text;
+# Schema migrations (run once in Supabase SQL editor):
+#   ALTER TABLE trade_journal ADD COLUMN IF NOT EXISTS process_review text;
+#   ALTER TABLE trade_journal ADD COLUMN IF NOT EXISTS stop_loss_premium numeric;
+#   ALTER TABLE trade_journal ADD COLUMN IF NOT EXISTS grade_factors jsonb;
+#
+# stop_loss_premium: the options PREMIUM stop price (not the SPX price SL level
+#   from tv_alerts.sl). Populated at entry time via JournalEntryPayload. Null for
+#   trades logged before this column was added — R-multiple returns null in that case.
+
+
+def _compute_r_multiple(entry_prem, exit_prem, sl_prem):
+    """R = (exit - entry) / (entry - sl). Returns None if any value is missing or risk <= 0."""
+    if entry_prem is None or exit_prem is None or sl_prem is None:
+        return None
+    risk = round(float(entry_prem) - float(sl_prem), 4)
+    if risk <= 0:
+        return None
+    return round((float(exit_prem) - float(entry_prem)) / risk, 2)
+
 
 _PROCESS_REVIEW_SYSTEM = """You are a trading process coach for a 0DTE SPX options trader.
 Evaluate execution quality — not just outcome (P&L). Focus on plan adherence, risk discipline, and exit quality.
@@ -2135,9 +2312,20 @@ PHASE 2 RULES (must be followed):
 - Dollar stop = premium paid - $1.00 (always honored)
 
 Output ONLY valid JSON, no markdown or extra text:
-{"grade": "A", "verdict": "2–3 sentence process evaluation"}
+{
+  "grade": "A",
+  "verdict": "2–3 sentence process evaluation",
+  "grade_factors": {
+    "setup_quality": 4.5,
+    "execution": 4.0,
+    "risk_management": 4.0,
+    "trade_management": 4.5,
+    "mindset_discipline": 4.0
+  }
+}
 
-grade must be exactly one of: A+, A, B, C"""
+grade must be exactly one of: A+, A, B, C
+grade_factors: each score 0.0–5.0, one decimal place, based only on available context — be honest when context is limited."""
 
 
 def _build_review_prompt(row: dict) -> str:
@@ -2159,8 +2347,13 @@ def _build_review_prompt(row: dict) -> str:
 
 
 def _run_process_review(entry_id: str, user_id: str, row: dict) -> dict:
-    """Sync: call Haiku to grade the trade process, write result back to Supabase."""
+    """Sync: call Haiku to grade the trade process, write result back to Supabase.
+    Writes process_grade, process_review, and grade_factors (5-factor breakdown).
+    Trade save never blocks on this — failures are logged and swallowed."""
     prompt = _build_review_prompt(row)
+    grade = "B"
+    verdict = "Review could not be completed — try Re-run Review."
+    grade_factors = None
     try:
         r = with_retry(lambda: client.messages.create(
             model=HAIKU,
@@ -2177,21 +2370,29 @@ def _run_process_review(entry_id: str, user_id: str, row: dict) -> dict:
         parsed = json.loads(raw)
         grade = parsed.get("grade", "B")
         verdict = parsed.get("verdict", raw)
+        gf = parsed.get("grade_factors")
+        if isinstance(gf, dict) and len(gf) == 5:
+            grade_factors = {
+                "setup_quality":       round(float(gf.get("setup_quality", 3)), 1),
+                "execution":           round(float(gf.get("execution", 3)), 1),
+                "risk_management":     round(float(gf.get("risk_management", 3)), 1),
+                "trade_management":    round(float(gf.get("trade_management", 3)), 1),
+                "mindset_discipline":  round(float(gf.get("mindset_discipline", 3)), 1),
+            }
     except Exception as _pe:
         print(f"[WARN] process review parse failed: {_pe}")
-        grade = "B"
-        verdict = "Review could not be completed — try Re-run Review."
 
     if _sb:
         try:
-            _sb.table("trade_journal").update({
-                "process_grade": grade,
-                "process_review": verdict,
-            }).eq("id", entry_id).eq("user_id", user_id).execute()
+            update = {"process_grade": grade, "process_review": verdict}
+            if grade_factors is not None:
+                update["grade_factors"] = grade_factors
+            _sb.table("trade_journal").update(update)\
+                .eq("id", entry_id).eq("user_id", user_id).execute()
         except Exception as _we:
             print(f"[WARN] process_review write failed: {_we}")
 
-    return {"grade": grade, "verdict": verdict}
+    return {"grade": grade, "verdict": verdict, "grade_factors": grade_factors}
 
 
 @app.post("/journal/review/{entry_id}")
@@ -2260,6 +2461,10 @@ def get_journal_entries(limit: int = 50, user_id: str = Depends(get_current_user
             res = _sb.table("trade_journal").select(
                 "*").eq("user_id", user_id).order("created_at", desc=True).limit(limit).execute()
             rows = res.data or []
+            for r in rows:
+                r["r_multiple"] = _compute_r_multiple(
+                    r.get("entry_premium"), r.get("exit_premium"), r.get("stop_loss_premium")
+                )
             return {"entries": rows, "count": len(rows)}
         except Exception as _e:
             print(f"[WARN] trade_journal fetch failed: {_e}")
