@@ -7,7 +7,7 @@ export default function ChallengeMountainHero() {
   return (
     <div className={s.root}>
       <Image
-        src="/openthedesk-mountain-hero.png"
+        src="/openthedesk-mountain-hero.webp"
         alt=""
         fill
         priority
