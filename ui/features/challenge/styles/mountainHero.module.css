@@ -6,33 +6,52 @@
   overflow: hidden;
   pointer-events: none;
   z-index: 0;
+  background: #020817;
 }
 
 .image {
   user-select: none;
   pointer-events: none;
+  object-fit: cover;
+  object-position: center center;
+  opacity: 0.95;
+  transform: none;
 }
 
-.desktopImage {
-  display: block;
-  object-fit: contain;
-  object-position: right center;
-  opacity: 0.96;
-}
-
-.mobileImage {
-  display: none;
-}
-
-@media (max-width: 540px) {
-  .desktopImage {
-    display: none;
+@media (min-width: 1500px) {
+  .image {
+    object-position: center 48%;
   }
+}
 
-  .mobileImage {
-    display: block;
+@media (min-width: 1800px) {
+  .image {
+    object-position: center 46%;
+  }
+}
+
+@media (max-width: 1180px) {
+  .image {
+    object-position: 62% center;
+    opacity: 0.88;
+  }
+}
+
+/* Tablet */
+@media (max-width: 900px) {
+  .image {
+    object-position: 64% center;
+    opacity: 0.82;
+  }
+}
+
+/* Mobile */
+@media (max-width: 540px) {
+  .image {
     object-fit: cover;
-    object-position: center center;
-    opacity: 0.86;
+    object-position: 62% bottom;
+    opacity: 0.38;
+    transform: scale(1.02);
+    transform-origin: center bottom;
   }
 }
