@@ -1,0 +1,994 @@
+/* ═══════════════════════════════════════════════════════════════
+   Challenge Dashboard — all cf-* styles as CSS module
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Shell */
+.page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #0a0e13;
+  color: var(--text-bright);
+  font-family: var(--sans);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 26px 28px 80px;
+}
+
+.wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.pageTitle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--otd-text-soft);
+  letter-spacing: 0.04em;
+  margin-bottom: 16px;
+}
+
+/* ── Hero row ── */
+.heroRow {
+  display: grid;
+  grid-template-columns: 1fr 220px;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.heroPanel {
+  position: relative;
+  min-height: 210px;
+  display: grid;
+  grid-template-columns: minmax(360px, 40%) minmax(0, 1fr);
+  align-items: stretch;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.34);
+  background:
+    radial-gradient(circle at 75% 25%, rgba(53, 212, 138, 0.12), transparent 32%),
+    radial-gradient(circle at 65% 60%, rgba(79, 141, 255, 0.16), transparent 38%),
+    linear-gradient(135deg, rgba(16, 22, 31, 0.98), rgba(8, 13, 19, 0.98));
+}
+
+/* Left-to-right dark fade */
+.heroPanel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: linear-gradient(
+    90deg,
+    rgba(8, 13, 19, 0.92) 0%,
+    rgba(8, 13, 19, 0.65) 36%,
+    rgba(8, 13, 19, 0.12) 58%,
+    rgba(8, 13, 19, 0.08) 100%
+  );
+}
+
+.heroContent {
+  position: relative;
+  z-index: 3;
+  padding: 30px 32px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+}
+
+.heroEyebrow {
+  font-size: 11px;
+  color: var(--otd-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0 0 6px;
+  font-weight: 600;
+}
+
+.heroTitle {
+  font-family: var(--sans);
+  font-weight: 800;
+  font-size: 44px;
+  margin: 0 0 6px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.heroTitle :global(.accent) {
+  color: var(--otd-green);
+}
+
+.heroOf {
+  font-size: 26px;
+  font-weight: 500;
+  color: rgba(243, 247, 251, 0.45);
+  margin-left: 4px;
+  letter-spacing: -0.01em;
+}
+
+.heroSub {
+  font-size: 13px;
+  color: rgba(243, 247, 251, 0.45);
+  margin: 0 0 12px;
+}
+
+.heroPills {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.heroPill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.heroPill.progress {
+  background: rgba(53, 212, 138, 0.14);
+  border: 1px solid rgba(53, 212, 138, 0.32);
+  color: var(--otd-green);
+}
+
+.heroPill.discipline {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: rgba(147, 164, 184, 0.7);
+  font-weight: 500;
+  font-style: italic;
+}
+
+.heroVisual {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  height: 100%;
+  min-height: 210px;
+  display: flex;
+  align-items: stretch;
+  justify-content: stretch;
+  overflow: hidden;
+}
+
+.heroVisual svg {
+  width: 100%;
+  height: 100%;
+  min-height: 210px;
+  display: block;
+}
+
+/* ── Ends card ── */
+.endsCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 16px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.endsLbl {
+  font-size: 10px;
+  color: var(--otd-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin: 0 0 8px;
+}
+
+.endsDate {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 18px;
+  margin: 0 0 6px;
+  letter-spacing: -0.01em;
+}
+
+.endsRem {
+  font-size: 12px;
+  color: var(--otd-yellow);
+  margin-bottom: 12px;
+}
+
+.endsProgress {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.endsBar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--otd-green), #62eea8);
+  border-radius: 2px;
+  transition: width 0.6s ease;
+}
+
+/* ── Stat row ── */
+.statRow {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1.3fr 1.1fr 1.3fr;
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.statCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.18);
+}
+
+.statK {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--otd-text-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin: 0 0 6px;
+}
+
+.statVRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.statV {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.statV.green {
+  color: var(--otd-green);
+}
+
+.statV.red {
+  color: var(--otd-red);
+}
+
+.statV.blue {
+  color: var(--otd-blue);
+}
+
+.statSub {
+  font-size: 10.5px;
+  color: var(--otd-text-muted);
+  margin-top: 5px;
+}
+
+.statSub.up {
+  color: var(--otd-green);
+}
+
+.statMiniSpark {
+  height: 26px;
+  margin-top: 8px;
+}
+
+.statGradeChip {
+  width: 32px;
+  height: 32px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 13px;
+  color: white;
+  flex-shrink: 0;
+}
+
+.statRing {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+/* ── Calendar wrap ── */
+.calWrap {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 14px;
+  align-items: start;
+  margin-bottom: 16px;
+}
+
+.calMain {
+  background: linear-gradient(180deg, #141b26 0%, #0c1119 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 18px;
+  padding: 22px 24px;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.22);
+  overflow: hidden;
+}
+
+.calHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.calHead h2 {
+  font-family: var(--sans);
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  letter-spacing: -0.015em;
+}
+
+.calLegend {
+  display: flex;
+  gap: 14px;
+  font-size: 12px;
+  color: var(--text-mid);
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.calLegendDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  margin-right: 5px;
+}
+
+.calNavBtn {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--otd-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-mid);
+  cursor: pointer;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.calNavBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* Calendar grid scroll wrapper */
+.calGridScroll {
+  width: 100%;
+}
+
+.calGrid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 8px;
+}
+
+.calDow {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-dim);
+  text-align: center;
+  padding-bottom: 6px;
+  letter-spacing: 0.04em;
+}
+
+/* Calendar day cells */
+.calDay {
+  min-height: 92px;
+  border-radius: 12px;
+  padding: 10px 11px;
+  background: var(--otd-surface);
+  border: 1px solid var(--otd-border);
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease;
+  position: relative;
+}
+
+.calDay:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.32);
+}
+
+.calDay.blank {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.calDay.win {
+  background: linear-gradient(
+    180deg,
+    rgba(53, 212, 138, 0.17) 0%,
+    rgba(53, 212, 138, 0.06) 100%
+  );
+  border: 1px solid rgba(53, 212, 138, 0.34);
+  box-shadow: inset 0 2px 0 rgba(53, 212, 138, 0.8);
+}
+
+.calDay.loss {
+  background: linear-gradient(
+    180deg,
+    rgba(255, 92, 108, 0.17) 0%,
+    rgba(255, 92, 108, 0.06) 100%
+  );
+  border: 1px solid rgba(255, 92, 108, 0.34);
+  box-shadow: inset 0 2px 0 rgba(255, 92, 108, 0.8);
+}
+
+.calDay.noTrade {
+  background: rgba(20, 27, 38, 0.55);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  box-shadow: none;
+  opacity: 0.68;
+  cursor: default;
+}
+
+.calDay.noTrade:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+.calDay.outOfWindow {
+  background: transparent;
+  border-color: rgba(148, 163, 184, 0.04);
+  box-shadow: none;
+  opacity: 0.25;
+  cursor: default;
+  pointer-events: none;
+}
+
+.calDay.selected {
+  border: 1px solid rgba(79, 141, 255, 0.88) !important;
+  box-shadow: 0 0 0 1px rgba(79, 141, 255, 0.32),
+    0 0 22px rgba(79, 141, 255, 0.24), 0 12px 28px rgba(0, 0, 0, 0.38) !important;
+  transform: translateY(-2px) !important;
+  z-index: 2;
+}
+
+.calTopRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 3px;
+}
+
+.calDaynum {
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--otd-text);
+  line-height: 1;
+}
+
+.calDay.noTrade .calDaynum,
+.calDay.outOfWindow .calDaynum {
+  color: var(--otd-text-soft);
+  font-weight: 500;
+}
+
+.calGradeBadge {
+  height: 22px;
+  min-width: 24px;
+  padding: 0 7px;
+  border-radius: 8px;
+  font-weight: 700;
+  font-size: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.calGradeBadge.a {
+  background: rgba(53, 212, 138, 0.18);
+  border: 1px solid rgba(53, 212, 138, 0.35);
+  color: #35d48a;
+}
+
+.calGradeBadge.b {
+  background: rgba(246, 196, 83, 0.16);
+  border: 1px solid rgba(246, 196, 83, 0.35);
+  color: #f6c453;
+}
+
+.calGradeBadge.c {
+  background: rgba(255, 92, 108, 0.16);
+  border: 1px solid rgba(255, 92, 108, 0.35);
+  color: #ff5c6c;
+}
+
+.calPnl {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 15px;
+  line-height: 1.2;
+  margin-top: auto;
+}
+
+.calDay.win .calPnl {
+  color: #35d48a;
+}
+
+.calDay.loss .calPnl {
+  color: #ff5c6c;
+}
+
+.calTradeCt {
+  font-size: 10px;
+  color: var(--otd-text-soft);
+  font-family: var(--mono);
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.calNoTradeMark {
+  font-size: 20px;
+  color: rgba(147, 164, 184, 0.5);
+  margin-top: auto;
+  line-height: 1;
+  user-select: none;
+}
+
+.todayTag {
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--otd-blue);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+  z-index: 2;
+}
+
+/* ── Right rail ── */
+.rightRail {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.focusCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.focusIcon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: var(--ch-blue-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.focusK {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0 0 5px;
+}
+
+.focusV {
+  font-weight: 600;
+  font-size: 13.5px;
+  margin: 0 0 3px;
+}
+
+.focusSub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+.todayCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.todayCardHead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 11px;
+  color: var(--otd-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 12px;
+}
+
+.todayRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 0;
+  font-size: 12.5px;
+  border-top: 1px solid var(--otd-border);
+}
+
+.todayL {
+  color: var(--otd-text-soft);
+}
+
+.todayR {
+  font-weight: 700;
+  color: var(--otd-text);
+}
+
+.todayR.green {
+  color: var(--otd-green);
+}
+
+.todayR.amber {
+  color: var(--otd-yellow);
+}
+
+.todayR.red {
+  color: var(--otd-red);
+}
+
+.todayNote {
+  font-size: 10px;
+  color: var(--text-dim);
+  font-weight: 400;
+  margin-left: 4px;
+}
+
+/* ── Grade card / donut ── */
+.gradeCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.gradeHead {
+  font-weight: 600;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+.gradeWithDonut {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.donutWrap {
+  width: 76px;
+  height: 76px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.donutCenter {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.donutBig {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.donutSmall {
+  font-size: 7px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.donutLegend {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.donutLegendRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: var(--text-mid);
+}
+
+.donutSq {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.donutCount {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--text-dim);
+}
+
+/* ── Progress card ── */
+.progressCard {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  border: 1px solid var(--otd-border);
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.15);
+}
+
+.progressK {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0 0 6px;
+}
+
+.progressV {
+  font-family: var(--sans);
+  font-weight: 700;
+  font-size: 26px;
+  color: var(--otd-blue);
+  margin: 0 0 4px;
+}
+
+.progressSub {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin: 0 0 10px;
+}
+
+.progressTrack {
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--otd-green), #62eea8);
+  border-radius: 3px;
+}
+
+.progressTip {
+  font-size: 11px;
+  color: var(--otd-green);
+}
+
+/* ── Footer strip ── */
+.footer {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.footerCell {
+  background: linear-gradient(180deg, #141b26 0%, #10161f 100%);
+  padding: 16px 18px;
+}
+
+.footerK {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--otd-text-soft);
+  margin: 0 0 8px;
+}
+
+.footerV {
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 19px;
+  color: var(--otd-text);
+}
+
+.footerV.green {
+  color: var(--otd-green);
+}
+
+.footerV.red {
+  color: var(--otd-red);
+}
+
+.footerSub {
+  font-size: 10.5px;
+  color: var(--text-dim);
+  margin-top: 4px;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1024px) {
+  .heroPanel {
+    grid-template-columns: minmax(300px, 44%) minmax(0, 1fr);
+  }
+  .statRow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .main {
+    width: 100%;
+    max-width: 100%;
+    padding: 14px 14px 80px;
+    min-width: 0;
+  }
+  .heroRow {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+  .heroPanel {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+  .heroPanel::after {
+    display: none;
+  }
+  .heroContent {
+    padding: 22px 20px 10px;
+  }
+  .heroTitle {
+    font-size: 34px;
+    line-height: 1.05;
+  }
+  .heroOf {
+    font-size: 20px;
+  }
+  .heroVisual {
+    min-height: 150px;
+    height: 150px;
+    max-height: 150px;
+    width: 100%;
+    align-self: auto;
+  }
+  .heroVisual svg {
+    height: 150px;
+    min-height: 150px;
+    max-height: 150px;
+  }
+  .endsCard {
+    width: 100%;
+  }
+  .statRow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .calWrap {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .calMain {
+    padding: 16px;
+    overflow: hidden;
+  }
+  .calGridScroll {
+    width: 100%;
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    padding-bottom: 8px;
+  }
+  .calGrid {
+    min-width: 680px;
+    gap: 5px;
+  }
+  .calDay {
+    min-height: 64px;
+    padding: 7px 8px;
+  }
+  .calHead {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .calHead h2 {
+    font-size: 15px;
+  }
+  .rightRail {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+    width: 100%;
+  }
+  .footer {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .footerCell {
+    padding: 14px 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .main {
+    padding: 12px 12px 80px;
+  }
+  .heroTitle {
+    font-size: 28px;
+  }
+  .heroSub {
+    font-size: 11px;
+  }
+  .heroVisual {
+    height: 130px;
+    min-height: 120px;
+    max-height: 130px;
+  }
+  .heroVisual svg {
+    height: 130px;
+    min-height: 120px;
+  }
+  .calGrid {
+    min-width: 580px;
+  }
+}
+
+@media (max-width: 390px) {
+  .statRow {
+    grid-template-columns: 1fr;
+  }
+  .footer {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,87 @@
+/* StartChallengeModal — wrapper layout classes */
+
+.backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.dialog {
+  background: #0d1320;
+  border: 1px solid #1e3a5f;
+  border-radius: 12px;
+  padding: 28px 32px;
+  width: 420px;
+  max-width: 90vw;
+}
+
+.heading {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+
+.subheading {
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.rulesBox {
+  background: #090e1a;
+  border: 1px solid #1e3a5f;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 24px;
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.rulesLabel {
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 6px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.fieldRow {
+  display: flex;
+  gap: 12px;
+}
+
+.fieldGroup {
+  flex: 1;
+}
+
+.fieldLabel {
+  display: block;
+  font-size: 11px;
+  color: #64748b;
+  margin-bottom: 5px;
+}
+
+.errorText {
+  font-size: 11px;
+  color: #f87171;
+  margin-top: 12px;
+}
+
+.btnRow {
+  display: flex;
+  gap: 10px;
+  margin-top: 24px;
+}

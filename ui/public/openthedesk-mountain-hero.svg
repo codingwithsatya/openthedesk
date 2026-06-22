@@ -1,0 +1,126 @@
+<svg width="980" height="360" viewBox="0 0 980 360" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenTheDesk mountain challenge hero">
+  <defs>
+    <radialGradient id="skyGlow" cx="68%" cy="35%" r="55%">
+      <stop offset="0" stop-color="#0C6BFF" stop-opacity="0.42"/>
+      <stop offset="0.42" stop-color="#062A63" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#020817" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="mountainMain" x1="540" y1="74" x2="600" y2="342" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173C72"/>
+      <stop offset="0.45" stop-color="#091D3C"/>
+      <stop offset="1" stop-color="#020816"/>
+    </linearGradient>
+    <linearGradient id="mountainLit" x1="574" y1="92" x2="746" y2="320" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2E91FF" stop-opacity="0.92"/>
+      <stop offset="0.4" stop-color="#0B4695" stop-opacity="0.52"/>
+      <stop offset="1" stop-color="#031126" stop-opacity="0.1"/>
+    </linearGradient>
+    <linearGradient id="mountainShade" x1="466" y1="99" x2="305" y2="329" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0E2449"/>
+      <stop offset="1" stop-color="#020816"/>
+    </linearGradient>
+    <linearGradient id="pathGrad" x1="540" y1="322" x2="666" y2="92" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#62FF84"/>
+      <stop offset="0.45" stop-color="#7CFFF2"/>
+      <stop offset="1" stop-color="#2F8CFF"/>
+    </linearGradient>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="6" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.12 0 0 0 0 0.72 0 0 0 0 1 0 0 0 0.95 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="greenGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.2 0 0 0 0 1 0 0 0 0 0.45 0 0 0 1 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="trophyGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="9" result="blur"/>
+      <feColorMatrix in="blur" type="matrix" values="0 0 0 0 0.1 0 0 0 0 0.55 0 0 0 0 1 0 0 0 1 0"/>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- background -->
+  <rect width="980" height="360" fill="#020816"/>
+  <rect width="980" height="360" fill="url(#skyGlow)"/>
+
+  <!-- stars -->
+  <g opacity="0.75">
+    <circle cx="148" cy="48" r="1" fill="#68A8FF"/><circle cx="210" cy="94" r="0.8" fill="#B9D7FF"/>
+    <circle cx="311" cy="34" r="0.9" fill="#73BDFF"/><circle cx="435" cy="68" r="1" fill="#7EC8FF"/>
+    <circle cx="515" cy="35" r="0.8" fill="#D9F0FF"/><circle cx="706" cy="41" r="1" fill="#6DC7FF"/>
+    <circle cx="800" cy="86" r="0.8" fill="#BDE6FF"/><circle cx="920" cy="48" r="0.9" fill="#7DBBFF"/>
+    <circle cx="862" cy="154" r="0.7" fill="#8CD8FF"/><circle cx="380" cy="144" r="0.7" fill="#8FD1FF"/>
+  </g>
+
+  <!-- distant clouds and ridges -->
+  <path d="M0 274c54-34 105-31 153-18 47 13 78 7 122-17 50-28 113-19 161 9 29 17 62 21 104 5 84-33 155-5 206 25 45 27 101 28 157 9 36-12 59-10 77-1v74H0v-86Z" fill="#06152B" opacity="0.82"/>
+  <path d="M0 298c88-55 143-32 202-45 61-13 85-58 143-46 37 8 50 45 93 44 69-2 91-79 156-70 60 8 85 80 150 80 71 0 92-54 150-34 37 13 62 50 86 71v62H0v-62Z" fill="#071B36" opacity="0.85"/>
+
+  <!-- mountain base shadows -->
+  <path d="M206 360 465 83 714 360H206Z" fill="url(#mountainShade)" opacity="0.95"/>
+  <path d="M326 360 573 78 884 360H326Z" fill="url(#mountainMain)"/>
+  <path d="M573 78 884 360H596L650 301l-45-20 33-45-47 16 22-50-56 30 20-56-60 25 22-63 34-60Z" fill="url(#mountainLit)" opacity="0.75"/>
+  <path d="M573 78 502 183l55-25-20 61 62-32-25 56 48-18-34 48 44 18-64 69H326L573 78Z" fill="#06152D" opacity="0.58"/>
+
+  <!-- snow highlights -->
+  <g opacity="0.95">
+    <path d="M573 78 526 147l36-20 11 21 20-39 44 73-48-33-16-71Z" fill="#8FD8FF" opacity="0.82"/>
+    <path d="M527 147 477 204l61-32 24-45-35 20Z" fill="#A9E5FF" opacity="0.48"/>
+    <path d="M594 151 657 207l-44-14-24-44 5 2Z" fill="#BFEAFF" opacity="0.45"/>
+    <path d="M458 216 531 193l-26 36-74 37 27-50Z" fill="#56AFFF" opacity="0.22"/>
+    <path d="M664 224 735 281l-71-24-41-33 41 0Z" fill="#53A6FF" opacity="0.18"/>
+    <path d="M511 255 593 223l-35 54-98 45 51-67Z" fill="#144E9C" opacity="0.38"/>
+  </g>
+
+  <!-- glowing challenge trail -->
+  <path d="M517 326 C558 306 616 301 622 267 C628 237 565 232 588 203 C608 178 681 187 682 151 C683 119 641 120 660 91" stroke="url(#pathGrad)" stroke-width="10" stroke-linecap="round" opacity="0.16" filter="url(#greenGlow)"/>
+  <path d="M517 326 C558 306 616 301 622 267 C628 237 565 232 588 203 C608 178 681 187 682 151 C683 119 641 120 660 91" stroke="url(#pathGrad)" stroke-width="3.2" stroke-linecap="round" stroke-dasharray="1 13" filter="url(#greenGlow)"/>
+  <path d="M517 326 C558 306 616 301 622 267 C628 237 565 232 588 203 C608 178 681 187 682 151 C683 119 641 120 660 91" stroke="#D8FFF3" stroke-width="1.1" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- path lights -->
+  <g filter="url(#greenGlow)">
+    <circle cx="517" cy="326" r="4" fill="#67FF7F"/><circle cx="565" cy="302" r="3" fill="#7CFFF2"/>
+    <circle cx="622" cy="267" r="4" fill="#65FF8A"/><circle cx="586" cy="205" r="4" fill="#86FFDC"/>
+    <circle cx="681" cy="151" r="4" fill="#75FFF6"/><circle cx="660" cy="91" r="4" fill="#6AB9FF"/>
+  </g>
+
+  <!-- trophy peak badge -->
+  <g transform="translate(650 26)" filter="url(#trophyGlow)">
+    <circle cx="42" cy="42" r="42" fill="#062A71" opacity="0.52" stroke="#1B77FF"/>
+    <circle cx="42" cy="42" r="27" stroke="#3EA1FF" opacity="0.65"/>
+    <path d="M28 32h28v13c0 9-6 16-14 16s-14-7-14-16V32Z" stroke="#8FE8FF" stroke-width="3"/>
+    <path d="M28 35h-9c0 11 5 18 13 20M56 35h9c0 11-5 18-13 20" stroke="#8FE8FF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M42 61v16M32 77h20" stroke="#8FE8FF" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- labels -->
+  <g font-family="Inter, Arial, sans-serif" font-weight="700">
+    <g transform="translate(430 284)">
+      <circle cx="0" cy="0" r="7" fill="#03152A" stroke="#38F06E" stroke-width="3"/>
+      <circle cx="0" cy="0" r="2" fill="#38F06E"/>
+      <text x="21" y="5" fill="#F5F8FF" font-size="15">DAY 1</text>
+      <text x="21" y="26" fill="#B9C3D5" font-size="13" font-weight="500">Start</text>
+    </g>
+    <g transform="translate(660 240)">
+      <circle cx="0" cy="0" r="7" fill="#03152A" stroke="#38F06E" stroke-width="3"/>
+      <circle cx="0" cy="0" r="2" fill="#38F06E"/>
+      <text x="21" y="5" fill="#F5F8FF" font-size="15">DAY 30</text>
+      <text x="21" y="26" fill="#B9C3D5" font-size="13" font-weight="500">Build Consistency</text>
+    </g>
+    <g transform="translate(690 168)">
+      <circle cx="0" cy="0" r="7" fill="#03152A" stroke="#38F06E" stroke-width="3"/>
+      <circle cx="0" cy="0" r="2" fill="#38F06E"/>
+      <text x="21" y="5" fill="#F5F8FF" font-size="15">DAY 60</text>
+      <text x="21" y="26" fill="#B9C3D5" font-size="13" font-weight="500">Prove Discipline</text>
+    </g>
+    <g transform="translate(760 105)">
+      <path d="M0 0H56" stroke="#17D9D2" stroke-width="2" opacity="0.75"/>
+      <circle cx="0" cy="0" r="7" fill="#03152A" stroke="#38F06E" stroke-width="3"/>
+      <circle cx="0" cy="0" r="2" fill="#38F06E"/>
+      <text x="70" y="5" fill="#F5F8FF" font-size="15">DAY 90</text>
+      <text x="70" y="26" fill="#B9C3D5" font-size="13" font-weight="500">Earn the Right</text>
+    </g>
+  </g>
+</svg>

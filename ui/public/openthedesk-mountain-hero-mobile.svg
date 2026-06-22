@@ -1,0 +1,168 @@
+<svg width="390" height="560" viewBox="0 0 390 560" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="OpenTheDesk mobile mountain challenge hero">
+  <defs>
+    <radialGradient id="skyGlow" cx="58%" cy="57%" r="70%">
+      <stop offset="0%" stop-color="#0B5FE8" stop-opacity="0.28"/>
+      <stop offset="45%" stop-color="#062A63" stop-opacity="0.16"/>
+      <stop offset="100%" stop-color="#020817" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="topFade" x1="195" y1="0" x2="195" y2="305" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#020817" stop-opacity="0.98"/>
+      <stop offset="72%" stop-color="#020817" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#020817" stop-opacity="0.26"/>
+    </linearGradient>
+
+    <linearGradient id="bottomFade" x1="195" y1="455" x2="195" y2="560" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#020817" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#020817" stop-opacity="0.22"/>
+    </linearGradient>
+
+    <linearGradient id="mainPeak" x1="205" y1="218" x2="226" y2="528" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#8BD2FF"/>
+      <stop offset="34%" stop-color="#286FBE"/>
+      <stop offset="70%" stop-color="#092C60"/>
+      <stop offset="100%" stop-color="#031126"/>
+    </linearGradient>
+
+    <linearGradient id="rightFace" x1="235" y1="236" x2="342" y2="520" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#A9E5FF"/>
+      <stop offset="38%" stop-color="#2D78CC"/>
+      <stop offset="78%" stop-color="#0B2E64"/>
+      <stop offset="100%" stop-color="#031126"/>
+    </linearGradient>
+
+    <linearGradient id="leftFace" x1="158" y1="240" x2="64" y2="535" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#173A70"/>
+      <stop offset="54%" stop-color="#08244E"/>
+      <stop offset="100%" stop-color="#020817"/>
+    </linearGradient>
+
+    <linearGradient id="snowCap" x1="208" y1="222" x2="230" y2="330" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#EAF7FF"/>
+      <stop offset="52%" stop-color="#8BD2FF"/>
+      <stop offset="100%" stop-color="#4F9AE8"/>
+    </linearGradient>
+
+    <linearGradient id="routeGrad" x1="72" y1="518" x2="292" y2="258" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#55F280"/>
+      <stop offset="50%" stop-color="#7DFFF3"/>
+      <stop offset="100%" stop-color="#4FA3FF"/>
+    </linearGradient>
+
+    <filter id="softGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="4.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="labelGlow" x="-80%" y="-80%" width="260%" height="260%">
+      <feGaussianBlur stdDeviation="2.6" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <filter id="trophyGlow" x="-100%" y="-100%" width="300%" height="300%">
+      <feGaussianBlur stdDeviation="7" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <rect width="390" height="560" fill="#020817"/>
+  <rect width="390" height="560" fill="url(#skyGlow)"/>
+
+  <!-- top readability layer built into SVG -->
+  <rect width="390" height="330" fill="url(#topFade)"/>
+
+  <!-- stars -->
+  <g opacity="0.48">
+    <circle cx="45" cy="135" r="0.8" fill="#7DD3FC"/>
+    <circle cx="102" cy="92" r="0.7" fill="#93C5FD"/>
+    <circle cx="156" cy="170" r="0.7" fill="#BFDBFE"/>
+    <circle cx="240" cy="110" r="0.9" fill="#7DD3FC"/>
+    <circle cx="322" cy="152" r="0.8" fill="#93C5FD"/>
+    <circle cx="348" cy="242" r="0.7" fill="#BFDBFE"/>
+    <circle cx="75" cy="278" r="0.7" fill="#93C5FD"/>
+    <circle cx="306" cy="354" r="0.7" fill="#7DD3FC"/>
+  </g>
+
+  <!-- distant ridges -->
+  <path d="M-26 438C24 405 63 411 105 423C148 436 184 421 221 395C264 366 318 374 356 404C381 424 404 418 418 405V560H-26V438Z" fill="#06162E" opacity="0.88"/>
+  <path d="M-20 468L80 344L137 418L205 310L282 420L334 371L412 464V560H-20V468Z" fill="#071B39" opacity="0.78"/>
+  <path d="M-12 510L122 330L240 510V560H-12V510Z" fill="#082653" opacity="0.44"/>
+  <path d="M198 514L300 342L424 510V560H198V514Z" fill="#06172F" opacity="0.66"/>
+
+  <!-- centered mountain -->
+  <path d="M46 560L188 224L360 560H46Z" fill="url(#leftFace)" opacity="0.94"/>
+  <path d="M103 560L205 220L406 560H103Z" fill="#06162F" opacity="0.98"/>
+  <path d="M205 220L406 560H226L250 499L218 482L241 438L205 455L223 399L180 427L194 356L154 382L205 220Z" fill="url(#mainPeak)" opacity="0.94"/>
+  <path d="M205 220L318 461L406 560H258L241 438L223 399L205 220Z" fill="url(#rightFace)" opacity="0.72"/>
+  <path d="M205 220L154 382L194 356L180 427L218 482L161 525L103 560L205 220Z" fill="#041126" opacity="0.46"/>
+
+  <!-- snow and facets -->
+  <path d="M205 220L174 294L199 273L209 306L226 256L262 332L233 308L218 331L205 220Z" fill="url(#snowCap)" opacity="0.96"/>
+  <path d="M174 294L136 366L181 332L199 273L174 294Z" fill="#BEEAFF" opacity="0.42"/>
+  <path d="M226 256L262 332L238 312L218 331L226 256Z" fill="#DBF4FF" opacity="0.58"/>
+  <path d="M125 397L181 365L158 410L86 459L125 397Z" fill="#2B74C8" opacity="0.34"/>
+  <path d="M229 444L304 489L244 486L205 455L229 444Z" fill="#2F7ED8" opacity="0.24"/>
+  <path d="M158 487L222 456L198 522L98 560L158 487Z" fill="#0F4C99" opacity="0.42"/>
+
+  <!-- route -->
+  <path
+    d="M72 526C111 510 151 508 187 484C223 460 218 429 191 411C166 395 171 368 211 356C247 346 273 328 281 294"
+    stroke="#22C55E"
+    stroke-width="11"
+    stroke-linecap="round"
+    opacity="0.14"
+    filter="url(#softGlow)"
+  />
+  <path
+    d="M72 526C111 510 151 508 187 484C223 460 218 429 191 411C166 395 171 368 211 356C247 346 273 328 281 294"
+    stroke="url(#routeGrad)"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-dasharray="1 12"
+    filter="url(#softGlow)"
+  />
+  <path
+    d="M72 526C111 510 151 508 187 484C223 460 218 429 191 411C166 395 171 368 211 356C247 346 273 328 281 294"
+    stroke="#DFFFF4"
+    stroke-width="1"
+    stroke-linecap="round"
+    opacity="0.72"
+  />
+
+  <g filter="url(#softGlow)">
+    <circle cx="72" cy="526" r="5.5" fill="#55F280"/>
+    <circle cx="108" cy="512" r="2.6" fill="#9AFFC0"/>
+    <circle cx="141" cy="506" r="3.2" fill="#7DFFF3"/>
+    <circle cx="173" cy="494" r="3.2" fill="#7DFFF3"/>
+    <circle cx="194" cy="478" r="4" fill="#55F280"/>
+    <circle cx="212" cy="451" r="3.2" fill="#7DFFF3"/>
+    <circle cx="208" cy="426" r="4.2" fill="#55F280"/>
+    <circle cx="191" cy="411" r="3.2" fill="#8EEBFF"/>
+    <circle cx="181" cy="382" r="3.5" fill="#7DD3FC"/>
+    <circle cx="211" cy="356" r="4" fill="#7DFFF3"/>
+    <circle cx="247" cy="346" r="3.5" fill="#7DFFF3"/>
+    <circle cx="281" cy="294" r="4.2" fill="#7DD3FC"/>
+  </g>
+
+  <!-- trophy bubble lower/right, subtle -->
+  <g transform="translate(286 244)" filter="url(#trophyGlow)" opacity="0.42">
+    <circle cx="28" cy="28" r="28" fill="#0B4EA2" fill-opacity="0.28" stroke="#60A5FA" stroke-opacity="0.42"/>
+    <circle cx="28" cy="28" r="18" stroke="#93C5FD" stroke-opacity="0.55"/>
+    <path d="M19 20H37V30C37 36 33 40 28 40C23 40 19 36 19 30V20Z" stroke="#A8E8FF" stroke-width="2"/>
+    <path d="M19 23H13C13 30 17 35 22 36M37 23H43C43 30 39 35 34 36" stroke="#A8E8FF" stroke-width="2" stroke-linecap="round"/>
+    <path d="M28 40V50M21 50H35" stroke="#A8E8FF" stroke-width="2" stroke-linecap="round"/>
+  </g>
+
+ 
+
+  <rect y="455" width="390" height="105" fill="url(#bottomFade)"/>
+</svg>
