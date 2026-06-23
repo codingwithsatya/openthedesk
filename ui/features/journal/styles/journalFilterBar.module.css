@@ -1,0 +1,63 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex-wrap: wrap;
+}
+
+.button,
+.clearButton {
+  height: 34px;
+  border-radius: 9px;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  background: rgba(15, 23, 42, 0.66);
+  color: rgba(203, 213, 225, 0.72);
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font-inter), sans-serif;
+  cursor: pointer;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s;
+}
+
+.button:hover,
+.clearButton:hover {
+  color: #e2e8f0;
+  background: rgba(37, 99, 235, 0.14);
+}
+
+.active {
+  color: #f8fafc;
+  background: linear-gradient(
+    135deg,
+    rgba(37, 99, 235, 0.44),
+    rgba(30, 64, 175, 0.34)
+  );
+  border-color: rgba(96, 165, 250, 0.36);
+}
+
+.clearButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #38bdf8;
+  background: rgba(8, 13, 24, 0.72);
+}
+
+.clearButton span {
+  color: rgba(148, 163, 184, 0.72);
+  font-size: 16px;
+  line-height: 1;
+}

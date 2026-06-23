@@ -30,7 +30,9 @@ export default function Header({
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [challengeActive, setChallengeActive] = useState(false);
-  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
   const { alerts, alertCount, markAllRead, markRead, isUnread } = useAlerts();
 
   useEffect(() => {
@@ -47,7 +49,7 @@ export default function Header({
         }
       } catch {}
     })();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const spxPrice = marketData
@@ -82,24 +84,32 @@ export default function Header({
             <img
               src="/logo.png"
               alt="OpenTheDesk"
-              style={{ height: "52px", width: "auto", objectFit: "contain" }}
+              style={{ height: "56px", width: "auto", objectFit: "contain" }}
             />
           </div>
           <div className="divider-v" />
           {activePage === "desk" && (
             <div
-              className={`status-badge ${(mounted && deskOpen) ? "open" : "closed"}`}
+              className={`status-badge ${mounted && deskOpen ? "open" : "closed"}`}
               suppressHydrationWarning
             >
               <div
-                className={`status-dot ${(mounted && deskOpen) ? "pulse" : ""}`}
+                className={`status-dot ${mounted && deskOpen ? "pulse" : ""}`}
                 suppressHydrationWarning
               />
               <span suppressHydrationWarning>
-                {(mounted && deskOpen) ? "Desk Open" : "Desk Closed"}
+                {mounted && deskOpen ? "Desk Open" : "Desk Closed"}
               </span>
               {mounted && deskOpen && sessionDuration && (
-                <span style={{ color: "#22d3ee", fontSize: 10, fontFamily: "var(--font-jetbrains-mono), monospace", marginLeft: 6 }} suppressHydrationWarning>
+                <span
+                  style={{
+                    color: "#22d3ee",
+                    fontSize: 10,
+                    fontFamily: "var(--font-jetbrains-mono), monospace",
+                    marginLeft: 6,
+                  }}
+                  suppressHydrationWarning
+                >
                   {sessionDuration}
                 </span>
               )}
@@ -124,7 +134,8 @@ export default function Header({
                 fontWeight: 600,
                 fontFamily: "var(--font-inter), sans-serif",
                 textDecoration: "none",
-                background: activePage === "challenge" ? "#1e3a5f" : "transparent",
+                background:
+                  activePage === "challenge" ? "#1e3a5f" : "transparent",
                 color: activePage === "challenge" ? "white" : "#64748b",
                 border: `1px solid ${activePage === "challenge" ? "#2d5a8e" : "transparent"}`,
                 transition: "all 0.15s",
@@ -135,7 +146,15 @@ export default function Header({
             >
               Challenge
               {mounted && challengeActive && (
-                <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#4ade80", flexShrink: 0 }} />
+                <span
+                  style={{
+                    width: 6,
+                    height: 6,
+                    borderRadius: "50%",
+                    background: "#4ade80",
+                    flexShrink: 0,
+                  }}
+                />
               )}
             </Link>
           </div>

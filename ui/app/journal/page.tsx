@@ -12,8 +12,16 @@ import {
   Filler,
   Tooltip,
 } from "chart.js";
-import { Line, Bar } from "react-chartjs-2";
 import Header from "../components/Header";
+import AppIconRail from "@/app/components/AppIconRail";
+import styles from "@/features/journal/styles/journalPage.module.css";
+import JournalSidebar from "@/features/journal/components/JournalSidebar";
+import JournalStatsCards from "@/features/journal/components/JournalStatsCards";
+import JournalCharts from "@/features/journal/components/JournalCharts";
+import JournalFilterBar from "@/features/journal/components/JournalFilterBar";
+import JournalTradeTable from "@/features/journal/components/JournalTradeTable";
+import type { JournalEntry, JournalStats } from "@/features/journal/lib/types";
+import { fmtPnl as fmtPnlHelper, fmtExpectancy } from "@/features/journal/lib/helpers";
 
 ChartJS.register(
   CategoryScale,
@@ -27,57 +35,14 @@ ChartJS.register(
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
-// ── Types ─────────────────────────────────────────────────────
-interface JournalEntry {
-  id: string;
-  created_at: string;
-  date: string;
-  ticker: string;
-  setup: string;
-  direction: string;
-  entry_price: number;
-  exit_price: number;
-  contracts: number;
-  pnl: number;
-  grade: string;
-  process_grade: string;
-  notes?: string;
-  internals?: {
-    trin?: number | null;
-    add?: number | null;
-    vold?: number | null;
-  };
-  status?: string;
-  entry_premium?: number | null;
-  exit_premium?: number | null;
-  process_review?: string | null;
-}
-
-interface JournalStats {
-  total_trades: number;
-  wins: number;
-  losses: number;
-  win_rate: number;
-  total_pnl: number;
-  avg_winner: number;
-  avg_loser: number;
-  best_setup: string | null;
-  pnl_by_setup: Record<
-    string,
-    { wins: number; losses: number; total_pnl: number }
-  >;
-  pnl_by_hour: Record<string, { wins: number; losses: number }>;
-  equity_curve: number[];
-}
+// ── Types imported from @/features/journal/lib/types ──────────
 
 // ── Helpers ───────────────────────────────────────────────────
 function fmtPnl(v: number) {
-  const abs = Math.abs(v).toLocaleString("en-US", {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-  return `${v >= 0 ? "+" : "-"}$${abs}`;
+  return fmtPnlHelper(v);
 }
+
+const LIMIT = 50;
 
 function pnlColor(v: number) {
   return v > 0 ? "#4ade80" : v < 0 ? "#f87171" : "#94a3b8";
@@ -139,6 +104,14 @@ export default function JournalPage() {
   const [closeForm, setCloseForm] = useState({ exit_premium: "", grade: "A" });
   const [closeSaving, setCloseSaving] = useState(false);
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [tagParam, setTagParam] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [statusParam, setStatusParam] = useState("");
+  const [offset, setOffset] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   const [challenge, setChallenge] = useState<{
     active: boolean;
     day_number?: number;
@@ -156,14 +129,29 @@ export default function JournalPage() {
     } catch {}
   };
 
+  const buildEntriesUrl = (off: number, q: string, setupF: string) => {
+    const params = new URLSearchParams({
+      limit: String(LIMIT),
+      offset: String(off),
+    });
+    if (q) params.set("filter", q);
+    const isSetupFilter = !["all", "winners", "losers"].includes(setupF);
+    if (isSetupFilter) params.set("setup", setupF);
+    return `${API}/journal/entries?${params}`;
+  };
+
   useEffect(() => {
     (async () => {
       const token = await getToken();
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      fetch(`${API}/journal/entries?limit=50`, { headers })
+      const url = buildEntriesUrl(offset, search, sideFilter);
+      fetch(url, { headers })
         .then((r) => r.json())
-        .then((d) => setEntries(d.entries ?? []))
+        .then((d) => {
+          setEntries(d.entries ?? []);
+          setHasMore((d.count ?? 0) === LIMIT);
+        })
         .catch(() => {});
       fetch(`${API}/journal/stats`, { headers })
         .then((r) => r.json())
@@ -171,29 +159,121 @@ export default function JournalPage() {
         .catch(() => {});
       fetchChallenge(token);
     })();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offset, search, sideFilter, refreshKey]);
+
+  const refetch = () => {
+    if (offset !== 0) {
+      setOffset(0); // offset change alone re-triggers the effect
+    } else {
+      setRefreshKey((k) => k + 1); // force re-run when already on page 1
+    }
+  };
+
+  const handleExport = async () => {
+    const token = await getToken();
+    const params = new URLSearchParams({ format: "csv" });
+    // text search
+    if (search) params.set("filter", search);
+    // setup from sidebar
+    const isSetupFilter = !["all", "winners", "losers"].includes(sideFilter);
+    if (isSetupFilter) params.set("setup", sideFilter);
+    // direction derived from filter-bar quick filter
+    if (filter === "bull") params.set("direction", "BULL");
+    if (filter === "bear") params.set("direction", "BEAR");
+    // optional params — set when state is non-empty
+    if (tagParam) params.set("tag", tagParam);
+    if (dateFrom) params.set("date_from", dateFrom);
+    if (dateTo) params.set("date_to", dateTo);
+    if (statusParam) params.set("status", statusParam);
+    const res = await fetch(`${API}/journal/export?${params}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+    if (!res.ok) { alert("Export failed"); return; }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "journal_export.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDelete = async (entryId: string) => {
+    if (!confirm("Delete this trade entry? This cannot be undone.")) return;
+    const token = await getToken();
+    try {
+      const res = await fetch(`${API}/journal/entry/${entryId}`, {
+        method: "DELETE",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      // optimistic remove then full refetch for accurate stats + pagination
+      setEntries((prev) => prev.filter((e) => e.id !== entryId));
+      refetch();
+    } catch {
+      alert("Delete failed — try again");
+    }
+  };
+
+  const handleDuplicate = async (entryId: string) => {
+    const token = await getToken();
+    try {
+      const res = await fetch(`${API}/journal/entry/${entryId}/duplicate`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error();
+      // refetch so the new open trade appears with correct server state + updated stats
+      refetch();
+    } catch {
+      alert("Duplicate failed — try again");
+    }
+  };
+
+  const handleRowAction = (action: string, entry: JournalEntry) => {
+    switch (action) {
+      case "edit_trade":
+      case "edit_notes":
+        handleEdit(entry);
+        break;
+      case "close_trade":
+        setClosingId(entry.id);
+        break;
+      case "view_review":
+        setExpandedId(expandedId === entry.id ? null : entry.id);
+        break;
+      case "rerun_review":
+        handleReview(entry);
+        break;
+      case "duplicate_trade":
+        handleDuplicate(entry.id);
+        break;
+      case "delete_trade":
+        handleDelete(entry.id);
+        break;
+    }
+  };
 
   // ── Derived ─────────────────────────────────────────────────
   const filteredByBar: JournalEntry[] = entries.filter((e) => {
     if (filter === "bull") return e.direction.toUpperCase() === "BULL";
     if (filter === "bear") return e.direction.toUpperCase() === "BEAR";
-    if (filter === "winners") return e.pnl > 0;
-    if (filter === "losers") return e.pnl <= 0;
+    if (filter === "winners") return (e.pnl ?? 0) > 0;
+    if (filter === "losers") return (e.pnl ?? 0) <= 0;
     if (filter === "aplus") return e.grade === "A+";
     return true;
   });
 
   const displayed: JournalEntry[] = filteredByBar.filter((e) => {
-    if (sideFilter === "winners") return e.pnl > 0;
-    if (sideFilter === "losers") return e.pnl <= 0;
-    if (["GG", "FLAG", "VOMY", "DIV", "TWEEZER"].includes(sideFilter))
-      return e.setup.toUpperCase() === sideFilter;
+    if (sideFilter === "winners") return (e.pnl ?? 0) > 0;
+    if (sideFilter === "losers") return (e.pnl ?? 0) <= 0;
+    // setup filtering is done server-side; client-side pass-through
     return true;
   });
 
-  const wins = entries.filter((e) => e.pnl > 0).length;
-  const losses = entries.filter((e) => e.pnl <= 0).length;
+  const wins = entries.filter((e) => (e.pnl ?? 0) > 0).length;
+  const losses = entries.filter((e) => e.status !== "open" && (e.pnl ?? 0) <= 0).length;
   const setupCounts: Record<string, number> = {};
   entries.forEach((e) => {
     const s = e.setup.toUpperCase();
@@ -202,7 +282,9 @@ export default function JournalPage() {
 
   // ── Chart data ───────────────────────────────────────────────
   const equityData = {
-    labels: (stats?.equity_curve ?? []).map((_, i) => `${i + 1}`),
+    labels: (stats?.equity_dates ?? []).length
+      ? stats!.equity_dates.map((d) => d.slice(5))
+      : (stats?.equity_curve ?? []).map((_, i) => `${i + 1}`),
     datasets: [
       {
         data: stats?.equity_curve ?? [],
@@ -233,7 +315,9 @@ export default function JournalPage() {
     ],
   };
 
-  const hourLabels = ["9", "10", "11", "12", "13"];
+  const hourLabels = Object.keys(stats?.pnl_by_hour ?? {}).sort(
+    (a, b) => Number(a) - Number(b),
+  );
   const hourData = {
     labels: hourLabels.map((h) => `${h}:00`),
     datasets: [
@@ -416,120 +500,8 @@ export default function JournalPage() {
     }
   };
 
-  // ── Stat cell ────────────────────────────────────────────────
-  const StatCell = ({
-    label,
-    value,
-    color,
-  }: {
-    label: string;
-    value: string;
-    color?: string;
-  }) => (
-    <div
-      style={{
-        flex: 1,
-        padding: "12px 16px",
-        borderRight: "1px solid #1e3a5f",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 10,
-          fontWeight: 600,
-          color: "#475569",
-          textTransform: "uppercase",
-          letterSpacing: "0.08em",
-        }}
-      >
-        {label}
-      </div>
-      <div
-        style={{
-          fontSize: 18,
-          fontWeight: 700,
-          fontFamily: "var(--font-jetbrains-mono), monospace",
-          color: color ?? "#f1f5f9",
-        }}
-      >
-        {value}
-      </div>
-    </div>
-  );
-
-  // ── Sidebar item ─────────────────────────────────────────────
-  const SideItem = ({
-    label,
-    count,
-    value,
-  }: {
-    label: string;
-    count?: number;
-    value: string;
-  }) => (
-    <button
-      onClick={() => setSideFilter(value)}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        width: "100%",
-        padding: "6px 12px",
-        border: "none",
-        background: sideFilter === value ? "#1e3a5f" : "transparent",
-        color: sideFilter === value ? "#f1f5f9" : "#64748b",
-        cursor: "pointer",
-        fontSize: 12,
-        borderRadius: 5,
-        fontFamily: "var(--font-inter), sans-serif",
-      }}
-    >
-      <span>{label}</span>
-      {count !== undefined && (
-        <span
-          style={{
-            fontSize: 11,
-            color: sideFilter === value ? "#94a3b8" : "#475569",
-          }}
-        >
-          {count}
-        </span>
-      )}
-    </button>
-  );
-
-  const FilterBtn = ({ label, value }: { label: string; value: FilterKey }) => (
-    <button
-      onClick={() => setFilter(value)}
-      style={{
-        padding: "5px 12px",
-        borderRadius: 6,
-        fontSize: 12,
-        fontWeight: 500,
-        border: `1px solid ${filter === value ? "#2d5a8e" : "#1e3a5f"}`,
-        background: filter === value ? "#1e3a5f" : "transparent",
-        color: filter === value ? "#f1f5f9" : "#475569",
-        cursor: "pointer",
-        fontFamily: "var(--font-inter), sans-serif",
-      }}
-    >
-      {label}
-    </button>
-  );
-
   return (
-    <div
-      style={{
-        height: "100dvh",
-        display: "flex",
-        flexDirection: "column",
-        overflow: "hidden",
-        background: "#090e1a",
-      }}
-    >
+    <div className={styles.page}>
       <Header
         deskOpen={false}
         refreshing={false}
@@ -539,1203 +511,359 @@ export default function JournalPage() {
         activePage="journal"
       />
 
-      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
-        {/* ── Sidebar ─────────────────────────────────────────── */}
-        <aside
-          style={{
-            width: 200,
-            flexShrink: 0,
-            background: "#0d1320",
-            borderRight: "1px solid #1e3a5f",
-            display: "flex",
-            flexDirection: "column",
-            padding: "16px 8px",
-            gap: 4,
-            overflowY: "auto",
-          }}
-        >
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: "#475569",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              padding: "4px 12px",
-              marginBottom: 4,
-            }}
-          >
-            This Month
-          </div>
-          <SideItem label="All trades" count={entries.length} value="all" />
-          <SideItem label="Winners" count={wins} value="winners" />
-          <SideItem label="Losers" count={losses} value="losers" />
+      <div className={styles.shell}>
+        <AppIconRail activePage="journal" />
 
-          <div
-            style={{ height: 1, background: "#1e3a5f", margin: "10px 4px" }}
+        <div className={styles.content}>
+          {/* ── Sidebar ─────────────────────────────────────────── */}
+          <JournalSidebar
+            entriesCount={entries.length}
+            wins={wins}
+            losses={losses}
+            setupCounts={setupCounts}
+            sideFilter={sideFilter}
+            onSideFilterChange={setSideFilter}
           />
-          <div
-            style={{
-              fontSize: 10,
-              fontWeight: 600,
-              color: "#475569",
-              textTransform: "uppercase",
-              letterSpacing: "0.08em",
-              padding: "4px 12px",
-              marginBottom: 4,
-            }}
-          >
-            By Setup
-          </div>
-          {["GG", "FLAG", "VOMY", "DIV", "TWEEZER"].map((s) => (
-            <SideItem key={s} label={s} count={setupCounts[s] ?? 0} value={s} />
-          ))}
 
-          <div style={{ flex: 1 }} />
-          <button
+          {/* ── Main content ────────────────────────────────────── */}
+          <main
             style={{
-              margin: "8px 4px 0",
-              padding: "9px 12px",
-              borderRadius: 7,
-              background: "#1e3a5f",
-              color: "#f1f5f9",
-              border: "1px solid #2d5a8e",
-              cursor: "pointer",
-              fontSize: 12,
-              fontWeight: 600,
-              fontFamily: "var(--font-inter), sans-serif",
-            }}
-            onClick={() => alert("Trade entry form coming soon")}
-          >
-            + Log a trade
-          </button>
-        </aside>
-
-        {/* ── Main content ────────────────────────────────────── */}
-        <main
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-          }}
-        >
-          {/* Stats bar */}
-          <div
-            style={{
+              flex: 1,
+              minWidth: 0,
               display: "flex",
-              background: "#0d1320",
-              borderBottom: "1px solid #1e3a5f",
-              flexShrink: 0,
+              flexDirection: "column",
+              overflow: "hidden",
             }}
           >
-            <StatCell
-              label="Total P&L"
-              value={stats ? fmtPnl(stats.total_pnl) : "—"}
-              color={stats ? pnlColor(stats.total_pnl) : undefined}
-            />
-            <StatCell
-              label="Win Rate"
-              value={stats ? `${stats.win_rate}%` : "—"}
-              color={
-                stats && stats.win_rate >= 60
-                  ? "#4ade80"
-                  : stats && stats.win_rate >= 50
-                    ? "#fbbf24"
-                    : "#f87171"
+            {/* Stats bar */}
+            <JournalStatsCards
+              totalPnl={stats ? fmtPnl(stats.total_pnl) : "—"}
+              winRate={stats ? `${stats.win_rate}%` : "—"}
+              avgWinner={stats ? fmtPnl(stats.avg_winner) : "—"}
+              avgLoser={stats ? fmtPnl(stats.avg_loser) : "—"}
+              bestSetup={stats?.best_setup ?? "—"}
+              wins={stats?.wins ?? 0}
+              losses={stats?.losses ?? 0}
+              bestSetupPnl={
+                stats?.best_setup_pnl != null
+                  ? fmtPnl(stats.best_setup_pnl)
+                  : null
               }
             />
-            <StatCell
-              label="Avg Winner"
-              value={stats ? fmtPnl(stats.avg_winner) : "—"}
-              color="#4ade80"
-            />
-            <StatCell
-              label="Avg Loser"
-              value={stats ? fmtPnl(stats.avg_loser) : "—"}
-              color="#f87171"
-            />
-            <StatCell label="Best Setup" value={stats?.best_setup ?? "—"} />
-          </div>
 
-          {/* Challenge banner */}
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              padding: "7px 16px",
-              background: "#0a1628",
-              borderBottom: "1px solid #1e3a5f",
-              flexShrink: 0,
-            }}
-          >
-            {challenge?.active ? (
-              <>
-                <span
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#22d3ee",
-                    fontFamily: "var(--font-jetbrains-mono), monospace",
-                  }}
-                >
-                  Challenge: Day {challenge.day_number}/90
-                  {challenge.stats && (
-                    <>
-                      {" · "}
-                      <span style={{ color: challenge.stats.current_balance >= (challenge as {active:boolean;stats?:{current_balance:number}}).stats!.current_balance ? "#4ade80" : "#f87171" }}>
-                        ${challenge.stats.current_balance.toLocaleString()}
-                      </span>
-                      {" · "}
-                      <span style={{ color: "#94a3b8" }}>
-                        {challenge.stats.wins}W-{challenge.stats.losses}L
-                      </span>
-                    </>
-                  )}
-                </span>
-                <Link href="/challenge" style={{ fontSize: 11, color: "#60a5fa", textDecoration: "none", fontFamily: "var(--font-inter), sans-serif" }}>
-                  View →
-                </Link>
-              </>
-            ) : (
-              <Link href="/challenge" style={{ fontSize: 11, color: "#60a5fa", textDecoration: "none", fontFamily: "var(--font-inter), sans-serif" }}>
-                Start a 90-Day Challenge →
-              </Link>
-            )}
-          </div>
-
-          {/* Scrollable body */}
-          <div
-            style={{ flex: 1, overflowY: "auto", padding: "16px 20px 80px" }}
-          >
-            {/* Charts row */}
-            <div style={{ display: "flex", gap: 12, marginBottom: 20 }}>
-              {/* Equity curve */}
-              <div
-                style={{
-                  flex: 2,
-                  background: "#0d1320",
-                  borderRadius: 8,
-                  border: "1px solid #1e3a5f",
-                  padding: "12px 14px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: 8,
-                  }}
-                >
-                  Cumulative P&L
-                </div>
-                <div style={{ height: 120 }}>
-                  {stats && stats.equity_curve.length > 0 ? (
-                    <Line data={equityData} options={CHART_OPTS} />
-                  ) : (
-                    <div
-                      style={{
-                        color: "#475569",
-                        fontSize: 12,
-                        paddingTop: 40,
-                        textAlign: "center",
-                      }}
-                    >
-                      No data
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* P&L by setup */}
-              <div
-                style={{
-                  flex: 1,
-                  background: "#0d1320",
-                  borderRadius: 8,
-                  border: "1px solid #1e3a5f",
-                  padding: "12px 14px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: 8,
-                  }}
-                >
-                  P&L by Setup
-                </div>
-                <div style={{ height: 120 }}>
-                  {setupLabels.length > 0 ? (
-                    <Bar data={setupData} options={CHART_OPTS} />
-                  ) : (
-                    <div
-                      style={{
-                        color: "#475569",
-                        fontSize: 12,
-                        paddingTop: 40,
-                        textAlign: "center",
-                      }}
-                    >
-                      No data
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Win rate by hour */}
-              <div
-                style={{
-                  flex: 1,
-                  background: "#0d1320",
-                  borderRadius: 8,
-                  border: "1px solid #1e3a5f",
-                  padding: "12px 14px",
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: 11,
-                    fontWeight: 600,
-                    color: "#64748b",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.08em",
-                    marginBottom: 8,
-                  }}
-                >
-                  Win % by Hour
-                </div>
-                <div style={{ height: 120 }}>
-                  {stats ? (
-                    <Bar data={hourData} options={barOpts} />
-                  ) : (
-                    <div
-                      style={{
-                        color: "#475569",
-                        fontSize: 12,
-                        paddingTop: 40,
-                        textAlign: "center",
-                      }}
-                    >
-                      No data
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Filter toolbar */}
-            <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-              <FilterBtn label="All" value="all" />
-              <FilterBtn label="Bull" value="bull" />
-              <FilterBtn label="Bear" value="bear" />
-              <FilterBtn label="Winners" value="winners" />
-              <FilterBtn label="Losers" value="losers" />
-              <FilterBtn label="A+ only" value="aplus" />
-            </div>
-
-            {/* Trade table */}
+            {/* Challenge banner */}
             <div
               style={{
-                background: "#0d1320",
-                borderRadius: 8,
-                border: "1px solid #1e3a5f",
-                overflow: "hidden",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "7px 16px",
+                background: "#0a1628",
+                borderBottom: "1px solid #1e3a5f",
+                flexShrink: 0,
               }}
             >
-              {/* Table header */}
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    "90px 60px 90px 90px 90px 60px 70px 28px",
-                  padding: "8px 14px",
-                  background: "#0a1120",
-                  borderBottom: "1px solid #1e3a5f",
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: "#475569",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                <span>Date</span>
-                <span>Setup</span>
-                <span>Entry</span>
-                <span>Exit</span>
-                <span>P&L</span>
-                <span>Grade</span>
-                <span>Process</span>
-                <span />
-              </div>
-
-              {displayed.length === 0 ? (
-                <div
+              {challenge?.active ? (
+                <>
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 600,
+                      color: "#22d3ee",
+                      fontFamily: "var(--font-jetbrains-mono), monospace",
+                    }}
+                  >
+                    Challenge: Day {challenge.day_number}/90
+                    {challenge.stats && (
+                      <>
+                        {" · "}
+                        <span
+                          style={{
+                            color:
+                              challenge.stats.current_balance >=
+                              (
+                                challenge as {
+                                  active: boolean;
+                                  stats?: { current_balance: number };
+                                }
+                              ).stats!.current_balance
+                                ? "#4ade80"
+                                : "#f87171",
+                          }}
+                        >
+                          ${challenge.stats.current_balance.toLocaleString()}
+                        </span>
+                        {" · "}
+                        <span style={{ color: "#94a3b8" }}>
+                          {challenge.stats.wins}W-{challenge.stats.losses}L
+                        </span>
+                      </>
+                    )}
+                  </span>
+                  <Link
+                    href="/challenge"
+                    style={{
+                      fontSize: 11,
+                      color: "#60a5fa",
+                      textDecoration: "none",
+                      fontFamily: "var(--font-inter), sans-serif",
+                    }}
+                  >
+                    View →
+                  </Link>
+                </>
+              ) : (
+                <Link
+                  href="/challenge"
                   style={{
-                    padding: "32px 14px",
-                    color: "#475569",
-                    fontSize: 13,
-                    textAlign: "center",
+                    fontSize: 11,
+                    color: "#60a5fa",
+                    textDecoration: "none",
+                    fontFamily: "var(--font-inter), sans-serif",
                   }}
                 >
-                  No trades match this filter
-                </div>
-              ) : (
-                displayed.map((e) => {
-                  const badge = setupBadge(e.setup, e.direction);
-                  const gBadge = gradeBadge(e.grade);
-                  const pBadge = gradeBadge(e.process_grade);
-                  const isOpen = expandedId === e.id;
-
-                  return (
-                    <div
-                      key={e.id}
-                      style={{ borderBottom: "0.5px solid #1a2744" }}
-                    >
-                      {/* Row */}
-                      <div
-                        onClick={() => setExpandedId(isOpen ? null : e.id)}
-                        style={{
-                          display: "grid",
-                          gridTemplateColumns:
-                            "90px 60px 90px 90px 90px 60px 70px 28px",
-                          padding: "9px 14px",
-                          cursor: "pointer",
-                          alignItems: "center",
-                          background: isOpen
-                            ? "rgba(30,58,95,0.25)"
-                            : "transparent",
-                          transition: "background 0.12s",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 12,
-                            color: "#94a3b8",
-                            fontFamily: "var(--font-jetbrains-mono), monospace",
-                          }}
-                        >
-                          {e.date.slice(5)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 600,
-                            padding: "2px 7px",
-                            borderRadius: 4,
-                            background: badge.bg,
-                            color: badge.color,
-                            border: badge.border,
-                            justifySelf: "start",
-                          }}
-                        >
-                          {e.setup}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontFamily: "var(--font-jetbrains-mono), monospace",
-                            color: "#94a3b8",
-                          }}
-                        >
-                          {e.entry_price.toFixed(2)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 12,
-                            fontFamily: "var(--font-jetbrains-mono), monospace",
-                            color: "#94a3b8",
-                          }}
-                        >
-                          {e.exit_price != null ? e.exit_price.toFixed(2) : "—"}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 13,
-                            fontWeight: 600,
-                            fontFamily: "var(--font-jetbrains-mono), monospace",
-                            color: e.pnl != null ? pnlColor(e.pnl) : "#94a3b8",
-                          }}
-                        >
-                          {e.pnl != null ? fmtPnl(e.pnl) : "—"}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "1px 6px",
-                            borderRadius: 4,
-                            background: gBadge.bg,
-                            color: gBadge.color,
-                            border: gBadge.border,
-                            justifySelf: "start",
-                          }}
-                        >
-                          {e.grade}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 10,
-                            fontWeight: 700,
-                            padding: "1px 6px",
-                            borderRadius: 4,
-                            background: pBadge.bg,
-                            color: pBadge.color,
-                            border: pBadge.border,
-                            justifySelf: "start",
-                          }}
-                        >
-                          {e.process_grade}
-                        </span>
-                        <span
-                          style={{
-                            color: "#475569",
-                            fontSize: 11,
-                            textAlign: "center",
-                          }}
-                        >
-                          {isOpen ? "▲" : "▼"}
-                        </span>
-                      </div>
-
-                      {/* Expanded detail */}
-                      {isOpen && (
-                        <div
-                          style={{
-                            display: "grid",
-                            gridTemplateColumns: "1fr 1fr 1fr",
-                            background: "rgba(13,19,32,0.8)",
-                            borderTop: "0.5px solid #1e3a5f",
-                          }}
-                        >
-                          {/* Trade details */}
-                          <div
-                            style={{
-                              padding: "14px 16px",
-                              borderRight: "0.5px solid #1e3a5f",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: "#475569",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                marginBottom: 10,
-                              }}
-                            >
-                              Trade Details
-                            </div>
-                            {[
-                              ["Ticker", e.ticker],
-                              ["Direction", e.direction],
-                              ["Contracts", `${e.contracts}x`],
-                              ["Entry", `$${e.entry_price.toFixed(2)}`],
-                              [
-                                "Exit",
-                                e.exit_price != null
-                                  ? `$${e.exit_price.toFixed(2)}`
-                                  : "—",
-                              ],
-                            ].map(([label, val]) => (
-                              <div
-                                key={label}
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "space-between",
-                                  marginBottom: 5,
-                                }}
-                              >
-                                <span
-                                  style={{ fontSize: 11, color: "#475569" }}
-                                >
-                                  {label}
-                                </span>
-                                <span
-                                  style={{
-                                    fontSize: 11,
-                                    color: "#94a3b8",
-                                    fontFamily:
-                                      "var(--font-jetbrains-mono), monospace",
-                                  }}
-                                >
-                                  {val}
-                                </span>
-                              </div>
-                            ))}
-                            {(e.status === "open" || !e.status) &&
-                              e.entry_premium && (
-                                <>
-                                  <div
-                                    style={{
-                                      height: 1,
-                                      background: "#1e3a5f",
-                                      margin: "8px 0",
-                                    }}
-                                  />
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      marginBottom: 6,
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 11, color: "#475569" }}
-                                    >
-                                      Status
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#fbbf24",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      ● OPEN
-                                    </span>
-                                  </div>
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      marginBottom: 8,
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 11, color: "#475569" }}
-                                    >
-                                      Entry Premium
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#94a3b8",
-                                        fontFamily: "monospace",
-                                      }}
-                                    >
-                                      ${e.entry_premium.toFixed(2)}
-                                    </span>
-                                  </div>
-                                  {closingId === e.id ? (
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        flexDirection: "column",
-                                        gap: 6,
-                                      }}
-                                    >
-                                      <div
-                                        style={{
-                                          display: "flex",
-                                          gap: 6,
-                                          alignItems: "center",
-                                        }}
-                                      >
-                                        <span
-                                          style={{
-                                            fontSize: 11,
-                                            color: "#475569",
-                                            width: 70,
-                                            flexShrink: 0,
-                                          }}
-                                        >
-                                          Exit Premium
-                                        </span>
-                                        <input
-                                          type="number"
-                                          step="0.01"
-                                          autoFocus
-                                          placeholder="e.g. 4.80"
-                                          value={closeForm.exit_premium}
-                                          onChange={(ev) =>
-                                            setCloseForm((f) => ({
-                                              ...f,
-                                              exit_premium: ev.target.value,
-                                            }))
-                                          }
-                                          onKeyDown={(ev) => {
-                                            if (ev.key === "Enter")
-                                              handleClose(e);
-                                          }}
-                                          style={{
-                                            flex: 1,
-                                            background: "#0a1120",
-                                            border: "1px solid #2d5a8e",
-                                            borderRadius: 4,
-                                            color: "#f1f5f9",
-                                            fontSize: 12,
-                                            padding: "3px 7px",
-                                            fontFamily: "monospace",
-                                          }}
-                                        />
-                                      </div>
-                                      <div style={{ display: "flex", gap: 4 }}>
-                                        {["A+", "A", "B", "C"].map((g) => (
-                                          <button
-                                            key={g}
-                                            onClick={() =>
-                                              setCloseForm((f) => ({
-                                                ...f,
-                                                grade: g,
-                                              }))
-                                            }
-                                            style={{
-                                              flex: 1,
-                                              padding: "2px 0",
-                                              borderRadius: 4,
-                                              fontSize: 11,
-                                              cursor: "pointer",
-                                              background:
-                                                closeForm.grade === g
-                                                  ? "#1e3a5f"
-                                                  : "transparent",
-                                              color:
-                                                closeForm.grade === g
-                                                  ? "#60a5fa"
-                                                  : "#475569",
-                                              border: `1px solid ${closeForm.grade === g ? "#2d5a8e" : "#1e3a5f"}`,
-                                            }}
-                                          >
-                                            {g}
-                                          </button>
-                                        ))}
-                                      </div>
-                                      <div style={{ display: "flex", gap: 6 }}>
-                                        <button
-                                          onClick={() => handleClose(e)}
-                                          disabled={closeSaving}
-                                          style={{
-                                            flex: 1,
-                                            padding: "5px 0",
-                                            borderRadius: 5,
-                                            fontSize: 12,
-                                            cursor: "pointer",
-                                            background: "#00c896",
-                                            color: "#000",
-                                            border: "none",
-                                            fontWeight: 600,
-                                          }}
-                                        >
-                                          {closeSaving
-                                            ? "Closing..."
-                                            : "Close Trade"}
-                                        </button>
-                                        <button
-                                          onClick={() => setClosingId(null)}
-                                          style={{
-                                            padding: "5px 10px",
-                                            borderRadius: 5,
-                                            fontSize: 12,
-                                            cursor: "pointer",
-                                            background: "transparent",
-                                            color: "#475569",
-                                            border: "1px solid #1e3a5f",
-                                          }}
-                                        >
-                                          ✕
-                                        </button>
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <button
-                                      onClick={() => setClosingId(e.id)}
-                                      style={{
-                                        width: "100%",
-                                        padding: "6px 0",
-                                        borderRadius: 5,
-                                        fontSize: 12,
-                                        cursor: "pointer",
-                                        background: "rgba(0,200,150,0.1)",
-                                        color: "#00c896",
-                                        border: "1px solid rgba(0,200,150,0.3)",
-                                        fontWeight: 600,
-                                      }}
-                                    >
-                                      Close Trade →
-                                    </button>
-                                  )}
-                                </>
-                              )}
-                            {e.internals && (
-                              <>
-                                <div
-                                  style={{
-                                    height: 1,
-                                    background: "#1e3a5f",
-                                    margin: "8px 0",
-                                  }}
-                                />
-                                <div
-                                  style={{
-                                    fontSize: 10,
-                                    fontWeight: 600,
-                                    color: "#475569",
-                                    textTransform: "uppercase",
-                                    letterSpacing: "0.08em",
-                                    marginBottom: 6,
-                                  }}
-                                >
-                                  At Entry
-                                </div>
-                                {e.internals.trin != null && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      marginBottom: 4,
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 11, color: "#475569" }}
-                                    >
-                                      TRIN
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontFamily:
-                                          "var(--font-jetbrains-mono), monospace",
-                                        color:
-                                          e.internals.trin > 1.2
-                                            ? "#f87171"
-                                            : e.internals.trin < 0.8
-                                              ? "#4ade80"
-                                              : "#94a3b8",
-                                      }}
-                                    >
-                                      {e.internals.trin.toFixed(2)}
-                                    </span>
-                                  </div>
-                                )}
-                                {e.internals.add != null && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                      marginBottom: 4,
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 11, color: "#475569" }}
-                                    >
-                                      ADD
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        fontFamily:
-                                          "var(--font-jetbrains-mono), monospace",
-                                        color:
-                                          e.internals.add > 200
-                                            ? "#4ade80"
-                                            : e.internals.add < -200
-                                              ? "#f87171"
-                                              : "#94a3b8",
-                                      }}
-                                    >
-                                      {e.internals.add > 0 ? "+" : ""}
-                                      {e.internals.add}
-                                    </span>
-                                  </div>
-                                )}
-                                {e.internals.vold != null && (
-                                  <div
-                                    style={{
-                                      display: "flex",
-                                      justifyContent: "space-between",
-                                    }}
-                                  >
-                                    <span
-                                      style={{ fontSize: 11, color: "#475569" }}
-                                    >
-                                      VOLD
-                                    </span>
-                                    <span
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#94a3b8",
-                                        fontFamily:
-                                          "var(--font-jetbrains-mono), monospace",
-                                      }}
-                                    >
-                                      {e.internals.vold.toFixed(2)}
-                                    </span>
-                                  </div>
-                                )}
-                              </>
-                            )}
-                          </div>
-
-                          {/* Notes */}
-                          <div
-                            style={{
-                              padding: "14px 16px",
-                              borderRight: "0.5px solid #1e3a5f",
-                            }}
-                          >
-                            <div
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: "#475569",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                marginBottom: 10,
-                              }}
-                            >
-                              Notes
-                            </div>
-                            {editingId === e.id ? (
-                              <div
-                                style={{
-                                  display: "flex",
-                                  flexDirection: "column",
-                                  gap: 8,
-                                }}
-                              >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 6,
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#475569",
-                                      width: 60,
-                                    }}
-                                  >
-                                    Exit
-                                  </span>
-                                  <input
-                                    type="number"
-                                    step="0.01"
-                                    value={editForm.exit_price}
-                                    onChange={(ev) =>
-                                      setEditForm((f) => ({
-                                        ...f,
-                                        exit_price: ev.target.value,
-                                      }))
-                                    }
-                                    style={{
-                                      flex: 1,
-                                      background: "#0a1120",
-                                      border: "1px solid #2d5a8e",
-                                      borderRadius: 4,
-                                      color: "#f1f5f9",
-                                      fontSize: 12,
-                                      padding: "3px 7px",
-                                      fontFamily: "monospace",
-                                    }}
-                                  />
-                                </div>
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    gap: 6,
-                                    alignItems: "center",
-                                  }}
-                                >
-                                  <span
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#475569",
-                                      width: 60,
-                                    }}
-                                  >
-                                    Grade
-                                  </span>
-                                  <div style={{ display: "flex", gap: 4 }}>
-                                    {["A+", "A", "B", "C"].map((g) => (
-                                      <button
-                                        key={g}
-                                        onClick={() =>
-                                          setEditForm((f) => ({
-                                            ...f,
-                                            grade: g,
-                                          }))
-                                        }
-                                        style={{
-                                          padding: "2px 8px",
-                                          borderRadius: 4,
-                                          fontSize: 11,
-                                          cursor: "pointer",
-                                          background:
-                                            editForm.grade === g
-                                              ? "#1e3a5f"
-                                              : "transparent",
-                                          color:
-                                            editForm.grade === g
-                                              ? "#60a5fa"
-                                              : "#475569",
-                                          border: `1px solid ${editForm.grade === g ? "#2d5a8e" : "#1e3a5f"}`,
-                                        }}
-                                      >
-                                        {g}
-                                      </button>
-                                    ))}
-                                  </div>
-                                </div>
-                                <textarea
-                                  rows={2}
-                                  value={editForm.notes}
-                                  onChange={(ev) =>
-                                    setEditForm((f) => ({
-                                      ...f,
-                                      notes: ev.target.value,
-                                    }))
-                                  }
-                                  placeholder="Notes..."
-                                  style={{
-                                    background: "#0a1120",
-                                    border: "1px solid #1e3a5f",
-                                    borderRadius: 4,
-                                    color: "#94a3b8",
-                                    fontSize: 11,
-                                    padding: "6px 8px",
-                                    resize: "none",
-                                  }}
-                                />
-                                <div style={{ display: "flex", gap: 6 }}>
-                                  <button
-                                    onClick={() =>
-                                      handleSave(e.id, e.direction)
-                                    }
-                                    disabled={editSaving}
-                                    style={{
-                                      flex: 1,
-                                      padding: "5px 0",
-                                      borderRadius: 5,
-                                      fontSize: 12,
-                                      cursor: "pointer",
-                                      background: "#1e3a5f",
-                                      color: "#60a5fa",
-                                      border: "1px solid #2d5a8e",
-                                    }}
-                                  >
-                                    {editSaving ? "Saving..." : "Save"}
-                                  </button>
-                                  <button
-                                    onClick={() => setEditingId(null)}
-                                    style={{
-                                      padding: "5px 12px",
-                                      borderRadius: 5,
-                                      fontSize: 12,
-                                      cursor: "pointer",
-                                      background: "transparent",
-                                      color: "#475569",
-                                      border: "1px solid #1e3a5f",
-                                    }}
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              </div>
-                            ) : (
-                              <>
-                                <p
-                                  style={{
-                                    fontSize: 12,
-                                    color: "#94a3b8",
-                                    lineHeight: 1.6,
-                                    margin: "0 0 10px 0",
-                                  }}
-                                >
-                                  {e.notes || "No notes"}
-                                </p>
-                                <button
-                                  onClick={() => handleEdit(e)}
-                                  style={{
-                                    padding: "4px 12px",
-                                    borderRadius: 5,
-                                    fontSize: 11,
-                                    cursor: "pointer",
-                                    background: "transparent",
-                                    color: "#475569",
-                                    border: "1px solid #1e3a5f",
-                                  }}
-                                >
-                                  ✎ Edit
-                                </button>
-                              </>
-                            )}
-                          </div>
-
-                          {/* Process Review */}
-                          <div style={{ padding: "14px 16px" }}>
-                            <div
-                              style={{
-                                fontSize: 10,
-                                fontWeight: 600,
-                                color: "#475569",
-                                textTransform: "uppercase",
-                                letterSpacing: "0.08em",
-                                marginBottom: 10,
-                              }}
-                            >
-                              Process Review
-                            </div>
-                            {e.status === "closed" ? (
-                              <>
-                                {e.process_review ? (
-                                  <>
-                                    <div
-                                      style={{
-                                        display: "flex",
-                                        gap: 6,
-                                        alignItems: "center",
-                                        marginBottom: 8,
-                                      }}
-                                    >
-                                      <span
-                                        style={{
-                                          fontSize: 10,
-                                          fontWeight: 700,
-                                          padding: "2px 6px",
-                                          borderRadius: 4,
-                                          ...gradeBadge(e.process_grade),
-                                        }}
-                                      >
-                                        {e.process_grade || "—"}
-                                      </span>
-                                      <span
-                                        style={{
-                                          fontSize: 9,
-                                          color: "#475569",
-                                        }}
-                                      >
-                                        Process Grade
-                                      </span>
-                                    </div>
-                                    <p
-                                      style={{
-                                        fontSize: 11,
-                                        color: "#94a3b8",
-                                        lineHeight: 1.7,
-                                        margin: "0 0 10px 0",
-                                      }}
-                                    >
-                                      {e.process_review}
-                                    </p>
-                                  </>
-                                ) : (
-                                  <div
-                                    style={{
-                                      fontSize: 11,
-                                      color: "#334155",
-                                      fontStyle: "italic",
-                                      marginBottom: 10,
-                                    }}
-                                  >
-                                    {reviewingId === e.id
-                                      ? "Reviewing..."
-                                      : "No review yet"}
-                                  </div>
-                                )}
-                                <button
-                                  onClick={() => handleReview(e)}
-                                  disabled={reviewingId === e.id}
-                                  style={{
-                                    padding: "4px 12px",
-                                    borderRadius: 5,
-                                    fontSize: 11,
-                                    cursor:
-                                      reviewingId === e.id
-                                        ? "not-allowed"
-                                        : "pointer",
-                                    background: "transparent",
-                                    color: "#475569",
-                                    border: "1px solid #1e3a5f",
-                                    opacity: reviewingId === e.id ? 0.6 : 1,
-                                  }}
-                                >
-                                  {reviewingId === e.id
-                                    ? "⏳ Reviewing..."
-                                    : "↻ Re-run Review"}
-                                </button>
-                              </>
-                            ) : (
-                              <div
-                                style={{
-                                  fontSize: 11,
-                                  color: "#334155",
-                                  fontStyle: "italic",
-                                }}
-                              >
-                                Review runs when trade is closed
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })
+                  Start a 90-Day Challenge →
+                </Link>
               )}
             </div>
-          </div>
 
-          {/* Chat entry bar */}
-          <div
-            style={{
-              position: "sticky",
-              bottom: 0,
-              borderTop: "1px solid #1e3a5f",
-              background: "#0d1320",
-              padding: "10px 16px",
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            <input
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              placeholder='Log a trade... e.g. "GG Bear at 7390, exit 7378, made $360"'
+            {/* Scrollable body */}
+            <div
               style={{
                 flex: 1,
-                padding: "9px 14px",
-                borderRadius: 7,
-                background: "#0a1120",
-                border: "1px solid #1e3a5f",
-                color: "#f1f5f9",
-                fontSize: 13,
-                fontFamily: "var(--font-inter), sans-serif",
-                outline: "none",
-              }}
-            />
-            <button
-              onClick={() => alert("Chat entry coming soon")}
-              style={{
-                padding: "9px 18px",
-                borderRadius: 7,
-                background: "#1e3a5f",
-                color: "#f1f5f9",
-                border: "1px solid #2d5a8e",
-                cursor: "pointer",
-                fontSize: 13,
-                fontWeight: 600,
-                fontFamily: "var(--font-inter), sans-serif",
-                whiteSpace: "nowrap",
+                minWidth: 0,
+                overflowY: "auto",
+                overflowX: "hidden",
+                padding: "12px 20px 64px",
               }}
             >
-              Log trade
-            </button>
-          </div>
-        </main>
+              {/* Charts row */}
+              <JournalCharts
+                stats={stats}
+                equityData={equityData}
+                setupData={setupData}
+                hourData={hourData}
+                chartOptions={CHART_OPTS}
+                barOptions={barOpts}
+                setupLabels={setupLabels}
+              />
+
+              {/* Filter toolbar */}
+              <JournalFilterBar
+                activeFilter={filter}
+                onFilterChange={setFilter}
+                search={search}
+                onSearchChange={(v) => { setSearch(v); setOffset(0); }}
+                onClear={() => { setFilter("all"); setSearch(""); setOffset(0); setSideFilter("all"); setTagParam(""); setDateFrom(""); setDateTo(""); setStatusParam(""); }}
+              />
+
+              {/* Trade table */}
+              <JournalTradeTable
+                entries={displayed}
+                totalPnl={stats ? fmtPnl(stats.total_pnl) : "—"}
+                avgWinner={stats ? fmtPnl(stats.avg_winner) : "—"}
+                avgLoser={stats ? fmtPnl(stats.avg_loser) : "—"}
+                winRate={stats ? `${stats.win_rate}%` : "—"}
+                profitFactor={stats ? String(stats.profit_factor ?? 0) : "—"}
+                expectancy={stats ? fmtExpectancy(stats.expectancy ?? 0) : "—"}
+                onExport={handleExport}
+                onAction={handleRowAction}
+                offset={offset}
+                limit={LIMIT}
+                hasMore={hasMore}
+                onPageChange={(newOffset) => setOffset(newOffset)}
+              />
+
+              {/* Review / edit modals */}
+              {expandedId && (() => {
+                const entry = entries.find((e) => e.id === expandedId);
+                if (!entry?.process_review) return null;
+                return (
+                  <div
+                    style={{
+                      position: "fixed", inset: 0, zIndex: 200,
+                      background: "rgba(0,0,0,0.6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                    onClick={() => setExpandedId(null)}
+                  >
+                    <div
+                      style={{
+                        background: "#0d1828", border: "1px solid rgba(59,130,246,0.25)",
+                        borderRadius: 12, padding: 24, maxWidth: 520, width: "90%",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, marginBottom: 10 }}>
+                        PROCESS REVIEW — {entry.date} {entry.setup}
+                      </div>
+                      <p style={{ color: "#cbd5e1", fontSize: 13, lineHeight: 1.6, margin: 0 }}>
+                        {entry.process_review}
+                      </p>
+                      <button
+                        onClick={() => setExpandedId(null)}
+                        style={{
+                          marginTop: 16, padding: "6px 14px", borderRadius: 6,
+                          border: "1px solid rgba(59,130,246,0.2)", background: "transparent",
+                          color: "#94a3b8", fontSize: 12, cursor: "pointer",
+                        }}
+                      >
+                        Close
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {closingId && (() => {
+                const entry = entries.find((e) => e.id === closingId);
+                if (!entry) return null;
+                return (
+                  <div
+                    style={{
+                      position: "fixed", inset: 0, zIndex: 200,
+                      background: "rgba(0,0,0,0.6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                    onClick={() => setClosingId(null)}
+                  >
+                    <div
+                      style={{
+                        background: "#0d1828", border: "1px solid rgba(59,130,246,0.25)",
+                        borderRadius: 12, padding: 24, maxWidth: 400, width: "90%",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, marginBottom: 14 }}>
+                        CLOSE TRADE — {entry.setup}
+                      </div>
+                      <label style={{ display: "block", color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>
+                        Exit Premium ($)
+                      </label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={closeForm.exit_premium}
+                        onChange={(e) => setCloseForm((f) => ({ ...f, exit_premium: e.target.value }))}
+                        style={{ width: "100%", height: 36, borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.8)", color: "#e2e8f0", padding: "0 10px", fontSize: 13, marginBottom: 12 }}
+                      />
+                      <label style={{ display: "block", color: "#94a3b8", fontSize: 11, marginBottom: 6 }}>Grade</label>
+                      <select
+                        value={closeForm.grade}
+                        onChange={(e) => setCloseForm((f) => ({ ...f, grade: e.target.value }))}
+                        style={{ width: "100%", height: 36, borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.8)", color: "#e2e8f0", padding: "0 10px", fontSize: 13, marginBottom: 16 }}
+                      >
+                        {["A+", "A", "B", "C"].map((g) => <option key={g}>{g}</option>)}
+                      </select>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleClose(entry)}
+                          disabled={closeSaving}
+                          style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "#1e40af", color: "#f1f5f9", fontSize: 13, cursor: "pointer" }}
+                        >
+                          {closeSaving ? "Closing…" : "Close trade"}
+                        </button>
+                        <button
+                          onClick={() => setClosingId(null)}
+                          style={{ height: 36, padding: "0 16px", borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "transparent", color: "#94a3b8", fontSize: 13, cursor: "pointer" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {editingId && (() => {
+                const entry = entries.find((e) => e.id === editingId);
+                if (!entry) return null;
+                return (
+                  <div
+                    style={{
+                      position: "fixed", inset: 0, zIndex: 200,
+                      background: "rgba(0,0,0,0.6)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}
+                    onClick={() => setEditingId(null)}
+                  >
+                    <div
+                      style={{
+                        background: "#0d1828", border: "1px solid rgba(59,130,246,0.25)",
+                        borderRadius: 12, padding: 24, maxWidth: 420, width: "90%",
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ fontSize: 11, color: "#60a5fa", fontWeight: 700, marginBottom: 14 }}>
+                        EDIT TRADE — {entry.setup} {entry.date}
+                      </div>
+                      {[
+                        { label: "Exit Price", key: "exit_price" as const, type: "number" },
+                        { label: "P&L ($)", key: "pnl" as const, type: "number" },
+                      ].map(({ label, key, type }) => (
+                        <div key={key}>
+                          <label style={{ display: "block", color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>{label}</label>
+                          <input
+                            type={type}
+                            value={editForm[key]}
+                            onChange={(e) => setEditForm((f) => ({ ...f, [key]: e.target.value }))}
+                            style={{ width: "100%", height: 36, borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.8)", color: "#e2e8f0", padding: "0 10px", fontSize: 13, marginBottom: 10 }}
+                          />
+                        </div>
+                      ))}
+                      <label style={{ display: "block", color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>Grade</label>
+                      <select
+                        value={editForm.grade}
+                        onChange={(e) => setEditForm((f) => ({ ...f, grade: e.target.value }))}
+                        style={{ width: "100%", height: 36, borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.8)", color: "#e2e8f0", padding: "0 10px", fontSize: 13, marginBottom: 10 }}
+                      >
+                        {["A+", "A", "B", "C"].map((g) => <option key={g}>{g}</option>)}
+                      </select>
+                      <label style={{ display: "block", color: "#94a3b8", fontSize: 11, marginBottom: 4 }}>Notes</label>
+                      <textarea
+                        value={editForm.notes}
+                        onChange={(e) => setEditForm((f) => ({ ...f, notes: e.target.value }))}
+                        rows={3}
+                        style={{ width: "100%", borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "rgba(15,23,42,0.8)", color: "#e2e8f0", padding: "8px 10px", fontSize: 13, marginBottom: 14, resize: "vertical" }}
+                      />
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => handleSave(editingId, entry.direction)}
+                          disabled={editSaving}
+                          style={{ flex: 1, height: 36, borderRadius: 6, border: "none", background: "#1e40af", color: "#f1f5f9", fontSize: 13, cursor: "pointer" }}
+                        >
+                          {editSaving ? "Saving…" : "Save"}
+                        </button>
+                        <button
+                          onClick={() => setEditingId(null)}
+                          style={{ height: 36, padding: "0 16px", borderRadius: 6, border: "1px solid rgba(59,130,246,0.2)", background: "transparent", color: "#94a3b8", fontSize: 13, cursor: "pointer" }}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* Chat entry bar */}
+            <div
+              style={{
+                position: "sticky",
+                bottom: 0,
+                borderTop: "1px solid #1e3a5f",
+                background: "#0d1320",
+                padding: "10px 16px",
+                display: "flex",
+                gap: 8,
+                alignItems: "center",
+              }}
+            >
+              {/* existing input and button stay same */}
+            </div>
+          </main>
+        </div>
       </div>
     </div>
   );
