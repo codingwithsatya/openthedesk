@@ -246,18 +246,21 @@
 /* ── Rules grid ── */
 .rulesGrid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(150px, 1fr));
   gap: 14px;
   margin-bottom: 24px;
+  overflow: hidden;
 }
 
 .rulesCard {
-  min-height: 112px;
-  padding: 24px 22px;
+  min-width: 0;
+  min-height: 104px;
+  padding: 20px 18px;
   border-radius: 16px;
   display: flex;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
+  overflow: hidden;
   background:
     radial-gradient(
       circle at 15% 20%,
@@ -348,9 +351,24 @@
   color: #49f270;
 }
 
+.rulesCard > div:last-child {
+  min-width: 0;
+}
+
+.rulesValue,
+.rulesCard strong,
+.rulesCard b {
+  white-space: nowrap;
+}
+
+.rulesTitle,
+.rulesLabel {
+  overflow-wrap: anywhere;
+}
+
 .rulesCard:nth-child(5) .rulesValue,
 .rulesCard:nth-child(6) .rulesValue {
-  font-size: 24px;
+  font-size: 20px;
 }
 
 /* ── Journey + Philosophy row ── */
@@ -1002,6 +1020,28 @@
   color: rgba(205, 214, 235, 0.52);
   text-align: right;
   margin-top: 4px;
+}
+
+@media (max-width: 1480px) {
+  .rulesGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .rulesCard {
+    min-height: 96px;
+  }
+}
+
+@media (max-width: 760px) {
+  .rulesGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .rulesCard {
+    min-height: 78px;
+    padding: 16px 18px;
+  }
 }
 
 /* ── Responsive ── */
