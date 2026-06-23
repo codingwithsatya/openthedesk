@@ -1,5 +1,5 @@
 "use client";
-import { useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import { Message, modelLabel } from "../types";
 import QuickActions from "./QuickActions";
 
@@ -47,6 +47,37 @@ const getGreeting = () => {
   if (hour < 17) return "Good afternoon";
   return "Good evening";
 };
+
+// Converts long separator lines (─────, ━━━━━, -----) to visual dividers.
+// Keeps all other content as-is with pre-wrap.
+function renderDeskMessage(text: string): React.ReactNode {
+  const SEP_RE = /^[─━═\-_=*~]{5,}$/;
+  const lines = text.split('\n');
+  const result: React.ReactNode[] = [];
+  let buf: string[] = [];
+
+  const flush = (key: string) => {
+    if (!buf.length) return;
+    result.push(
+      <span key={key} style={{ display: 'block', whiteSpace: 'pre-wrap' }}>
+        {buf.join('\n')}
+      </span>
+    );
+    buf = [];
+  };
+
+  lines.forEach((line, i) => {
+    if (SEP_RE.test(line.trim())) {
+      flush(`t${i}`);
+      result.push(<div key={`s${i}`} className="msg-sep" />);
+    } else {
+      buf.push(line);
+    }
+  });
+  flush('end');
+
+  return <>{result}</>;
+}
 
 export default function ChatPanel({
   messages,
@@ -158,10 +189,10 @@ export default function ChatPanel({
           }}>
             <div style={{ textAlign: "center" as const }}>
               <div style={{ fontSize: 40, marginBottom: 12 }}>🌅</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: "#0f172a", marginBottom: 8 }}>
+              <div style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", marginBottom: 8 }}>
                 {getGreeting()}, {firstName}.
               </div>
-              <div style={{ fontSize: 13, color: "#64748b", maxWidth: 300, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 13, color: "#94a3b8", maxWidth: 300, lineHeight: 1.6 }}>
                 Start with a Morning Brief to understand today&apos;s bias,
                 then open the desk when you&apos;re ready to trade.
               </div>
@@ -189,8 +220,8 @@ export default function ChatPanel({
                 style={{
                   padding: "10px 24px", borderRadius: 10,
                   background: "transparent",
-                  color: canOpenDesk ? "#15803d" : "#475569",
-                  border: `1px solid ${canOpenDesk ? "#bbf7d0" : "rgba(100,116,139,0.2)"}`,
+                  color: canOpenDesk ? "#4ade80" : "#64748b",
+                  border: `1px solid ${canOpenDesk ? "rgba(74,222,128,0.35)" : "rgba(100,116,139,0.18)"}`,
                   cursor: (loading || !canOpenDesk) ? "not-allowed" : "pointer",
                   fontSize: 13, fontWeight: 600,
                   opacity: canOpenDesk ? 1 : 0.5,
@@ -208,9 +239,17 @@ export default function ChatPanel({
               <div className={`msg-av ${msg.role === "user" ? "user" : "desk"}`}>
                 {msg.role === "user" ? "S" : "D"}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", maxWidth: "calc(100% - 40px)" }}>
-                <div className={`msg-bubble ${msg.role === "user" ? "user" : "desk"}`} style={{ maxWidth: "100%" }}>
-                  {msg.content}
+              <div style={{
+                display: "flex",
+                flexDirection: "column",
+                ...(msg.role === "assistant"
+                  ? { flex: 1, minWidth: 0 }
+                  : { maxWidth: "calc(100% - 40px)" }),
+              }}>
+                <div className={`msg-bubble ${msg.role === "user" ? "user" : "desk"}`}>
+                  {msg.role === "assistant"
+                    ? renderDeskMessage(msg.content)
+                    : msg.content}
                 </div>
                 {msg.role === "assistant" && modelLabel(msg.model) && (
                   <div style={{ fontSize: "9px", color: "#94a3b8", marginTop: "3px", fontFamily: "monospace", paddingLeft: "2px" }}>
@@ -255,10 +294,10 @@ export default function ChatPanel({
         {pendingFiles.length > 0 && (
           <div style={{
             display: "flex", alignItems: "center", gap: 8,
-            padding: "6px 12px", borderTop: "1px solid #f1f5f9",
-            background: "#f8fafc", flexWrap: "wrap",
+            padding: "6px 12px", borderTop: "1px solid rgba(255,255,255,0.07)",
+            background: "#0d1220", flexWrap: "wrap",
           }}>
-            <span style={{ fontSize: 11, color: "#64748b", flexShrink: 0 }}>
+            <span style={{ fontSize: 11, color: "#94a3b8", flexShrink: 0 }}>
               📊 {pendingFiles.length} chart{pendingFiles.length > 1 ? "s" : ""} — analyze as:
             </span>
             {["TRADE IDEA", "IN TRADE", "PREMARKET", "PTR-FAST"].map(ctx => (
@@ -268,9 +307,9 @@ export default function ChatPanel({
                 style={{
                   padding: "3px 10px", borderRadius: 99, fontSize: 11,
                   fontWeight: 500, cursor: "pointer", border: "1px solid",
-                  borderColor: chartContext === ctx ? "#1d4ed8" : "#e2e8f0",
-                  background: chartContext === ctx ? "#eff6ff" : "white",
-                  color: chartContext === ctx ? "#1d4ed8" : "#64748b",
+                  borderColor: chartContext === ctx ? "rgba(59,130,246,0.45)" : "rgba(255,255,255,0.1)",
+                  background: chartContext === ctx ? "rgba(29,78,216,0.2)" : "rgba(255,255,255,0.04)",
+                  color: chartContext === ctx ? "#93c5fd" : "#94a3b8",
                 }}
               >
                 {ctx}
@@ -291,7 +330,7 @@ export default function ChatPanel({
               style={{
                 padding: "4px 10px", borderRadius: 99, fontSize: 11,
                 cursor: "pointer", background: "transparent",
-                color: "#94a3b8", border: "1px solid #e2e8f0",
+                color: "#94a3b8", border: "1px solid rgba(255,255,255,0.1)",
               }}
             >
               Cancel

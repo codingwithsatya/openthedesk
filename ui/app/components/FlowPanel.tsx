@@ -12,15 +12,27 @@ function displayRatio(ratio: number): string {
 
 function RatioBadge({ ratio, isCall }: { ratio: number; isCall: boolean }) {
   const bright = ratio >= 5;
-  const bg     = isCall
-    ? (bright ? "#dcfce7" : "#f0fdf4")
-    : (bright ? "#fee2e2" : "#fef2f2");
-  const color  = isCall
-    ? (bright ? "#15803d" : "#22c55e")
-    : (bright ? "#b91c1c" : "#ef4444");
+  const bg = isCall
+    ? bright
+      ? "#dcfce7"
+      : "#f0fdf4"
+    : bright
+      ? "#fee2e2"
+      : "#fef2f2";
+  const color = isCall
+    ? bright
+      ? "#15803d"
+      : "#22c55e"
+    : bright
+      ? "#b91c1c"
+      : "#ef4444";
   const border = isCall
-    ? (bright ? "#86efac" : "#bbf7d0")
-    : (bright ? "#fca5a5" : "#fecaca");
+    ? bright
+      ? "#86efac"
+      : "#bbf7d0"
+    : bright
+      ? "#fca5a5"
+      : "#fecaca";
 
   return (
     <span
@@ -45,7 +57,7 @@ function RatioBadge({ ratio, isCall }: { ratio: number; isCall: boolean }) {
 
 function FlowRow({ item }: { item: UnusualFlowItem }) {
   const isCall = item.type === "call";
-  const color  = isCall ? "#15803d" : "#b91c1c";
+  const color = isCall ? "#15803d" : "#b91c1c";
 
   return (
     <div
@@ -59,22 +71,23 @@ function FlowRow({ item }: { item: UnusualFlowItem }) {
       <div style={{ display: "flex", alignItems: "center", gap: "5px" }}>
         <span
           style={{
-            fontSize: "10px",
+            fontSize: "13px",
             fontWeight: 700,
             color,
             fontFamily: "monospace",
             flexShrink: 0,
           }}
         >
-          {item.strike}{isCall ? "C" : "P"}
+          {item.strike}
+          {isCall ? "C" : "P"}
         </span>
 
         <RatioBadge ratio={item.vol_oi_ratio} isCall={isCall} />
 
         <span
           style={{
-            fontSize: "10px",
-            fontWeight: 600,
+            fontSize: "12px",
+            fontWeight: 700,
             color,
             fontFamily: "monospace",
             marginLeft: "auto",
@@ -86,17 +99,25 @@ function FlowRow({ item }: { item: UnusualFlowItem }) {
       </div>
 
       {/* Line 2: volume */}
-      <div style={{ fontSize: "9px", color: "#94a3b8", fontFamily: "monospace", marginTop: "1px" }}>
-        vol {item.volume.toLocaleString()} · OI {item.open_interest.toLocaleString()}
+      <div
+        style={{
+          fontSize: "9px",
+          color: "#94a3b8",
+          fontFamily: "monospace",
+          marginTop: "1px",
+        }}
+      >
+        vol {item.volume.toLocaleString()} · OI{" "}
+        {item.open_interest.toLocaleString()}
       </div>
     </div>
   );
 }
 
 export default function FlowPanel({ marketData }: FlowPanelProps) {
-  const flow   = marketData?.unusual_flow;
-  const calls  = flow?.calls?.slice(0, 3) ?? [];
-  const puts   = flow?.puts?.slice(0, 3)  ?? [];
+  const flow = marketData?.unusual_flow;
+  const calls = flow?.calls?.slice(0, 3) ?? [];
+  const puts = flow?.puts?.slice(0, 3) ?? [];
   const hasFlow = calls.length > 0 || puts.length > 0;
 
   return (
@@ -114,7 +135,7 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
       >
         <span
           style={{
-            fontSize: "10px",
+            fontSize: "15px",
             fontWeight: 600,
             color: "#94a3b8",
             textTransform: "uppercase",
@@ -142,13 +163,38 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
       {!marketData ? (
         /* Skeleton — matches two-line row layout */
         <div style={{ display: "flex", flexDirection: "column", gap: "3px" }}>
-          {([["#f0fdf4", 1], ["#f0fdf4", 2], ["#f0fdf4", 3],
-             ["#fef2f2", 4], ["#fef2f2", 5], ["#fef2f2", 6]] as [string, number][]).map(([bg, i]) => (
-            <div key={i} style={{ padding: "5px 8px", borderRadius: "6px", background: bg }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "5px", marginBottom: "4px" }}>
+          {(
+            [
+              ["#f0fdf4", 1],
+              ["#f0fdf4", 2],
+              ["#f0fdf4", 3],
+              ["#fef2f2", 4],
+              ["#fef2f2", 5],
+              ["#fef2f2", 6],
+            ] as [string, number][]
+          ).map(([bg, i]) => (
+            <div
+              key={i}
+              style={{
+                padding: "5px 8px",
+                borderRadius: "6px",
+                background: bg,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "5px",
+                  marginBottom: "4px",
+                }}
+              >
                 <div className="skel" style={{ width: "46px" }} />
                 <div className="skel" style={{ width: "26px" }} />
-                <div className="skel" style={{ width: "28px", marginLeft: "auto" }} />
+                <div
+                  className="skel"
+                  style={{ width: "28px", marginLeft: "auto" }}
+                />
               </div>
               <div className="skel" style={{ width: "80px", height: "8px" }} />
             </div>
@@ -177,8 +223,11 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
             <>
               <div
                 style={{
-                  fontSize: "9px", fontWeight: 600, color: "#16a34a",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#16a34a",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
                   padding: "2px 4px",
                 }}
               >
@@ -195,8 +244,11 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
             <>
               <div
                 style={{
-                  fontSize: "9px", fontWeight: 600, color: "#dc2626",
-                  textTransform: "uppercase", letterSpacing: "0.06em",
+                  fontSize: "12px",
+                  fontWeight: 700,
+                  color: "#dc2626",
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
                   padding: "2px 4px",
                   marginTop: calls.length ? "4px" : 0,
                 }}
@@ -210,7 +262,14 @@ export default function FlowPanel({ marketData }: FlowPanelProps) {
           )}
 
           {/* Footer */}
-          <div style={{ fontSize: "9px", color: "#94a3b8", padding: "3px 4px", marginTop: "1px" }}>
+          <div
+            style={{
+              fontSize: "9px",
+              color: "#94a3b8",
+              padding: "3px 4px",
+              marginTop: "1px",
+            }}
+          >
             ratio = vol ÷ OI · refreshes 60s
           </div>
         </div>

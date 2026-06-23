@@ -2,18 +2,8 @@
 import { useState, useRef, useEffect, useMemo } from "react";
 import { useAuth, useUser } from "@clerk/nextjs";
 import { Message, MarketData } from "./types";
-import Header from "./components/Header";
-import LevelsPanel from "./components/LevelsPanel";
-import FlowPanel from "./components/FlowPanel";
-import ChatPanel from "./components/ChatPanel";
-import CommandPalette from "./components/CommandPalette";
-import MobileSheet from "./components/MobileSheet";
-import MobileSignalStream from "./components/MobileSignalStream";
-import MorningBriefBanner from "./components/MorningBriefBanner";
-import ChartStrip from "./components/ChartStrip";
-import SessionBar from "./components/SessionBar";
-import SignalStream from "./components/SignalStream";
 import { useAlerts } from "./components/AlertPanel";
+import DeskShell from "@/features/desk/components/DeskShell";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const SESSION_ID = "satya";
@@ -492,159 +482,65 @@ export default function Home() {
   };
 
   return (
-    <>
-      <div className="otd-layout">
-        <Header
-          deskOpen={deskOpen}
-          refreshing={refreshing}
-          onRefresh={refreshContext}
-          onClearSession={clearSession}
-          marketData={marketData}
-          sessionDuration={sessionDuration}
-        />
-
-        <MorningBriefBanner
-          visible={briefData !== null}
-          bias={briefData?.bias ?? ""}
-          mag7Bull={briefData?.mag7Bull ?? 0}
-          mag7Bear={briefData?.mag7Bear ?? 0}
-          mag7Mixed={briefData?.mag7Mixed ?? 0}
-          warning={briefData?.warning ?? ""}
-          bullLevel={briefData?.bullLevel ?? null}
-          bearLevel={briefData?.bearLevel ?? null}
-          onExpand={() =>
-            bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-          }
-        />
-
-        <div className="otd-columns">
-          {/* Left — levels + flow */}
-          <div className="otd-left-col">
-            <div className="otd-left-header">Today&apos;s Levels</div>
-            <div className="otd-left-body">
-              <LevelsPanel
-                marketData={marketData}
-                satyAtr={satyAtr}
-                atrApplied={atrApplied}
-                onAtrChange={handleAtrChange}
-                onApply={handleAtrApply}
-                onReset={handleAtrReset}
-              />
-              <FlowPanel marketData={marketData} />
-            </div>
-          </div>
-
-          {/* Center — chart + session bar + chat */}
-          <div className="otd-center">
-            <ChartStrip
-              interval={chartInterval}
-              onIntervalChange={setChartInterval}
-            />
-            <SessionBar
-              tdNumber={tdNumber}
-              trades={0}
-              pnl={0}
-              wins={0}
-              losses={0}
-              budgetUsed={0}
-              budgetLimit={500}
-              challenge={challengeInfo}
-            />
-            <div style={{ flex: 1, minHeight: 0, overflow: "hidden" }}>
-              <ChatPanel
-                messages={messages}
-                loading={loading}
-                onSend={sendMessage}
-                onOpenPalette={() => setPaletteOpen(true)}
-                onChartStream={() => {}}
-                setMessages={setMessages}
-                setLoading={setLoading}
-                bottomRef={bottomRef}
-                deskOpen={deskOpen}
-                onMorningBrief={runMorningBrief}
-                onOpenDesk={openDesk}
-                firstName={firstName}
-                briefLoading={briefLoading}
-                canOpenDesk={canOpenDesk}
-                marketStatusLabel={marketStatusLabel}
-              />
-            </div>
-          </div>
-
-          {/* Right — signal stream */}
-          <SignalStream
-            alerts={alerts}
-            isUnread={isUnread}
-            markRead={markRead}
-          />
-        </div>
-      </div>
-
-      <CommandPalette
-        open={paletteOpen}
-        onClose={() => setPaletteOpen(false)}
-        onSelect={sendMessage}
-        loading={loading}
-      />
-
-      <MobileSignalStream
-        open={signalsOpen}
-        onClose={() => {
-          setSignalsOpen(false);
-          setMobileTab("chat");
-        }}
-        alerts={alerts}
-        isUnread={isUnread}
-        markRead={markRead}
-      />
-
-      <MobileSheet
-        open={levelsOpen}
-        onClose={() => {
-          setLevelsOpen(false);
-          setMobileTab("chat");
-        }}
-        marketData={marketData}
-        satyAtr={satyAtr}
-        atrApplied={atrApplied}
-        onAtrChange={handleAtrChange}
-        onApply={handleAtrApply}
-        onReset={handleAtrReset}
-      />
-
-      <nav className="bottom-nav">
-        <button
-          className={`bnav-item ${mobileTab === "chat" ? "active" : ""}`}
-          onClick={() => {
-            setLevelsOpen(false);
-            setMobileTab("chat");
-          }}
-        >
-          <span className="bnav-icon">💬</span>
-          Chat
-        </button>
-        <button
-          className={`bnav-item ${mobileTab === "levels" ? "active" : ""}`}
-          onClick={() => handleMobileTab("levels")}
-        >
-          <span className="bnav-icon">📊</span>
-          Levels
-        </button>
-        <button
-          className="bnav-item"
-          onClick={() => handleMobileTab("commands")}
-        >
-          <span className="bnav-icon">⌨️</span>
-          Commands
-        </button>
-        <button
-          className={`bnav-item ${mobileTab === "signals" ? "active" : ""}`}
-          onClick={() => handleMobileTab("signals")}
-        >
-          <span className="bnav-icon">📡</span>
-          Signals
-        </button>
-      </nav>
-    </>
+    <DeskShell
+      deskOpen={deskOpen}
+      refreshing={refreshing}
+      onRefresh={refreshContext}
+      onClearSession={clearSession}
+      marketData={marketData}
+      sessionDuration={sessionDuration}
+      briefVisible={briefData !== null}
+      briefBias={briefData?.bias ?? ""}
+      briefMag7Bull={briefData?.mag7Bull ?? 0}
+      briefMag7Bear={briefData?.mag7Bear ?? 0}
+      briefMag7Mixed={briefData?.mag7Mixed ?? 0}
+      briefWarning={briefData?.warning ?? ""}
+      briefBullLevel={briefData?.bullLevel ?? null}
+      briefBearLevel={briefData?.bearLevel ?? null}
+      onBriefExpand={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+      satyAtr={satyAtr}
+      atrApplied={atrApplied}
+      onAtrChange={handleAtrChange}
+      onAtrApply={handleAtrApply}
+      onAtrReset={handleAtrReset}
+      chartInterval={chartInterval}
+      onChartIntervalChange={setChartInterval}
+      tdNumber={tdNumber}
+      challengeInfo={challengeInfo}
+      messages={messages}
+      loading={loading}
+      onSend={sendMessage}
+      setMessages={setMessages}
+      setLoading={setLoading}
+      bottomRef={bottomRef}
+      onMorningBrief={runMorningBrief}
+      onOpenDesk={openDesk}
+      firstName={firstName}
+      briefLoading={briefLoading}
+      canOpenDesk={canOpenDesk}
+      marketStatusLabel={marketStatusLabel}
+      alerts={alerts}
+      isUnread={isUnread}
+      markRead={markRead}
+      paletteOpen={paletteOpen}
+      onPaletteClose={() => setPaletteOpen(false)}
+      onPaletteOpen={() => setPaletteOpen(true)}
+      signalsOpen={signalsOpen}
+      onSignalsClose={() => {
+        setSignalsOpen(false);
+        setMobileTab("chat");
+      }}
+      levelsOpen={levelsOpen}
+      onLevelsClose={() => {
+        setLevelsOpen(false);
+        setMobileTab("chat");
+      }}
+      mobileTab={mobileTab}
+      onMobileGoToChat={() => {
+        setLevelsOpen(false);
+        setMobileTab("chat");
+      }}
+      onMobileTab={handleMobileTab}
+    />
   );
 }

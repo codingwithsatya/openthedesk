@@ -16,8 +16,8 @@ const CLOSED_PILLS = [
 ] as const;
 
 const OPEN_PILLS = [
-  { label: "PTR-FAST",  cmd: "PTR-FAST",  bg: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" },
-  { label: "PREMARKET", cmd: "PREMARKET", bg: "#faf5ff", color: "#7e22ce", border: "#e9d5ff" },
+  { label: "PTR-FAST",  cmd: "PTR-FAST",  bg: "rgba(29,78,216,0.14)",   color: "#93c5fd", border: "rgba(59,130,246,0.3)"   },
+  { label: "PREMARKET", cmd: "PREMARKET", bg: "rgba(126,34,206,0.12)", color: "#d8b4fe", border: "rgba(147,51,234,0.32)" },
 ] as const;
 
 export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen = false, canOpenDesk = true, briefLoading = false }: QuickActionsProps) {
@@ -54,7 +54,7 @@ export default function QuickActions({ onSend, loading, onOpenPalette, deskOpen 
       <button
         className="qa-pill"
         onClick={onOpenPalette}
-        style={{ background: "#f8fafc", color: "#475569", borderColor: "#e2e8f0" }}
+        style={{ background: "rgba(255,255,255,0.05)", color: "#94a3b8", borderColor: "rgba(255,255,255,0.1)" }}
       >
         / Commands
       </button>
