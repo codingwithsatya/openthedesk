@@ -112,6 +112,10 @@ export default function JournalPage() {
   const [offset, setOffset] = useState(0);
   const [hasMore, setHasMore] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [directionFilter, setDirectionFilter] = useState("");
+  const [instrumentFilter, setInstrumentFilter] = useState("");
+  const [statsView, setStatsView] = useState<"day" | "trade">("day");
+  const [allEntryInstruments, setAllEntryInstruments] = useState<string[]>([]);
   const [challenge, setChallenge] = useState<{
     active: boolean;
     day_number?: number;
@@ -129,14 +133,17 @@ export default function JournalPage() {
     } catch {}
   };
 
-  const buildEntriesUrl = (off: number, q: string, setupF: string) => {
-    const params = new URLSearchParams({
-      limit: String(LIMIT),
-      offset: String(off),
-    });
+  const buildEntriesUrl = (off: number, q: string, setupF: string, dir: string, instrument: string, tag: string, dfrom: string, dto: string, status: string) => {
+    const params = new URLSearchParams({ limit: String(LIMIT), offset: String(off) });
     if (q) params.set("filter", q);
+    else if (instrument) params.set("filter", instrument);
     const isSetupFilter = !["all", "winners", "losers"].includes(setupF);
     if (isSetupFilter) params.set("setup", setupF);
+    if (dir) params.set("direction", dir);
+    if (tag) params.set("tag", tag);
+    if (dfrom) params.set("date_from", dfrom);
+    if (dto) params.set("date_to", dto);
+    if (status) params.set("status", status);
     return `${API}/journal/entries?${params}`;
   };
 
@@ -145,12 +152,19 @@ export default function JournalPage() {
       const token = await getToken();
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      const url = buildEntriesUrl(offset, search, sideFilter);
+      const url = buildEntriesUrl(offset, search, sideFilter, directionFilter, instrumentFilter, tagParam, dateFrom, dateTo, statusParam);
       fetch(url, { headers })
         .then((r) => r.json())
         .then((d) => {
-          setEntries(d.entries ?? []);
+          const fetched: JournalEntry[] = d.entries ?? [];
+          setEntries(fetched);
           setHasMore((d.count ?? 0) === LIMIT);
+          if (fetched.length > 0) {
+            setAllEntryInstruments((prev) => {
+              const merged = [...new Set([...prev, ...fetched.map((e) => e.ticker)])].sort();
+              return merged;
+            });
+          }
         })
         .catch(() => {});
       fetch(`${API}/journal/stats`, { headers })
@@ -160,7 +174,7 @@ export default function JournalPage() {
       fetchChallenge(token);
     })();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [offset, search, sideFilter, refreshKey]);
+  }, [offset, search, sideFilter, directionFilter, instrumentFilter, tagParam, dateFrom, dateTo, statusParam, refreshKey]);
 
   const refetch = () => {
     if (offset !== 0) {
@@ -173,15 +187,11 @@ export default function JournalPage() {
   const handleExport = async () => {
     const token = await getToken();
     const params = new URLSearchParams({ format: "csv" });
-    // text search
     if (search) params.set("filter", search);
-    // setup from sidebar
+    else if (instrumentFilter) params.set("filter", instrumentFilter);
     const isSetupFilter = !["all", "winners", "losers"].includes(sideFilter);
     if (isSetupFilter) params.set("setup", sideFilter);
-    // direction derived from filter-bar quick filter
-    if (filter === "bull") params.set("direction", "BULL");
-    if (filter === "bear") params.set("direction", "BEAR");
-    // optional params — set when state is non-empty
+    if (directionFilter) params.set("direction", directionFilter);
     if (tagParam) params.set("tag", tagParam);
     if (dateFrom) params.set("date_from", dateFrom);
     if (dateTo) params.set("date_to", dateTo);
@@ -257,8 +267,6 @@ export default function JournalPage() {
 
   // ── Derived ─────────────────────────────────────────────────
   const filteredByBar: JournalEntry[] = entries.filter((e) => {
-    if (filter === "bull") return e.direction.toUpperCase() === "BULL";
-    if (filter === "bear") return e.direction.toUpperCase() === "BEAR";
     if (filter === "winners") return (e.pnl ?? 0) > 0;
     if (filter === "losers") return (e.pnl ?? 0) <= 0;
     if (filter === "aplus") return e.grade === "A+";
@@ -272,12 +280,11 @@ export default function JournalPage() {
     return true;
   });
 
-  const wins = entries.filter((e) => (e.pnl ?? 0) > 0).length;
-  const losses = entries.filter((e) => e.status !== "open" && (e.pnl ?? 0) <= 0).length;
+  const wins = stats?.wins ?? 0;
+  const losses = stats?.losses ?? 0;
   const setupCounts: Record<string, number> = {};
-  entries.forEach((e) => {
-    const s = e.setup.toUpperCase();
-    setupCounts[s] = (setupCounts[s] ?? 0) + 1;
+  Object.entries(stats?.pnl_by_setup ?? {}).forEach(([setup, data]) => {
+    setupCounts[setup] = data.wins + data.losses;
   });
 
   // ── Chart data ───────────────────────────────────────────────
@@ -517,12 +524,25 @@ export default function JournalPage() {
         <div className={styles.content}>
           {/* ── Sidebar ─────────────────────────────────────────── */}
           <JournalSidebar
-            entriesCount={entries.length}
+            entriesCount={stats?.total_trades ?? entries.length}
             wins={wins}
             losses={losses}
             setupCounts={setupCounts}
             sideFilter={sideFilter}
             onSideFilterChange={setSideFilter}
+            instruments={allEntryInstruments}
+            instrumentFilter={instrumentFilter}
+            onInstrumentFilterChange={(v) => { setInstrumentFilter(v); setOffset(0); }}
+            directionFilter={directionFilter}
+            onDirectionFilterChange={(d) => { setDirectionFilter(d); setOffset(0); }}
+            tagFilter={tagParam}
+            onTagFilterChange={(t) => { setTagParam(t); setOffset(0); }}
+            dateFrom={dateFrom}
+            dateTo={dateTo}
+            onDateFromChange={(d) => { setDateFrom(d); setOffset(0); }}
+            onDateToChange={(d) => { setDateTo(d); setOffset(0); }}
+            statsView={statsView}
+            onStatsViewChange={setStatsView}
           />
 
           {/* ── Main content ────────────────────────────────────── */}
@@ -651,10 +671,27 @@ export default function JournalPage() {
               {/* Filter toolbar */}
               <JournalFilterBar
                 activeFilter={filter}
-                onFilterChange={setFilter}
+                onFilterChange={(f) => {
+                  setFilter(f);
+                  setOffset(0);
+                  if (f === "bull") setDirectionFilter("CALL");
+                  else if (f === "bear") setDirectionFilter("PUT");
+                  else setDirectionFilter("");
+                }}
                 search={search}
                 onSearchChange={(v) => { setSearch(v); setOffset(0); }}
-                onClear={() => { setFilter("all"); setSearch(""); setOffset(0); setSideFilter("all"); setTagParam(""); setDateFrom(""); setDateTo(""); setStatusParam(""); }}
+                onClear={() => {
+                  setFilter("all");
+                  setSearch("");
+                  setOffset(0);
+                  setSideFilter("all");
+                  setTagParam("");
+                  setDateFrom("");
+                  setDateTo("");
+                  setStatusParam("");
+                  setDirectionFilter("");
+                  setInstrumentFilter("");
+                }}
               />
 
               {/* Trade table */}

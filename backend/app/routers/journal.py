@@ -176,7 +176,7 @@ def get_journal_entries(
             if setup:
                 q = q.ilike("setup", f"%{setup}%")
             if direction:
-                q = q.eq("direction", direction.upper())
+                q = q.ilike("direction", direction)
             if date_from:
                 q = q.gte("date", date_from)
             if date_to:
@@ -393,7 +393,7 @@ def export_journal(
         if setup:
             q = q.ilike("setup", f"%{setup}%")
         if direction:
-            q = q.eq("direction", direction.upper())
+            q = q.ilike("direction", direction)
         if date_from:
             q = q.gte("date", date_from)
         if date_to:

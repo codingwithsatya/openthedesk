@@ -9,6 +9,19 @@ interface JournalSidebarProps {
   setupCounts: Record<string, number>;
   sideFilter: string;
   onSideFilterChange: (value: string) => void;
+  instruments: string[];
+  instrumentFilter: string;
+  onInstrumentFilterChange: (v: string) => void;
+  directionFilter: string;
+  onDirectionFilterChange: (v: string) => void;
+  tagFilter: string;
+  onTagFilterChange: (v: string) => void;
+  dateFrom: string;
+  dateTo: string;
+  onDateFromChange: (v: string) => void;
+  onDateToChange: (v: string) => void;
+  statsView: "day" | "trade";
+  onStatsViewChange: (v: "day" | "trade") => void;
 }
 
 function SideItem({
@@ -43,6 +56,19 @@ export default function JournalSidebar({
   setupCounts,
   sideFilter,
   onSideFilterChange,
+  instruments,
+  instrumentFilter,
+  onInstrumentFilterChange,
+  directionFilter,
+  onDirectionFilterChange,
+  tagFilter,
+  onTagFilterChange,
+  dateFrom,
+  dateTo,
+  onDateFromChange,
+  onDateToChange,
+  statsView,
+  onStatsViewChange,
 }: JournalSidebarProps) {
   return (
     <aside className={s.sidebar}>
@@ -88,18 +114,62 @@ export default function JournalSidebar({
       <div className={s.divider} />
 
       <div className={s.sectionLabel}>Filters</div>
-      <button className={s.selectButton}>All instruments</button>
-      <button className={s.selectButton}>All directions</button>
-      <button className={s.selectButton}>All tags</button>
+      <select
+        className={s.sideSelect}
+        value={instrumentFilter}
+        onChange={(e) => onInstrumentFilterChange(e.target.value)}
+      >
+        <option value="">All instruments</option>
+        {instruments.map((t) => (
+          <option key={t} value={t}>{t}</option>
+        ))}
+      </select>
+      <select
+        className={s.sideSelect}
+        value={directionFilter}
+        onChange={(e) => onDirectionFilterChange(e.target.value)}
+      >
+        <option value="">All directions</option>
+        <option value="CALL">Bull</option>
+        <option value="PUT">Bear</option>
+      </select>
+      <input
+        type="text"
+        className={s.sideInput}
+        placeholder="All tags"
+        value={tagFilter}
+        onChange={(e) => onTagFilterChange(e.target.value)}
+      />
 
       <div className={s.sectionLabel}>Date Range</div>
-      <button className={s.dateButton}>06/01/2025 - 06/17/2025</button>
+      <div className={s.dateRow}>
+        <input
+          type="date"
+          className={s.sideInput}
+          value={dateFrom}
+          onChange={(e) => onDateFromChange(e.target.value)}
+        />
+        <input
+          type="date"
+          className={s.sideInput}
+          value={dateTo}
+          onChange={(e) => onDateToChange(e.target.value)}
+        />
+      </div>
 
       <div className={s.sectionLabel}>Stats View</div>
-      <button className={`${s.sideItem} ${s.sideItemActive}`}>
+      <button
+        type="button"
+        className={`${s.sideItem} ${statsView === "day" ? s.sideItemActive : ""}`}
+        onClick={() => onStatsViewChange("day")}
+      >
         <span>By day</span>
       </button>
-      <button className={s.sideItem}>
+      <button
+        type="button"
+        className={`${s.sideItem} ${statsView === "trade" ? s.sideItemActive : ""}`}
+        onClick={() => onStatsViewChange("trade")}
+      >
         <span>By trade</span>
       </button>
 
