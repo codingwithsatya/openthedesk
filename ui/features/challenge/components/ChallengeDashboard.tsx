@@ -2,7 +2,7 @@
 import { useState, useCallback, useEffect, useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import Header from "@/app/components/Header";
-import ChallengeIconRail from "@/features/challenge/components/ChallengeIconRail";
+import AppIconRail from "@/app/components/AppIconRail";
 import ChallengeDayDrawer from "@/features/challenge/components/ChallengeDayDrawer";
 // import ChallengeMountainHero from "@/features/challenge/components/ChallengeMountainHero";
 import {
@@ -310,7 +310,7 @@ export default function ChallengeDashboard({
         activePage="challenge"
       />
       <div className={s.body}>
-        <ChallengeIconRail />
+        <AppIconRail activePage="challenge" />
 
         <main className={s.main}>
           <div className={s.wrap}>

@@ -1,6 +1,6 @@
 "use client";
 import Header from "@/app/components/Header";
-import ChallengeIconRail from "@/features/challenge/components/ChallengeIconRail";
+import AppIconRail from "@/app/components/AppIconRail";
 import ChallengeMountainHero from "@/features/challenge/components/ChallengeMountainHero";
 import ChallengeRuleCards from "./ChallengeRuleCards";
 import ChallengeJourney from "./ChallengeJourney";
@@ -63,7 +63,7 @@ export default function ChallengeLanding({ past, onStart }: Props) {
         activePage="challenge"
       />
       <div className={s.body}>
-        <ChallengeIconRail />
+        <AppIconRail activePage="challenge" />
         <main className={s.main}>
           <div className={s.wrap}>
             {/* Hero */}

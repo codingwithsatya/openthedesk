@@ -1,0 +1,102 @@
+/* AppIconRail */
+
+.rail {
+  width: 84px;
+  flex-shrink: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(8, 14, 24, 0.98),
+    rgba(5, 10, 18, 0.98)
+  );
+  border-right: 1px solid rgba(59, 130, 246, 0.14);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 0 16px;
+  overflow: hidden;
+}
+
+.item,
+.itemDisabled {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  width: 64px;
+  min-height: 58px;
+  padding: 8px 6px;
+  border-radius: 13px;
+  margin-bottom: 7px;
+  color: rgba(148, 163, 184, 0.68);
+  text-decoration: none;
+  transition:
+    background 0.15s,
+    color 0.15s,
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.item:hover {
+  background: rgba(59, 130, 246, 0.08);
+  color: rgba(226, 232, 240, 0.9);
+}
+
+.itemActive {
+  color: #bfdbfe;
+  background:
+    radial-gradient(
+      circle at 50% 20%,
+      rgba(59, 130, 246, 0.22),
+      transparent 58%
+    ),
+    rgba(37, 99, 235, 0.18);
+  border: 1px solid rgba(59, 130, 246, 0.38);
+  box-shadow:
+    0 0 22px rgba(37, 99, 235, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.itemDisabled {
+  cursor: default;
+  opacity: 0.42;
+}
+
+.icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+  font-family: var(--font-inter), var(--sans), sans-serif;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.profileDot {
+  width: 38px;
+  height: 38px;
+  border-radius: 999px;
+  display: grid;
+  place-items: center;
+  color: #e2e8f0;
+  font-size: 15px;
+  font-weight: 750;
+  background: rgba(8, 13, 24, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  box-shadow:
+    0 0 18px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+@media (max-width: 768px) {
+  .rail {
+    display: none;
+  }
+}
