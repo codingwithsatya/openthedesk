@@ -49,6 +49,20 @@ body {
   align-items: center;
   gap: 12px;
 }
+
+.header-logo {
+  height: 56px;
+  width: auto;
+  object-fit: contain;
+}
+
+.header-nav {
+  display: flex;
+  gap: 2px;
+  margin-left: 0;
+  min-width: 0;
+}
+
 .logo-wrap {
   display: flex;
   align-items: center;
@@ -863,12 +877,6 @@ body {
 
 /* ── Responsive — mobile ──────────────────────────── */
 @media (max-width: 768px) {
-  /*
-   * 100dvh = dynamic viewport height — shrinks/grows as Safari chrome
-   * shows/hides. This is the correct unit for full-bleed mobile layouts.
-   * 100vh on iOS Safari = layout viewport (includes browser chrome) which
-   * makes the layout taller than visible, hiding elements off the bottom.
-   */
   html,
   body {
     height: 100dvh;
@@ -881,126 +889,321 @@ body {
     height: 100dvh;
   }
 
-  /* Hide levels panel column on mobile */
   .levels-col {
     display: none !important;
   }
 
-  /*
-   * min-height: 60px ensures the header never collapses when height: auto.
-   * Without it, if flex children report 0 height the header disappears.
-   */
+  /* ── Mobile header ───────────────────────────── */
+
   .header {
     height: auto;
-    min-height: 60px;
-    padding: 10px 16px;
-    flex-wrap: wrap;
-    gap: 6px;
+    min-height: 108px;
+    padding: 10px 12px 12px;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "left right"
+      "nav nav"
+      "desk desk";
+    align-items: center;
+    gap: 8px 10px;
+    background:
+      radial-gradient(
+        circle at 0% 0%,
+        rgba(34, 211, 238, 0.08),
+        transparent 34%
+      ),
+      linear-gradient(180deg, #0d1320, #09111d);
   }
-  .hbtn {
+
+  .header-left {
+    grid-area: left;
+    min-width: 0;
+    display: contents;
+  }
+
+  .logo-wrap {
+    grid-area: left;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .header-logo {
+    height: 42px;
+    max-width: 178px;
+    object-fit: contain;
+  }
+
+  .divider-v {
     display: none;
   }
 
-  /* Show SPX ticker in header on mobile */
-  .header-spx {
+  .header-right {
+    grid-area: right;
+    align-self: center;
     display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 1px;
+    align-items: center;
+    gap: 8px;
   }
+
+  .alert-bell {
+    width: 36px;
+    height: 36px;
+    border-radius: 11px;
+    background: rgba(255, 255, 255, 0.035);
+  }
+
+  .header-nav {
+    grid-area: nav;
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    width: 100%;
+    max-width: 100%;
+    padding: 4px;
+    border-radius: 14px;
+    background: rgba(2, 6, 23, 0.42);
+    border: 1px solid rgba(148, 163, 184, 0.1);
+    overflow: hidden;
+  }
+
+  .header-nav a {
+    min-width: 0;
+    justify-content: center;
+    text-align: center;
+    padding: 8px 6px !important;
+    border-radius: 10px !important;
+    font-size: 11px !important;
+    white-space: nowrap;
+  }
+
+  .status-badge {
+    grid-area: desk;
+    width: 100%;
+    justify-content: flex-start;
+    height: 22px;
+    padding: 0 10px;
+    border-radius: 999px;
+    font-size: 10px;
+  }
+
+  .header-spx {
+    grid-area: desk;
+    justify-self: end;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+    z-index: 1;
+  }
+
   .header-spx-price {
     font-size: 18px;
-    font-weight: 700;
+    font-weight: 800;
     color: white;
     font-family: var(--font-jetbrains-mono), monospace;
     line-height: 1;
   }
+
   .header-spx-meta {
-    font-size: 10px;
-    color: #64748b;
-    font-family: var(--font-jetbrains-mono), monospace;
+    display: none;
+  }
+
+  .hbtn {
+    display: none;
+  }
+
+  /* ── Mobile Desk simplification ───────────────── */
+
+  .chart-strip,
+  .session-bar {
+    display: none !important;
+  }
+
+  .chat {
+    padding-bottom: 0 !important;
   }
 
   .messages {
-    padding: 16px;
+    padding: 22px 16px 18px !important;
   }
 
-  /*
-   * Empty state: replace flex justify-content:center with padding-based
-   * vertical positioning. Center-flex overflow extends upward (above
-   * scroll-start=0) making content unreachable. Padding keeps it scrollable.
-   */
+  .msg-row.assistant {
+    max-width: 100%;
+  }
+
+  .msg-row.user {
+    max-width: 92%;
+  }
+
+  .msg-av {
+    display: none;
+  }
+
+  .msg-bubble {
+    font-size: 13px;
+    line-height: 1.72;
+    padding: 16px 16px;
+    border-radius: 16px;
+  }
+
+  .msg-bubble.desk {
+    width: 100%;
+    background:
+      radial-gradient(
+        circle at 0% 0%,
+        rgba(37, 99, 235, 0.09),
+        transparent 34%
+      ),
+      rgba(13, 18, 32, 0.92);
+    border: 1px solid rgba(148, 163, 184, 0.13);
+    box-shadow:
+      0 18px 42px rgba(0, 0, 0, 0.28),
+      inset 0 1px 0 rgba(255, 255, 255, 0.035);
+  }
+
+  .msg-sep {
+    margin: 12px 0;
+    background: rgba(148, 163, 184, 0.12);
+  }
+
   .empty {
     flex: unset;
     min-height: 100%;
     justify-content: flex-start;
-    padding: 48px 20px 40px;
+    padding: 78px 24px 140px;
   }
+
+  .empty-icon {
+    width: 58px;
+    height: 58px;
+    border-radius: 18px;
+  }
+
+  .empty-title {
+    font-size: 19px;
+    line-height: 1.25;
+  }
+
+  .empty-sub {
+    font-size: 13px;
+    line-height: 1.65;
+  }
+
+  /* ── Mobile quick actions / input ─────────────── */
 
   .quick-actions {
-    padding: 8px 12px 4px;
-    gap: 5px;
+    padding: 9px 12px 7px;
+    gap: 7px;
+    background: rgba(8, 13, 24, 0.96);
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
+    overflow-x: auto;
+    scrollbar-width: none;
   }
+
+  .quick-actions::-webkit-scrollbar {
+    display: none;
+  }
+
   .qa-pill {
     font-size: 11px;
-    padding: 5px 10px;
+    padding: 7px 12px;
+    border-radius: 999px;
   }
 
-  /*
-   * Safe-area-aware input bottom padding.
-   * Fallback 16px catches devices where env() returns 0 unexpectedly.
-   */
   .input-area {
-    padding: 6px 12px calc(8px + env(safe-area-inset-bottom, 16px));
-  }
-  .input-box {
-    font-size: 14px;
+    padding: 8px 12px calc(66px + env(safe-area-inset-bottom, 0px)) !important;
+    background: rgba(8, 13, 24, 0.98);
+    border-top: 1px solid rgba(148, 163, 184, 0.12);
   }
 
-  /* Bottom nav: height includes safe area so home bar doesn't overlap tabs */
+  .input-row {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .input-box {
+    min-height: 46px;
+    max-height: 92px;
+    border-radius: 14px;
+    font-size: 13px;
+    background: rgba(2, 6, 23, 0.72);
+    border-color: rgba(59, 130, 246, 0.32);
+  }
+
+  .send-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  }
+
+  .chart-btn {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+  }
+
+  /* ── Mobile bottom nav ───────────────────────── */
+
   .bottom-nav {
     display: flex;
-    height: calc(56px + env(safe-area-inset-bottom, 0px));
+    height: calc(58px + env(safe-area-inset-bottom, 0px));
     padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: rgba(5, 8, 15, 0.98) !important;
+    border-top: 1px solid rgba(148, 163, 184, 0.14) !important;
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
   }
 
-  /* Show sheets */
+  .bnav-item {
+    color: #64748b;
+    font-size: 10px;
+  }
+
+  .bnav-item.active {
+    color: #22d3ee;
+  }
+
+  .bnav-icon {
+    font-size: 19px;
+  }
+
+  /* ── Mobile sheets / command palette ─────────── */
+
   .sheet-overlay.open {
     display: block;
   }
+
   .sheet-panel.open {
     display: flex;
   }
 
-  /* Command palette — full-width on mobile, bottom of screen */
   .cmd-overlay {
     padding: 0;
     align-items: flex-end;
   }
+
   .cmd-panel {
     width: 100%;
     border-radius: 20px 20px 0 0;
   }
 
-  /* Analyzer grids — stack on mobile */
+  /* ── Analyzer mobile grids ───────────────────── */
+
   .analyzer-grid-2 {
     grid-template-columns: 1fr;
   }
+
   .analyzer-panels {
     grid-template-columns: 1fr;
   }
+
   .watchlist-grid {
     grid-template-columns: 1fr;
     align-items: start;
-  }
-
-  /*
-   * Push chat content above the fixed bottom nav.
-   * padding-bottom on .chat (overflow:hidden flex container) reserves
-   * space so .messages and the input area aren't hidden behind the nav.
-   */
-  .chat {
-    padding-bottom: calc(56px + env(safe-area-inset-bottom, 0px));
   }
 }
 

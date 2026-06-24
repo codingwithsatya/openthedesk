@@ -81,11 +81,7 @@ export default function Header({
       <header className="header" suppressHydrationWarning>
         <div className="header-left">
           <div className="logo-wrap">
-            <img
-              src="/logo.png"
-              alt="OpenTheDesk"
-              style={{ height: "56px", width: "auto", objectFit: "contain" }}
-            />
+            <img src="/logo.png" alt="OpenTheDesk" className="header-logo" />
           </div>
           <div className="divider-v" />
           {activePage === "desk" && (
@@ -115,13 +111,7 @@ export default function Header({
               )}
             </div>
           )}
-          <div
-            style={{
-              display: "flex",
-              gap: 2,
-              marginLeft: activePage === "desk" ? 8 : 0,
-            }}
-          >
+          <div className="header-nav">
             {navLink("/", "Desk", activePage === "desk")}
             {navLink("/analyzer", "Analyzer", activePage === "analyzer")}
             {navLink("/journal", "Journal", activePage === "journal")}

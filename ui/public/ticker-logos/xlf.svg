@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="XLF ticker icon">
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#334155" filter="url(#shadow)"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="1"/>
+  
+  <text x="32" y="39" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" font-weight="800" fill="#f8fafc">XLF</text>
+</svg>

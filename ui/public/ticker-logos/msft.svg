@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="MSFT ticker icon">
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#f8fafc" filter="url(#shadow)"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="1"/>
+  
+<rect x="14" y="14" width="15" height="15" rx="2" fill="#f25022"/>
+<rect x="35" y="14" width="15" height="15" rx="2" fill="#7fba00"/>
+<rect x="14" y="35" width="15" height="15" rx="2" fill="#00a4ef"/>
+<rect x="35" y="35" width="15" height="15" rx="2" fill="#ffb900"/>
+
+  
+</svg>

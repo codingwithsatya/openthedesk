@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="AAPL ticker icon">
+  <defs>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000000" flood-opacity="0.30"/>
+    </filter>
+  </defs>
+  <circle cx="32" cy="32" r="30" fill="#111827" filter="url(#shadow)"/>
+  <circle cx="32" cy="32" r="29" fill="none" stroke="#ffffff" stroke-opacity="0.16" stroke-width="1"/>
+  
+<path d="M36 14 C35 18, 32 21, 28 22 C28 18, 31 15, 36 14Z" fill="#f8fafc"/>
+<path d="M31 24 C36 20, 45 24, 45 34 C45 43, 39 52, 34 50 C31 49, 29 49, 26 50 C21 52, 15 43, 15 34 C15 24, 24 20, 29 24, 31 24Z" fill="#f8fafc"/>
+
+  
+</svg>
