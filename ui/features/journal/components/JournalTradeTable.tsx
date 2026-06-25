@@ -53,8 +53,10 @@ function pnlText(v: number | null) {
 
 function directionClass(direction: string) {
   const d = direction.toUpperCase();
-  if (d === "BULL" || d === "CALL" || d.includes("BULL")) return `${s.badge} ${s.badgeGreen}`;
-  if (d === "BEAR" || d === "PUT" || d.includes("BEAR")) return `${s.badge} ${s.badgeRed}`;
+  if (d === "BULL" || d === "CALL" || d.includes("BULL"))
+    return `${s.badge} ${s.badgeGreen}`;
+  if (d === "BEAR" || d === "PUT" || d.includes("BEAR"))
+    return `${s.badge} ${s.badgeRed}`;
   return `${s.badge} ${s.badgeBlue}`;
 }
 
@@ -89,6 +91,7 @@ export default function JournalTradeTable({
 
   return (
     <>
+      {/* Desktop table */}
       <div className={s.tableCard} onClick={() => setMenuId(null)}>
         <div className={s.header}>
           <span>Date</span>
@@ -117,12 +120,17 @@ export default function JournalTradeTable({
             const isOpen = e.status === "open" || e.pnl == null;
             const isWin = (e.pnl ?? 0) > 0;
             const pnlClass = isOpen ? s.mono : isWin ? s.pnlWin : s.pnlLoss;
-            const actions: string[] =
-              e.row_actions?.length
-                ? e.row_actions
-                : isOpen
-                  ? ["edit_trade", "close_trade", "delete_trade"]
-                  : ["view_review", "edit_notes", "rerun_review", "duplicate_trade", "delete_trade"];
+            const actions: string[] = e.row_actions?.length
+              ? e.row_actions
+              : isOpen
+                ? ["edit_trade", "close_trade", "delete_trade"]
+                : [
+                    "view_review",
+                    "edit_notes",
+                    "rerun_review",
+                    "duplicate_trade",
+                    "delete_trade",
+                  ];
 
             return (
               <div
@@ -176,7 +184,6 @@ export default function JournalTradeTable({
                   )}
                 </span>
 
-                {/* Comment/review icon */}
                 <span
                   className={s.comment}
                   title={e.process_review ?? "No review yet"}
@@ -184,12 +191,14 @@ export default function JournalTradeTable({
                     ev.stopPropagation();
                     if (e.process_review) onAction("view_review", e);
                   }}
-                  style={{ cursor: e.process_review ? "pointer" : "default", opacity: e.process_review ? 1 : 0.35 }}
+                  style={{
+                    cursor: e.process_review ? "pointer" : "default",
+                    opacity: e.process_review ? 1 : 0.35,
+                  }}
                 >
                   💬
                 </span>
 
-                {/* Three-dot menu */}
                 <span
                   className={s.more}
                   style={{ cursor: "pointer", position: "relative" }}
@@ -201,47 +210,15 @@ export default function JournalTradeTable({
                   ⋮
                   {menuId === e.id && (
                     <div
-                      style={{
-                        position: "absolute",
-                        right: 0,
-                        top: "100%",
-                        zIndex: 100,
-                        background: "#0d1828",
-                        border: "1px solid rgba(59,130,246,0.25)",
-                        borderRadius: 8,
-                        minWidth: 160,
-                        boxShadow: "0 8px 24px rgba(0,0,0,0.5)",
-                        overflow: "hidden",
-                      }}
+                      className={s.menu}
                       onClick={(ev) => ev.stopPropagation()}
                     >
                       {actions.map((action) => (
                         <button
                           key={action}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "9px 14px",
-                            background: "none",
-                            border: "none",
-                            borderBottom: "1px solid rgba(30,58,95,0.4)",
-                            color: action === "delete_trade" ? "#f87171" : "#94a3b8",
-                            fontSize: 12,
-                            textAlign: "left",
-                            cursor: "pointer",
-                            fontFamily: "var(--font-inter), sans-serif",
-                            fontWeight: 500,
-                          }}
-                          onMouseEnter={(ev) => {
-                            (ev.currentTarget as HTMLElement).style.background = "rgba(37,99,235,0.12)";
-                            if (action !== "delete_trade")
-                              (ev.currentTarget as HTMLElement).style.color = "#f1f5f9";
-                          }}
-                          onMouseLeave={(ev) => {
-                            (ev.currentTarget as HTMLElement).style.background = "none";
-                            (ev.currentTarget as HTMLElement).style.color =
-                              action === "delete_trade" ? "#f87171" : "#94a3b8";
-                          }}
+                          className={`${s.menuItem} ${
+                            action === "delete_trade" ? s.menuDanger : ""
+                          }`}
                           onClick={() => {
                             setMenuId(null);
                             onAction(action, e);
@@ -254,6 +231,130 @@ export default function JournalTradeTable({
                   )}
                 </span>
               </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Mobile cards */}
+      <div className={s.mobileCards} onClick={() => setMenuId(null)}>
+        {entries.length === 0 ? (
+          <div className={s.mobileEmpty}>No trades match this filter</div>
+        ) : (
+          entries.map((e) => {
+            const isBull =
+              e.direction?.toUpperCase().includes("BULL") ||
+              e.direction?.toUpperCase() === "CALL";
+            const isOpen = e.status === "open" || e.pnl == null;
+            const isWin = (e.pnl ?? 0) > 0;
+            const pnlClass = isOpen ? s.mono : isWin ? s.pnlWin : s.pnlLoss;
+            const actions: string[] = e.row_actions?.length
+              ? e.row_actions
+              : isOpen
+                ? ["edit_trade", "close_trade", "delete_trade"]
+                : [
+                    "view_review",
+                    "edit_notes",
+                    "rerun_review",
+                    "duplicate_trade",
+                    "delete_trade",
+                  ];
+
+            return (
+              <article
+                className={s.mobileCard}
+                key={`mobile-${e.id}`}
+                onClick={() => setMenuId(null)}
+              >
+                <div className={s.mobileTop}>
+                  <div>
+                    <div className={s.mobileSymbol}>
+                      {e.instrument || e.ticker || "SPX"}
+                    </div>
+                    <div className={s.mobileMeta}>
+                      {e.date.slice(5)} · {fmtTime(e.created_at)}
+                    </div>
+                  </div>
+
+                  <div className={s.mobileTopRight}>
+                    <span className={isBull ? s.bull : s.bear}>
+                      {isBull ? "Bull ↑" : "Bear ↓"}
+                    </span>
+
+                    <button
+                      type="button"
+                      className={s.mobileMore}
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        setMenuId(menuId === e.id ? null : e.id);
+                      }}
+                    >
+                      ⋮
+                    </button>
+
+                    {menuId === e.id && (
+                      <div
+                        className={`${s.menu} ${s.mobileMenu}`}
+                        onClick={(ev) => ev.stopPropagation()}
+                      >
+                        {actions.map((action) => (
+                          <button
+                            key={action}
+                            className={`${s.menuItem} ${
+                              action === "delete_trade" ? s.menuDanger : ""
+                            }`}
+                            onClick={() => {
+                              setMenuId(null);
+                              onAction(action, e);
+                            }}
+                          >
+                            {ACTION_LABELS[action] ?? action}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className={s.mobileSetupRow}>
+                  <span className={directionClass(e.direction)}>{e.setup}</span>
+                  <span className={pnlClass}>{pnlText(e.pnl)}</span>
+                </div>
+
+                <div className={s.mobileGrid}>
+                  <div>
+                    <span>Entry</span>
+                    <strong>
+                      {e.entry_price != null ? e.entry_price.toFixed(2) : "—"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Exit</span>
+                    <strong>
+                      {e.exit_price != null ? e.exit_price.toFixed(2) : "—"}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>R-Mult</span>
+                    <strong className={pnlClass}>
+                      {fmtRMult(e.r_multiple)}
+                    </strong>
+                  </div>
+
+                  <div>
+                    <span>Grade</span>
+                    <strong>{e.grade || "—"}</strong>
+                  </div>
+                </div>
+
+                {e.tags && (
+                  <div className={s.mobileTags}>
+                    <span className={s.tag}>{e.tags}</span>
+                  </div>
+                )}
+              </article>
             );
           })
         )}

@@ -77,3 +77,31 @@
     height: 170px;
   }
 }
+
+@media (max-width: 768px) {
+  .grid {
+    display: none;
+  }
+
+  .card {
+    border-radius: 13px;
+    padding: 13px 12px 12px;
+  }
+
+  .cardWide {
+    grid-row: auto;
+    min-height: 220px;
+  }
+
+  .chart,
+  .cardWide .chart {
+    height: 170px;
+  }
+}
+
+@media (max-width: 390px) {
+  .chart,
+  .cardWide .chart {
+    height: 150px;
+  }
+}

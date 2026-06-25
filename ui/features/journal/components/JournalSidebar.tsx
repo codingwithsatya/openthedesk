@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import s from "@/features/journal/styles/journalSidebar.module.css";
 
 interface JournalSidebarProps {
@@ -70,118 +71,153 @@ export default function JournalSidebar({
   statsView,
   onStatsViewChange,
 }: JournalSidebarProps) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
     <aside className={s.sidebar}>
-      <div className={s.title}>Journal</div>
-
-      <div className={s.sectionLabel}>This Month</div>
-      <SideItem
-        label="All trades"
-        count={entriesCount}
-        value="all"
-        active={sideFilter === "all"}
-        onClick={onSideFilterChange}
-      />
-      <SideItem
-        label="Winners"
-        count={wins}
-        value="winners"
-        active={sideFilter === "winners"}
-        onClick={onSideFilterChange}
-      />
-      <SideItem
-        label="Losers"
-        count={losses}
-        value="losers"
-        active={sideFilter === "losers"}
-        onClick={onSideFilterChange}
-      />
-
-      <div className={s.divider} />
-
-      <div className={s.sectionLabel}>By Setup</div>
-      {Object.keys(setupCounts).map((setup) => (
-        <SideItem
-          key={setup}
-          label={setup}
-          count={setupCounts[setup] ?? 0}
-          value={setup}
-          active={sideFilter === setup}
-          onClick={onSideFilterChange}
-        />
-      ))}
-
-      <div className={s.divider} />
-
-      <div className={s.sectionLabel}>Filters</div>
-      <select
-        className={s.sideSelect}
-        value={instrumentFilter}
-        onChange={(e) => onInstrumentFilterChange(e.target.value)}
+      <button
+        type="button"
+        className={s.mobileToggle}
+        onClick={() => setMobileOpen((v) => !v)}
+        aria-expanded={mobileOpen}
       >
-        <option value="">All instruments</option>
-        {instruments.map((t) => (
-          <option key={t} value={t}>{t}</option>
-        ))}
-      </select>
-      <select
-        className={s.sideSelect}
-        value={directionFilter}
-        onChange={(e) => onDirectionFilterChange(e.target.value)}
-      >
-        <option value="">All directions</option>
-        <option value="CALL">Bull</option>
-        <option value="PUT">Bear</option>
-      </select>
-      <input
-        type="text"
-        className={s.sideInput}
-        placeholder="All tags"
-        value={tagFilter}
-        onChange={(e) => onTagFilterChange(e.target.value)}
-      />
+        <span className={s.mobileToggleLeft}>
+          <span className={s.filterIcon} aria-hidden="true">
+            <span />
+          </span>
+          <span>Filters</span>
+          <span className={s.mobileCount}>{entriesCount}</span>
+        </span>
+        <span
+          className={`${s.chevron} ${mobileOpen ? s.chevronOpen : ""}`}
+          aria-hidden="true"
+        />
+      </button>
 
-      <div className={s.sectionLabel}>Date Range</div>
-      <div className={s.dateRow}>
-        <input
-          type="date"
-          className={s.sideInput}
-          value={dateFrom}
-          onChange={(e) => onDateFromChange(e.target.value)}
-        />
-        <input
-          type="date"
-          className={s.sideInput}
-          value={dateTo}
-          onChange={(e) => onDateToChange(e.target.value)}
-        />
+      <div className={`${s.sidebarBody} ${mobileOpen ? s.mobileBodyOpen : ""}`}>
+        <div className={s.title}>Journal</div>
+
+        <div className={s.sectionLabel}>This Month</div>
+        <div className={s.mobileInlineGrid}>
+          <SideItem
+            label="All trades"
+            count={entriesCount}
+            value="all"
+            active={sideFilter === "all"}
+            onClick={onSideFilterChange}
+          />
+          <SideItem
+            label="Winners"
+            count={wins}
+            value="winners"
+            active={sideFilter === "winners"}
+            onClick={onSideFilterChange}
+          />
+          <SideItem
+            label="Losers"
+            count={losses}
+            value="losers"
+            active={sideFilter === "losers"}
+            onClick={onSideFilterChange}
+          />
+        </div>
+
+        <div className={s.divider} />
+
+        <div className={s.sectionLabel}>By Setup</div>
+        <div className={s.mobileSetupGrid}>
+          {Object.keys(setupCounts).map((setup) => (
+            <SideItem
+              key={setup}
+              label={setup}
+              count={setupCounts[setup] ?? 0}
+              value={setup}
+              active={sideFilter === setup}
+              onClick={onSideFilterChange}
+            />
+          ))}
+        </div>
+
+        <div className={s.divider} />
+
+        <div className={s.sectionLabel}>Filters</div>
+        <div className={s.mobileFormGrid}>
+          <select
+            className={s.sideSelect}
+            value={instrumentFilter}
+            onChange={(e) => onInstrumentFilterChange(e.target.value)}
+          >
+            <option value="">All instruments</option>
+            {instruments.map((t) => (
+              <option key={t} value={t}>
+                {t}
+              </option>
+            ))}
+          </select>
+
+          <select
+            className={s.sideSelect}
+            value={directionFilter}
+            onChange={(e) => onDirectionFilterChange(e.target.value)}
+          >
+            <option value="">All directions</option>
+            <option value="CALL">Bull</option>
+            <option value="PUT">Bear</option>
+          </select>
+
+          <input
+            type="text"
+            className={s.sideInput}
+            placeholder="All tags"
+            value={tagFilter}
+            onChange={(e) => onTagFilterChange(e.target.value)}
+          />
+        </div>
+
+        <div className={s.sectionLabel}>Date Range</div>
+        <div className={s.dateRow}>
+          <input
+            type="date"
+            className={s.sideInput}
+            value={dateFrom}
+            onChange={(e) => onDateFromChange(e.target.value)}
+          />
+          <input
+            type="date"
+            className={s.sideInput}
+            value={dateTo}
+            onChange={(e) => onDateToChange(e.target.value)}
+          />
+        </div>
+
+        <div className={s.sectionLabel}>Stats View</div>
+        <div className={s.mobileInlineGrid}>
+          <button
+            type="button"
+            className={`${s.sideItem} ${statsView === "day" ? s.sideItemActive : ""}`}
+            onClick={() => onStatsViewChange("day")}
+          >
+            <span>By day</span>
+          </button>
+          <button
+            type="button"
+            className={`${s.sideItem} ${statsView === "trade" ? s.sideItemActive : ""}`}
+            onClick={() => onStatsViewChange("trade")}
+          >
+            <span>By trade</span>
+          </button>
+        </div>
+
+        <div className={s.spacer} />
+
+        <button
+          type="button"
+          className={s.logButton}
+          onClick={() => alert("Trade entry form coming soon")}
+        >
+          + Log a trade
+        </button>
       </div>
-
-      <div className={s.sectionLabel}>Stats View</div>
-      <button
-        type="button"
-        className={`${s.sideItem} ${statsView === "day" ? s.sideItemActive : ""}`}
-        onClick={() => onStatsViewChange("day")}
-      >
-        <span>By day</span>
-      </button>
-      <button
-        type="button"
-        className={`${s.sideItem} ${statsView === "trade" ? s.sideItemActive : ""}`}
-        onClick={() => onStatsViewChange("trade")}
-      >
-        <span>By trade</span>
-      </button>
-
-      <div className={s.spacer} />
-
-      <button
-        type="button"
-        className={s.logButton}
-        onClick={() => alert("Trade entry form coming soon")}
-      >
-        + Log a trade
-      </button>
     </aside>
   );
 }
