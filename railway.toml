@@ -1,0 +1,2 @@
+[deploy]
+startCommand = "/opt/venv/bin/python backend/main.py"
