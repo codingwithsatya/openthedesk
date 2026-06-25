@@ -1,0 +1,142 @@
+.page {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: #090e1a;
+}
+
+.shell {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scrollBody {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 20px 64px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.desktopChartsOnly {
+  display: block;
+}
+
+.challengeStrip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 16px;
+  background: #0a1628;
+  border-bottom: 1px solid #1e3a5f;
+  flex-shrink: 0;
+}
+
+.challengeStrip,
+.challengeStrip a {
+  font-size: 11px;
+  color: #60a5fa;
+  text-decoration: none;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.challengeStrip span {
+  color: #22d3ee;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-weight: 600;
+}
+
+.challengeStrip strong {
+  color: #4ade80;
+}
+
+.challengeStrip em {
+  color: #94a3b8;
+  font-style: normal;
+}
+
+.chatBar {
+  position: sticky;
+  bottom: 0;
+  border-top: 1px solid #1e3a5f;
+  background: #0d1320;
+  padding: 10px 16px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+@media (max-width: 768px) {
+  .page {
+    height: 100dvh;
+    overflow: hidden;
+  }
+
+  .shell {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .content {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .main {
+    flex: 1;
+    min-height: 0;
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .scrollBody {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 14px 0 96px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .desktopChartsOnly {
+    display: none;
+  }
+
+  .challengeStrip {
+    margin: 0;
+    padding: 7px 12px;
+  }
+
+  .chatBar {
+    display: none;
+  }
+}

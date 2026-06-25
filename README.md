@@ -109,16 +109,17 @@ Click PREMARKET button
 
 ```
 openthedesk/
-├── main.py              # FastAPI backend
-│   ├── POST /chat           # Main conversation endpoint
-│   ├── POST /analyze-chart  # Chart vision analysis (streaming)
-│   ├── POST /premarket      # PREMARKET with live data (streaming)
-│   ├── GET  /market-data    # Live SPX + VIX + ATR levels
-│   ├── POST /refresh-context # Re-fetch Google Doc
-│   └── DELETE /session/{id}  # Clear conversation history
+├── backend/             # FastAPI backend
+│   ├── main.py          # App entry point — registers routers, startup hook
+│   └── app/
+│       ├── core/        # config, clients, auth, state, utils, lifecycle
+│       ├── models/      # Pydantic models (chat, journal, challenge, analyzer)
+│       ├── services/    # Business logic (chat, journal, challenge, market)
+│       └── routers/     # Route handlers (health, desk, analyzer, webhook, challenge, journal)
 ├── context.py           # Google Doc fetcher with retry
 ├── market_data.py       # Tradier SPX/VIX + ATR calculator
 ├── tradier.py           # Tradier API — quotes, 0DTE chain, snapshot
+├── analyzer.py          # Ticker analysis (yfinance + Saty indicators)
 ├── requirements.txt
 ├── nixpacks.toml        # Railway deployment config
 ├── .env                 # API keys (not committed)
@@ -127,8 +128,6 @@ openthedesk/
 │   │   └── page.tsx     # Dashboard — shortcuts + levels panel + chat
 │   └── vercel.json
 └── legacy/              # Archived files (not in active use)
-    ├── agent.py         # Original CLI agent (pre-FastAPI)
-    └── index.html       # Prototype HTML UI
 ```
 
 ---
@@ -146,7 +145,7 @@ pip install -r requirements.txt
 # ANTHROPIC_API_KEY=...
 # GOOGLE_DOC_ID=your_google_doc_id
 
-uvicorn main:app --reload
+uvicorn backend.main:app --reload
 # Runs on http://localhost:8000
 ```
 

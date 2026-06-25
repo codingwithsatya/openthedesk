@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 240" preserveAspectRatio="xMaxYMin slice">
+  <defs>
+    <radialGradient id="skyGlow" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse"
+      gradientTransform="translate(650 40) rotate(120) scale(360 210)">
+      <stop offset="0" stop-color="#2D8CFF" stop-opacity="0.35" />
+      <stop offset="0.45" stop-color="#1B4FFF" stop-opacity="0.14" />
+      <stop offset="1" stop-color="#06111F" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="ridgeMain" x1="385" y1="92" x2="650" y2="226" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2F7DFF" />
+      <stop offset="0.45" stop-color="#163E98" />
+      <stop offset="1" stop-color="#07111F" />
+    </linearGradient>
+    <linearGradient id="ridgeDark" x1="570" y1="70" x2="780" y2="215" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173B8F" />
+      <stop offset="1" stop-color="#030B16" />
+    </linearGradient>
+    <linearGradient id="ridgeLeft" x1="315" y1="150" x2="535" y2="230" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#10264E" stop-opacity="0.25" />
+      <stop offset="0.45" stop-color="#1F5DDB" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#06111F" />
+    </linearGradient>
+    <linearGradient id="pathGlow" x1="410" y1="160" x2="675" y2="45" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2E6BFF" stop-opacity="0" />
+      <stop offset="0.35" stop-color="#3F8CFF" />
+      <stop offset="0.72" stop-color="#7CC7FF" />
+      <stop offset="1" stop-color="#FFFFFF" />
+    </linearGradient>
+    <filter id="softGlow" x="-60" y="-60" width="1020" height="360" filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="strongGlow" x="-80" y="-80" width="1060" height="400" filterUnits="userSpaceOnUse"
+      color-interpolation-filters="sRGB">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feColorMatrix type="matrix" values="0 0 0 0 0.12  0 0 0 0 0.48  0 0 0 0 1  0 0 0 0.8 0" />
+      <feMerge>
+        <feMergeNode />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <linearGradient id="fadeSides" x1="0" y1="120" x2="900" y2="120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F" stop-opacity="0" />
+      <stop offset="0.22" stop-color="#07111F" stop-opacity="0.4" />
+      <stop offset="0.78" stop-color="#07111F" stop-opacity="0.4" />
+      <stop offset="1" stop-color="#07111F" stop-opacity="0" />
+    </linearGradient>
+  </defs>
+  <rect width="900" height="240" fill="url(#skyGlow)" />
+  <path d="M100 198 C220 176 280 208 390 176 C505 141 574 174 662 128 C746 84 809 111 880 70"
+    stroke="#1C55CC" stroke-opacity="0.16" stroke-width="2" fill="none" />
+  <path d="M120 210 C240 192 320 218 440 186 C548 158 610 184 720 132 C798 95 845 100 890 86"
+    stroke="#6DB5FF" stroke-opacity="0.10" stroke-width="1.5" fill="none" />
+  <path d="M252 211 L360 162 L438 171 L525 89 L590 115 L650 40 L724 122 L785 102 L875 213 Z"
+    fill="#041021" opacity="0.88" />
+  <path d="M300 211 L438 171 L525 89 L548 211 Z" fill="url(#ridgeLeft)" opacity="0.92" />
+  <path d="M390 211 L525 89 L650 40 L600 211 Z" fill="url(#ridgeMain)" opacity="0.96" />
+  <path d="M590 211 L650 40 L724 122 L875 213 Z" fill="url(#ridgeDark)" opacity="0.96" />
+  <path d="M525 89 L563 118 L482 205 L438 171 Z" fill="#2F74FF" opacity="0.36" />
+  <path d="M563 118 L650 40 L600 211 L482 205 Z" fill="#0E2B73" opacity="0.8" />
+  <path d="M650 40 L622 112 L600 211 L724 122 Z" fill="#2C6CEB" opacity="0.46" />
+  <path d="M622 112 L724 122 L775 188 L600 211 Z" fill="#071B4B" opacity="0.88" />
+  <path d="M650 40 L724 122 L688 80 Z" fill="#6DB5FF" opacity="0.26" />
+  <path d="M380 178 C435 155 448 138 493 132 C535 126 548 91 588 90 C615 88 626 61 650 40"
+    fill="none" stroke="url(#pathGlow)" stroke-width="3.2" stroke-linecap="round" filter="url(#strongGlow)" />
+  <path d="M380 178 C435 155 448 138 493 132 C535 126 548 91 588 90 C615 88 626 61 650 40"
+    fill="none" stroke="#BFE6FF" stroke-opacity="0.86" stroke-width="1.15" stroke-linecap="round" />
+  <g filter="url(#softGlow)">
+    <circle cx="420" cy="160" r="4" fill="#5DAEFF" />
+    <circle cx="493" cy="132" r="4.5" fill="#76C8FF" />
+    <circle cx="588" cy="90" r="4.8" fill="#A5E2FF" />
+    <circle cx="650" cy="40" r="5.2" fill="#FFFFFF" />
+  </g>
+  <path d="M653 42 V20" stroke="#BFE6FF" stroke-width="2" stroke-linecap="round" fill="none"
+    filter="url(#softGlow)" />
+  <path d="M655 21 C668 17 676 25 689 21 V37 C676 42 668 33 655 37 V21Z" fill="#5DAEFF"
+    filter="url(#softGlow)" />
+  <path d="M655 21 C668 17 676 25 689 21" fill="none" stroke="#CDEBFF" stroke-opacity="0.6" stroke-width="1" />
+  <rect y="180" width="900" height="60" fill="url(#fadeSides)" opacity="0.55" />
+</svg>

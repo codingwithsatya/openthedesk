@@ -1,0 +1,15 @@
+.workspace {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-card);
+  border-right: 1px solid rgba(59, 130, 246, 0.14);
+}
+
+.chatWrapper {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}

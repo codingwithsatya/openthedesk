@@ -1,0 +1,661 @@
+.fullAnalysisPanel {
+  width: 100%;
+  max-width: 1680px;
+  margin: 0 auto 36px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  background:
+    radial-gradient(circle at 16% 0%, rgba(37, 99, 235, 0.16), transparent 32%),
+    radial-gradient(
+      circle at 86% 0%,
+      rgba(126, 34, 206, 0.18),
+      transparent 34%
+    ),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.96), rgba(2, 6, 23, 0.98));
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.34),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.fullAnalysisPanel.ribbonBullish {
+  border-top: 2px solid rgba(74, 222, 128, 0.42);
+}
+
+.fullAnalysisPanel.ribbonBearish {
+  border-top: 2px solid rgba(248, 113, 113, 0.42);
+}
+
+.fullAnalysisPanel.ribbonMixed {
+  border-top: 2px solid rgba(251, 191, 36, 0.34);
+}
+
+.topBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.42);
+}
+
+.eyebrow {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #a855f7;
+}
+
+.decisionTitle {
+  margin-top: 4px;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 18px;
+  font-weight: 850;
+  color: #e2e8f0;
+}
+
+.backButton {
+  padding: 9px 14px;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background: rgba(255, 255, 255, 0.055);
+  color: #dbeafe;
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.backButton:hover {
+  background: rgba(255, 255, 255, 0.085);
+  border-color: rgba(148, 163, 184, 0.36);
+}
+
+.heroHeader {
+  padding: 28px;
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  gap: 24px;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.badgeRow {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.marketBadge,
+.ribbonBadge,
+.optionsBadge {
+  padding: 5px 12px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.marketBadge {
+  background: rgba(96, 165, 250, 0.12);
+  border: 1px solid rgba(96, 165, 250, 0.22);
+  color: #93c5fd;
+}
+
+.ribbonBadge.ribbonBullish {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.28);
+  color: #4ade80;
+}
+
+.ribbonBadge.ribbonBearish {
+  background: rgba(248, 113, 113, 0.12);
+  border: 1px solid rgba(248, 113, 113, 0.28);
+  color: #f87171;
+}
+
+.ribbonBadge.ribbonMixed {
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid rgba(251, 191, 36, 0.26);
+  color: #fbbf24;
+}
+
+.optionsAvailable {
+  background: rgba(34, 211, 238, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  color: #22d3ee;
+}
+
+.optionsUnavailable {
+  background: rgba(100, 116, 139, 0.1);
+  border: 1px solid rgba(100, 116, 139, 0.18);
+  color: #94a3b8;
+}
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.ticker {
+  margin: 0;
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 42px;
+  line-height: 1;
+  font-weight: 950;
+  color: #f8fafc;
+  letter-spacing: -0.04em;
+}
+
+.currentPrice {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 30px;
+  font-weight: 900;
+  color: #e2e8f0;
+}
+
+.changePct {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.heroSubtext {
+  margin-top: 10px;
+  max-width: 720px;
+  color: #64748b;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.heroMetrics {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.metricPill {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 23, 42, 0.64);
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  min-width: 112px;
+}
+
+.metricLabel {
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.metricValue {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 14px;
+  font-weight: 900;
+  color: #cbd5e1;
+}
+
+.levelsStrip {
+  padding: 14px 28px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.54);
+}
+
+.levelsTitle {
+  font-size: 10px;
+  font-weight: 950;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  margin-right: 4px;
+}
+
+.levelPill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: 13px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.11);
+}
+
+.levelNow {
+  background: rgba(34, 211, 238, 0.1);
+  border-color: rgba(34, 211, 238, 0.24);
+}
+
+.levelNear {
+  background: rgba(253, 224, 71, 0.08);
+  border-color: rgba(253, 224, 71, 0.24);
+}
+
+.levelLabel {
+  font-size: 10px;
+  color: #64748b;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.levelValue {
+  font-family: var(--font-jetbrains-mono), monospace;
+  font-size: 13px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.panelGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 18px;
+  padding: 22px;
+  background: #050816;
+  align-items: stretch;
+}
+
+.analysisCard {
+  min-height: 620px;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow:
+    0 20px 50px rgba(0, 0, 0, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.optionsCard {
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(59, 130, 246, 0.22), transparent 36%),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(8, 13, 24, 0.98));
+}
+
+.stockCard {
+  border: 1px solid rgba(192, 132, 252, 0.18);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(168, 85, 247, 0.24), transparent 38%),
+    linear-gradient(180deg, rgba(30, 14, 54, 0.82), rgba(10, 8, 20, 0.98));
+}
+
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding-bottom: 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.cardIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.cardIconBlue {
+  border: 1px solid rgba(96, 165, 250, 0.36);
+  background: rgba(37, 99, 235, 0.16);
+  box-shadow: 0 0 28px rgba(37, 99, 235, 0.18);
+}
+
+.cardIconPurple {
+  border: 1px solid rgba(192, 132, 252, 0.36);
+  background: rgba(126, 34, 206, 0.16);
+  box-shadow: 0 0 28px rgba(126, 34, 206, 0.18);
+}
+
+.cardTitleBlock {
+  flex: 1;
+  min-width: 0;
+}
+
+.cardTitleBlue,
+.cardTitlePurple {
+  font-size: 14px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+.cardTitleBlue {
+  color: #93c5fd;
+}
+
+.cardTitlePurple {
+  color: #d8b4fe;
+}
+
+.cardSubtitle {
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.modelBadge {
+  padding: 4px 9px;
+  border-radius: 8px;
+  font-size: 10px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+}
+
+.modelBadgeBlue {
+  background: rgba(29, 78, 216, 0.24);
+  color: #60a5fa;
+  border: 1px solid rgba(96, 165, 250, 0.28);
+}
+
+.modelBadgePurple {
+  background: rgba(126, 34, 206, 0.24);
+  color: #c084fc;
+  border: 1px solid rgba(192, 132, 252, 0.28);
+}
+
+.analysisText {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  font-family: var(--font-inter), sans-serif;
+}
+
+.emptyLine {
+  height: 2px;
+}
+
+.dividerLine {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.07);
+  margin: 8px 0;
+}
+
+.sectionTitle {
+  margin-top: 14px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.sectionTitle:first-child {
+  margin-top: 0;
+}
+
+.sectionTitleBlue {
+  background: rgba(37, 99, 235, 0.1);
+  border: 1px solid rgba(96, 165, 250, 0.18);
+  color: #60a5fa;
+}
+
+.sectionTitlePurple {
+  background: rgba(126, 34, 206, 0.12);
+  border: 1px solid rgba(192, 132, 252, 0.18);
+  color: #c084fc;
+}
+
+.structuredRow {
+  display: grid;
+  grid-template-columns: 28px minmax(112px, 0.32fr) 1fr;
+  gap: 10px;
+  align-items: start;
+  padding: 10px 11px;
+  border-radius: 12px;
+  background: rgba(2, 6, 23, 0.38);
+  border: 1px solid rgba(148, 163, 184, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.022);
+}
+
+.rowIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+}
+
+.rowLabel {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  line-height: 1.45;
+  padding-top: 3px;
+}
+
+.rowValue {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.55;
+  padding-top: 1px;
+}
+
+.bodyLine {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.035);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: #a8b3c7;
+  font-size: 13px;
+  line-height: 1.65;
+}
+
+.introLine {
+  background: rgba(15, 23, 42, 0.72);
+  border-color: rgba(96, 165, 250, 0.14);
+  color: #e2e8f0;
+  font-weight: 850;
+}
+
+.strongText {
+  color: #f8fafc;
+  font-weight: 900;
+}
+
+.priceText {
+  color: #22d3ee;
+  font-weight: 800;
+}
+
+.fundamentalsStrip {
+  padding: 17px 28px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(2, 6, 23, 0.62);
+}
+
+.fundamentalItem {
+  padding: 10px 12px;
+  border-radius: 13px;
+  background: rgba(15, 23, 42, 0.58);
+  border: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.fundamentalLabel {
+  font-size: 10px;
+  font-weight: 900;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 5px;
+}
+
+.fundamentalValue {
+  font-size: 12px;
+  font-weight: 800;
+  color: #cbd5e1;
+  font-family: var(--font-jetbrains-mono), monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.emaStrip {
+  padding: 12px 28px 16px;
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(2, 6, 23, 0.78);
+}
+
+.emaItem {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.emaLabel {
+  font-size: 10px;
+  color: #334155;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.emaValue {
+  font-size: 12px;
+  font-weight: 800;
+  color: #64748b;
+  font-family: var(--font-jetbrains-mono), monospace;
+}
+
+.toneGreen {
+  color: #4ade80;
+}
+
+.toneSoftGreen {
+  color: #86efac;
+}
+
+.toneRed {
+  color: #f87171;
+}
+
+.toneSoftRed {
+  color: #fca5a5;
+}
+
+.toneYellow {
+  color: #fbbf24;
+}
+
+.toneBlue {
+  color: #22d3ee;
+}
+
+.toneDefault {
+  color: #cbd5e1;
+}
+
+@media (max-width: 1100px) {
+  .heroHeader {
+    grid-template-columns: 1fr;
+  }
+
+  .heroMetrics {
+    justify-content: flex-start;
+  }
+
+  .panelGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysisCard {
+    min-height: 560px;
+  }
+}
+
+@media (max-width: 720px) {
+  .topBar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .backButton {
+    width: 100%;
+  }
+
+  .heroHeader {
+    padding: 20px;
+  }
+
+  .ticker {
+    font-size: 32px;
+  }
+
+  .currentPrice {
+    font-size: 24px;
+  }
+
+  .levelsStrip {
+    padding: 12px 20px;
+  }
+
+  .panelGrid {
+    padding: 14px;
+  }
+
+  .analysisCard {
+    padding: 16px;
+  }
+
+  .cardHeader {
+    align-items: flex-start;
+  }
+
+  .modelBadge {
+    display: none;
+  }
+
+  .structuredRow {
+    grid-template-columns: 26px 1fr;
+  }
+
+  .rowLabel {
+    grid-column: 2;
+  }
+
+  .rowValue {
+    grid-column: 1 / -1;
+    padding-top: 0;
+  }
+
+  .fundamentalsStrip {
+    padding: 14px 20px;
+  }
+
+  .emaStrip {
+    padding: 12px 20px 16px;
+  }
+}

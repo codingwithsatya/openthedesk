@@ -361,7 +361,11 @@ export default function SignalStream({
 
       <div className="ss-body">
         {alerts.length === 0 ? (
-          <div className="ss-empty">Waiting for signals...</div>
+          <div className="ss-empty">
+            <div className="ss-empty-icon">📡</div>
+            <div className="ss-empty-title">Waiting for signals</div>
+            <div className="ss-empty-sub">TradingView alerts appear here — entries, targets, and stops.</div>
+          </div>
         ) : (
           alerts.slice(0, 8).map((alert) => {
             const alertKey =

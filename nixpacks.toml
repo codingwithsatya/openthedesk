@@ -2,4 +2,4 @@
 cmds = []
 
 [start]
-cmd = "/opt/venv/bin/python main.py"
+cmd = "/opt/venv/bin/python backend/main.py"

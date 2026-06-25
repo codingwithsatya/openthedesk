@@ -157,7 +157,7 @@ export function useAlerts() {
       } catch {}
     };
     run();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Debounced sync — fires 2s after the last markRead/markAllRead call
@@ -286,11 +286,25 @@ function AlertCard({
       style={{
         display: "flex",
         alignItems: "stretch",
-        borderBottom: "0.5px solid #1a2744",
+        width: "100%",
         cursor: "pointer",
         background: bg,
-        transition: "background 0.15s",
-        width: "100%",
+        border: `1px solid ${
+          dir === "BEAR" || setup === "STOP"
+            ? "rgba(239, 68, 68, 0.35)"
+            : dir === "BULL"
+              ? "rgba(34, 197, 94, 0.35)"
+              : setup === "TARGET"
+                ? "rgba(245, 158, 11, 0.35)"
+                : "rgba(59, 130, 246, 0.18)"
+        }`,
+        borderRadius: 12,
+        overflow: "hidden",
+        marginBottom: 10,
+        boxShadow: isUnread ? "0 14px 34px rgba(0,0,0,0.28)" : "none",
+        opacity: isUnread ? 1 : 0.78,
+        transition:
+          "background 0.15s ease, border-color 0.15s ease, opacity 0.15s ease",
       }}
     >
       {/* Accent bar */}
@@ -317,7 +331,7 @@ function AlertCard({
           flex: 1,
           display: "flex",
           flexDirection: "column",
-          padding: isUnread ? "10px 14px" : "8px 14px",
+          padding: "12px 14px 13px",
           minWidth: 0,
           overflow: "hidden",
         }}
@@ -469,108 +483,112 @@ function AlertCard({
           </span>
         </div>
 
-        {/* Price row — hidden for read alerts */}
-        {isUnread && (
-          <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+        {/* Price row */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "baseline",
+            gap: 8,
+            marginTop: 2,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: "#f1f5f9",
+              fontFamily: "var(--font-mono, monospace)",
+              letterSpacing: "-0.3px",
+              flexShrink: 0,
+            }}
+          >
+            {Number(alert.price).toLocaleString("en-US", {
+              minimumFractionDigits: 2,
+              maximumFractionDigits: 2,
+            })}
+          </span>
+          {alert.atr_level && !alert.atr_level.includes("%") && (
             <span
               style={{
-                fontSize: 16,
-                fontWeight: 600,
-                color: "#f1f5f9",
-                fontFamily: "var(--font-mono, monospace)",
-                letterSpacing: "-0.3px",
-                flexShrink: 0,
+                fontSize: 11,
+                color: "#60a5fa",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
               }}
             >
-              {Number(alert.price).toLocaleString("en-US", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
+              → {formatAtrLevel(alert.atr_level)}
             </span>
-            {alert.atr_level && !alert.atr_level.includes("%") && (
+          )}
+        </div>
+
+        {/* Market internals row — unread only, when data present */}
+        {(alert.trin != null || alert.add != null || alert.vold != null) && (
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              marginTop: 4,
+              alignItems: "center",
+            }}
+          >
+            {alert.trin != null && (
               <span
                 style={{
-                  fontSize: 11,
-                  color: "#60a5fa",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono, monospace)",
+                  color:
+                    alert.trin > 1.2
+                      ? "#f87171"
+                      : alert.trin < 0.8
+                        ? "#4ade80"
+                        : "#94a3b8",
                 }}
               >
-                → {formatAtrLevel(alert.atr_level)}
+                TRIN {alert.trin.toFixed(2)}
+              </span>
+            )}
+            {alert.add != null && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono, monospace)",
+                  color:
+                    alert.add > 200
+                      ? "#4ade80"
+                      : alert.add < -200
+                        ? "#f87171"
+                        : "#94a3b8",
+                }}
+              >
+                ADD {alert.add > 0 ? "+" : ""}
+                {alert.add}
+              </span>
+            )}
+            {alert.vold != null && (
+              <span
+                style={{
+                  fontSize: 10,
+                  fontFamily: "var(--font-mono, monospace)",
+                  color: "#94a3b8",
+                }}
+              >
+                VOLD {alert.vold.toFixed(2)}
               </span>
             )}
           </div>
         )}
 
-        {/* Market internals row — unread only, when data present */}
-        {isUnread &&
-          (alert.trin != null || alert.add != null || alert.vold != null) && (
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                marginTop: 4,
-                alignItems: "center",
-              }}
-            >
-              {alert.trin != null && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: "var(--font-mono, monospace)",
-                    color:
-                      alert.trin > 1.2
-                        ? "#f87171"
-                        : alert.trin < 0.8
-                          ? "#4ade80"
-                          : "#94a3b8",
-                  }}
-                >
-                  TRIN {alert.trin.toFixed(2)}
-                </span>
-              )}
-              {alert.add != null && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: "var(--font-mono, monospace)",
-                    color:
-                      alert.add > 200
-                        ? "#4ade80"
-                        : alert.add < -200
-                          ? "#f87171"
-                          : "#94a3b8",
-                  }}
-                >
-                  ADD {alert.add > 0 ? "+" : ""}
-                  {alert.add}
-                </span>
-              )}
-              {alert.vold != null && (
-                <span
-                  style={{
-                    fontSize: 10,
-                    fontFamily: "var(--font-mono, monospace)",
-                    color: "#94a3b8",
-                  }}
-                >
-                  VOLD {alert.vold.toFixed(2)}
-                </span>
-              )}
-            </div>
-          )}
-
-        {/* Trade plan — unread ENTRY alerts only */}
-        {isUnread && alert.trade_plan && (
+        {/* Trade plan */}
+        {alert.trade_plan && (
           <div
             style={{
-              marginTop: 8,
-              padding: "8px 10px",
-              background: "#0f172a",
-              borderRadius: 6,
+              marginTop: 10,
+              padding: "10px 12px",
+              background: "rgba(15, 23, 42, 0.82)",
+              borderRadius: 10,
               border: "1px solid #1e293b",
-              fontSize: 11,
+              fontSize: 13,
               fontFamily: "monospace",
             }}
           >
@@ -578,7 +596,7 @@ function AlertCard({
               style={{
                 color: "#64748b",
                 marginBottom: 6,
-                fontSize: 10,
+                fontSize: 14,
                 letterSpacing: 1,
               }}
             >
@@ -587,11 +605,11 @@ function AlertCard({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "44px 1fr 52px",
+                gridTemplateColumns: "52px minmax(0, 1fr) 64px",
                 rowGap: 4,
               }}
             >
-              <span style={{ color: "#64748b" }}>ENTRY</span>
+              <span style={{ color: "#64748b", fontWeight: 800 }}>ENTRY</span>
               <span style={{ color: "#f1f5f9", fontWeight: 600 }}>
                 {alert.trade_plan.entry.toFixed(2)}
               </span>
@@ -642,8 +660,7 @@ function AlertCard({
         )}
 
         {/* Internals snapshot — unread only, sourced from alert.internals */}
-        {isUnread &&
-          alert.internals &&
+        {alert.internals &&
           (alert.internals.trin != null ||
             alert.internals.add != null ||
             alert.internals.vold != null) && (
