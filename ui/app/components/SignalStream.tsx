@@ -1,11 +1,11 @@
 "use client";
-import { useState } from "react";
+
+import { useEffect, useState } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { TVAlert } from "./AlertPanel";
 
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-const GRADES = ["A+", "A", "B", "C"] as const;
-type Grade = (typeof GRADES)[number];
+
 type CardState = "idle" | "form" | "submitting" | "logged" | "skipped";
 
 interface SignalStreamProps {
@@ -19,12 +19,17 @@ function formatRelative(ts: string): string {
     0,
     Math.floor((Date.now() - new Date(ts).getTime()) / 1000),
   );
+
   if (diffSec < 60) return `${diffSec}s`;
   const m = Math.floor(diffSec / 60);
   if (m < 60) return `${m}m`;
   const h = Math.floor(m / 60);
   if (h < 24) return `${h}h`;
   return `${Math.floor(h / 24)}d`;
+}
+
+function getAlertKey(alert: TVAlert) {
+  return alert.id || `${alert.ts}-${alert.price}-${alert.signal}`;
 }
 
 function SignalCard({
@@ -51,11 +56,13 @@ function SignalCard({
   const dir = (alert.direction ?? "").toUpperCase();
   const sig = (alert.signal ?? "").toUpperCase();
   const setup = (alert.setup ?? "").toUpperCase();
+  const tp = alert.trade_plan;
+
+  const isBear = dir === "BEAR" || setup === "STOP" || sig === "STOP";
+  const isBull = dir === "BULL";
+  const isUpdate = sig === "EXIT" || sig === "TRAIL" || sig === "TARGET";
   const isEntry = sig === "ENTRY";
 
-  // Only allow Took/Skip on ENTRY alerts from today — older, un-actioned
-  // entries stay informational (no buttons) since logging them now would
-  // create a journal entry with a misleading date.
   const alertDate = new Date(alert.ts);
   const today = new Date();
   const isToday =
@@ -64,36 +71,37 @@ function SignalCard({
     alertDate.getDate() === today.getDate();
 
   const isActionable = isEntry && isToday;
-  const tp = alert.trade_plan;
-  const internals = alert.internals;
 
-  const cardClass =
-    dir === "BEAR" || setup === "STOP"
-      ? "sc sc-bear"
-      : dir === "BULL"
-        ? "sc sc-bull"
-        : sig === "EXIT" || sig === "TRAIL"
-          ? "sc sc-update"
-          : sig === "STOP"
-            ? "sc sc-stop"
-            : "sc sc-update";
+  const cardClass = [
+    "sc",
+    isBear ? "sc-bear" : isBull ? "sc-bull" : "sc-update",
+    isSkipped || cardState === "skipped" ? "sc-muted" : "",
+    cardState === "logged" ? "sc-logged-card" : "",
+  ]
+    .filter(Boolean)
+    .join(" ");
 
-  const setupClass =
-    dir === "BEAR"
-      ? "sc-setup sc-setup-bear"
-      : dir === "BULL"
-        ? "sc-setup sc-setup-bull"
-        : sig === "EXIT" || sig === "TRAIL" || sig === "TARGET"
-          ? "sc-setup sc-setup-update"
-          : "sc-setup sc-setup-neutral";
+  const setupClass = [
+    "sc-setup",
+    isBear
+      ? "sc-setup-bear"
+      : isBull
+        ? "sc-setup-bull"
+        : isUpdate
+          ? "sc-setup-update"
+          : "sc-setup-neutral",
+  ].join(" ");
 
   const handleSubmit = async () => {
     if (cardState === "submitting" || cardState === "logged") return;
+
     setCardState("submitting");
     setSubmitError("");
+
     try {
       const token = await getToken();
       const premium = parseFloat(entryPremium);
+
       if (!premium || premium <= 0) {
         setSubmitError("Enter premium paid");
         setCardState("form");
@@ -110,7 +118,7 @@ function SignalCard({
           date: new Date().toISOString().split("T")[0],
           ticker: alert.ticker || "SPX",
           setup: alert.setup || "GG",
-          direction: (alert.direction ?? "").toUpperCase() || "BULL",
+          direction: dir || "BULL",
           entry_price: tp?.entry ?? parseFloat(alert.price),
           entry_premium: premium,
           contracts: 1,
@@ -121,64 +129,36 @@ function SignalCard({
       });
 
       if (!res.ok) throw new Error(await res.text());
+
       setCardState("logged");
-      onLogged(alert.id || `${alert.ts}-${alert.price}-${alert.signal}`, 0);
+      onLogged(getAlertKey(alert), 0);
     } catch {
       setSubmitError("Failed — try chat journal");
       setCardState("form");
     }
   };
 
-  if (cardState === "logged")
-    return (
-      <div
-        style={{
-          color: "#00c896",
-          fontSize: 12,
-          padding: "6px 0",
-          fontFamily: "var(--mono)",
-        }}
-      >
-        ✓ Open Trade
-      </div>
-    );
-
-  if (cardState === "skipped") {
-    return (
-      <div className={cardClass} style={{ opacity: 0.3 }}>
-        <div className="sc-top">
-          <div className="sc-pills">
-            <span className={setupClass}>
-              {setup || sig} {dir}
-            </span>
-            {alert.grade && <span className="sc-grade">{alert.grade}</span>}
-          </div>
-          <span className="sc-time">{formatRelative(alert.ts)}</span>
-        </div>
-        <div className="sc-skipped">— Skipped</div>
-      </div>
-    );
-  }
-
   return (
     <div className={cardClass}>
-      {/* Top row */}
       <div className="sc-top">
         <div className="sc-pills">
           <span className={setupClass}>
-            {setup || sig} {dir}
+            {setup || sig || "SIGNAL"} {dir}
           </span>
+
           {alert.grade && <span className="sc-grade">{alert.grade}</span>}
-          {sig && sig !== "ENTRY" && (
-            <span className="sc-grade" style={{ color: "var(--cyan)" }}>
-              {sig}
-            </span>
+
+          {sig && sig !== "ENTRY" && <span className="sc-status">{sig}</span>}
+
+          {cardState === "logged" && <span className="sc-status">OPEN</span>}
+          {cardState === "skipped" && (
+            <span className="sc-status">SKIPPED</span>
           )}
         </div>
+
         <span className="sc-time">{formatRelative(alert.ts)}</span>
       </div>
 
-      {/* Price */}
       <div className="sc-price-row">
         <span className="sc-price">
           {Number(alert.price).toLocaleString("en-US", {
@@ -186,82 +166,41 @@ function SignalCard({
             maximumFractionDigits: 2,
           })}
         </span>
-        <span className="sc-ticker">{alert.ticker}</span>
+        <span className="sc-ticker">{alert.ticker || "SPX"}</span>
       </div>
 
-      {/* Trade plan levels */}
       {tp && (
-        <div className="sc-levels">
-          <div className="sc-lv">
-            <span className="sc-lk">T1</span>
-            <span className="sc-lv-bull">{tp.t1?.toFixed(1) ?? "—"}</span>
-          </div>
-          <div className="sc-lv">
-            <span className="sc-lk">T2</span>
-            <span className="sc-lv-bull">{tp.t2?.toFixed(1) ?? "—"}</span>
-          </div>
-          <div className="sc-lv">
-            <span className="sc-lk">T3</span>
-            <span className="sc-lv-orange">{tp.t3?.toFixed(1) ?? "—"}</span>
-          </div>
-          <div className="sc-lv">
-            <span className="sc-lk">SL</span>
-            <span className="sc-lv-bear">{tp.sl?.toFixed(1) ?? "—"}</span>
-          </div>
+        <div className="sc-mini-plan">
+          <span>T1 {tp.t1?.toFixed(1) ?? "—"}</span>
+          <span>T2 {tp.t2?.toFixed(1) ?? "—"}</span>
+          <span>SL {tp.sl?.toFixed(1) ?? "—"}</span>
         </div>
       )}
 
-      {/* Internals */}
-      {(internals?.trin != null || internals?.add != null) && (
-        <div className="sc-ints">
-          {internals.trin != null && (
-            <span
-              className={`sc-int ${internals.trin < 0.8 ? "sc-int-bull" : internals.trin > 1.2 ? "sc-int-bear" : "sc-int-neutral"}`}
-            >
-              TRIN {internals.trin.toFixed(2)}
-            </span>
-          )}
-          {internals.add != null && (
-            <span
-              className={`sc-int ${internals.add > 200 ? "sc-int-bull" : internals.add < -200 ? "sc-int-bear" : "sc-int-neutral"}`}
-            >
-              ADD {internals.add > 0 ? "+" : ""}
-              {Math.round(internals.add)}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Action area — only on ENTRY signals */}
       {isActionable && cardState === "idle" && (
         <div className="sc-actions">
           <button className="sc-took" onClick={() => setCardState("form")}>
-            ✓ Took
+            Took
           </button>
           <button
             className="sc-skip"
             onClick={() => {
               setCardState("skipped");
-              onSkipped(alert.id);
+              onSkipped(getAlertKey(alert));
             }}
           >
-            ✗ Skip
+            Skip
           </button>
         </div>
       )}
 
       {isActionable && (cardState === "form" || cardState === "submitting") && (
         <div className="sc-exit-form">
-          <div
-            style={{ fontSize: 10, color: "var(--text-dim)", marginBottom: 4 }}
-          >
-            Premium paid ($)
-          </div>
           <input
             className="sc-exit-input"
             type="number"
             step="0.01"
-            placeholder="e.g. 2.50"
+            placeholder="Premium paid"
             value={entryPremium}
             onChange={(e) => setEntryPremium(e.target.value)}
             onKeyDown={(e) => {
@@ -270,13 +209,14 @@ function SignalCard({
             autoFocus
             disabled={cardState === "submitting"}
           />
+
           <div className="sc-exit-row">
             <button
               className="sc-exit-confirm"
               onClick={handleSubmit}
               disabled={cardState === "submitting"}
             >
-              {cardState === "submitting" ? "Saving..." : "Log Entry"}
+              {cardState === "submitting" ? "Saving..." : "Log"}
             </button>
             <button
               className="sc-exit-cancel"
@@ -290,11 +230,8 @@ function SignalCard({
               ✕
             </button>
           </div>
-          {submitError && (
-            <div style={{ fontSize: 9, color: "var(--bear)", marginTop: 4 }}>
-              {submitError}
-            </div>
-          )}
+
+          {submitError && <div className="sc-error">{submitError}</div>}
         </div>
       )}
     </div>
@@ -307,24 +244,24 @@ export default function SignalStream({
   markRead,
 }: SignalStreamProps) {
   const { getToken } = useAuth();
-  const [loggedIds, setLoggedIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("otd_logged_ids");
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
-  const [skippedIds, setSkippedIds] = useState<Set<string>>(() => {
-    try {
-      const saved = localStorage.getItem("otd_skipped_ids");
-      return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch {
-      return new Set();
-    }
-  });
+
+  const [loggedIds, setLoggedIds] = useState<Set<string>>(new Set());
+  const [skippedIds, setSkippedIds] = useState<Set<string>>(new Set());
   const [sessionPnl, setSessionPnl] = useState(0);
   const [tradeCount, setTradeCount] = useState(0);
+
+  useEffect(() => {
+    try {
+      const savedLogged = localStorage.getItem("otd_logged_ids");
+      const savedSkipped = localStorage.getItem("otd_skipped_ids");
+
+      if (savedLogged) setLoggedIds(new Set(JSON.parse(savedLogged)));
+      if (savedSkipped) setSkippedIds(new Set(JSON.parse(savedSkipped)));
+    } catch {
+      setLoggedIds(new Set());
+      setSkippedIds(new Set());
+    }
+  }, []);
 
   const unreadCount = alerts.filter((a) => isUnread(a)).length;
 
@@ -336,6 +273,7 @@ export default function SignalStream({
       } catch {}
       return next;
     });
+
     setSessionPnl((prev) => prev + pnl);
     setTradeCount((prev) => prev + 1);
     markRead(id);
@@ -349,14 +287,15 @@ export default function SignalStream({
       } catch {}
       return next;
     });
+
     markRead(id);
   };
 
   return (
-    <div className="signal-stream">
+    <aside className="signal-stream">
       <div className="ss-header">
         <span className="ss-title">Signals</span>
-        {unreadCount > 0 && <span className="ss-badge">{unreadCount} new</span>}
+        {unreadCount > 0 && <span className="ss-badge">{unreadCount}</span>}
       </div>
 
       <div className="ss-body">
@@ -364,12 +303,12 @@ export default function SignalStream({
           <div className="ss-empty">
             <div className="ss-empty-icon">📡</div>
             <div className="ss-empty-title">Waiting for signals</div>
-            <div className="ss-empty-sub">TradingView alerts appear here — entries, targets, and stops.</div>
+            <div className="ss-empty-sub">TradingView alerts appear here.</div>
           </div>
         ) : (
-          alerts.slice(0, 8).map((alert) => {
-            const alertKey =
-              alert.id || `${alert.ts}-${alert.price}-${alert.signal}`;
+          alerts.slice(0, 12).map((alert) => {
+            const alertKey = getAlertKey(alert);
+
             return (
               <SignalCard
                 key={alertKey}
@@ -387,23 +326,26 @@ export default function SignalStream({
 
       <div className="ss-footer">
         <div className="ss-footer-label">Today&apos;s Session</div>
+
         <div className="ss-stats">
           <div className="ss-stat">
             <div className="ss-stat-label">P&amp;L</div>
             <div
-              className={`ss-stat-val ${sessionPnl >= 0 ? "ss-green" : "ss-red"}`}
+              className={`ss-stat-val ${
+                sessionPnl >= 0 ? "ss-green" : "ss-red"
+              }`}
             >
-              {sessionPnl >= 0 ? "+" : ""}
-              {sessionPnl >= 0 ? "$" : "-$"}
+              {sessionPnl >= 0 ? "+" : "-"}$
               {Math.abs(sessionPnl).toLocaleString()}
             </div>
           </div>
+
           <div className="ss-stat">
             <div className="ss-stat-label">Trades</div>
             <div className="ss-stat-val">{tradeCount}/3</div>
           </div>
         </div>
       </div>
-    </div>
+    </aside>
   );
 }
