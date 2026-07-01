@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import s from "@/features/journal/styles/journalTradeTable.module.css";
 import type { JournalEntry } from "@/features/journal/lib/types";
-import { fmtRMult } from "@/features/journal/lib/helpers";
+import { fmtPremiumPct } from "@/features/journal/lib/helpers";
 
 const ACTION_LABELS: Record<string, string> = {
   edit_trade: "Edit trade",
@@ -133,104 +133,135 @@ export default function JournalTradeTable({
                   ];
 
             return (
-              <div
-                className={s.row}
-                key={e.id}
-                style={{ position: "relative" }}
-                onClick={() => setMenuId(null)}
-              >
-                <span className={s.mono}>{e.date.slice(5)}</span>
-                <span className={s.mono}>{fmtTime(e.created_at)}</span>
+              <>
+                <div
+                  className={s.row}
+                  key={e.id}
+                  style={{ position: "relative" }}
+                  onClick={() => setMenuId(null)}
+                >
+                  <span className={s.mono}>{e.date.slice(5)}</span>
+                  <span className={s.mono}>{fmtTime(e.created_at)}</span>
 
-                <span>
-                  <span className={directionClass(e.direction)}>{e.setup}</span>
-                </span>
-
-                <span className={isBull ? s.bull : s.bear}>
-                  {isBull ? "Bull ↑" : "Bear ↓"}
-                </span>
-
-                <span className={s.symbol}>
-                  {e.instrument || e.ticker || "SPX"}
-                </span>
-
-                <span className={s.mono}>
-                  {e.entry_price != null ? e.entry_price.toFixed(2) : "—"}
-                </span>
-
-                <span className={s.mono}>
-                  {e.exit_price != null ? e.exit_price.toFixed(2) : "—"}
-                </span>
-
-                <span className={pnlClass}>{pnlText(e.pnl)}</span>
-
-                <span className={pnlClass}>{fmtRMult(e.r_multiple)}</span>
-
-                <span>
-                  <span className={gradeClass(e.grade)}>{e.grade || "—"}</span>
-                </span>
-
-                <span>
-                  <span className={gradeClass(e.process_grade)}>
-                    {e.process_grade || "—"}
+                  <span>
+                    <span className={directionClass(e.direction)}>
+                      {e.setup}
+                    </span>
                   </span>
-                </span>
 
-                <span>
-                  {e.tags ? (
-                    <span className={s.tag}>{e.tags}</span>
-                  ) : (
-                    <span style={{ color: "rgba(100,116,139,0.6)" }}>—</span>
-                  )}
-                </span>
+                  <span className={isBull ? s.bull : s.bear}>
+                    {isBull ? "Bull ↑" : "Bear ↓"}
+                  </span>
 
-                <span
-                  className={s.comment}
-                  title={e.process_review ?? "No review yet"}
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    if (e.process_review) onAction("view_review", e);
-                  }}
-                  style={{
-                    cursor: e.process_review ? "pointer" : "default",
-                    opacity: e.process_review ? 1 : 0.35,
-                  }}
-                >
-                  💬
-                </span>
+                  <span className={s.symbol}>
+                    {e.instrument || e.ticker || "SPX"}
+                  </span>
 
-                <span
-                  className={s.more}
-                  style={{ cursor: "pointer", position: "relative" }}
-                  onClick={(ev) => {
-                    ev.stopPropagation();
-                    setMenuId(menuId === e.id ? null : e.id);
-                  }}
-                >
-                  ⋮
-                  {menuId === e.id && (
-                    <div
-                      className={s.menu}
-                      onClick={(ev) => ev.stopPropagation()}
-                    >
-                      {actions.map((action) => (
-                        <button
-                          key={action}
-                          className={`${s.menuItem} ${
-                            action === "delete_trade" ? s.menuDanger : ""
-                          }`}
-                          onClick={() => {
-                            setMenuId(null);
-                            onAction(action, e);
-                          }}
-                        >
-                          {ACTION_LABELS[action] ?? action}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </span>
-              </div>
+                  <span className={s.mono}>
+                    {e.entry_premium != null
+                      ? e.entry_premium.toFixed(2)
+                      : e.entry_price != null && e.entry_price > 0
+                        ? e.entry_price.toFixed(2)
+                        : "—"}
+                  </span>
+
+                  <span className={s.mono}>
+                    {e.exit_premium != null
+                      ? e.exit_premium.toFixed(2)
+                      : e.exit_price != null
+                        ? e.exit_price.toFixed(2)
+                        : "—"}
+                  </span>
+
+                  <span className={pnlClass}>{pnlText(e.pnl)}</span>
+
+                  <span className={pnlClass}>
+                    {fmtPremiumPct(e.entry_premium, e.exit_premium)}
+                  </span>
+
+                  <span>
+                    <span className={gradeClass(e.grade)}>
+                      {e.grade || "—"}
+                    </span>
+                  </span>
+
+                  <span>
+                    <span className={gradeClass(e.process_grade)}>
+                      {e.process_grade || "—"}
+                    </span>
+                  </span>
+
+                  <span>
+                    {e.tags ? (
+                      <span className={s.tag}>{e.tags}</span>
+                    ) : (
+                      <span style={{ color: "rgba(100,116,139,0.6)" }}>—</span>
+                    )}
+                  </span>
+
+                  <span
+                    className={s.comment}
+                    title={e.process_review ?? "No review yet"}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onAction("view_review", e);
+                    }}
+                    style={{
+                      cursor: "pointer",
+                      opacity: e.notes || e.process_review ? 1 : 0.35,
+                    }}
+                  >
+                    💬
+                  </span>
+
+                  <span
+                    className={s.more}
+                    style={{ cursor: "pointer", position: "relative" }}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      setMenuId(menuId === e.id ? null : e.id);
+                    }}
+                  >
+                    ⋮
+                    {menuId === e.id && (
+                      <div
+                        className={s.menu}
+                        onClick={(ev) => ev.stopPropagation()}
+                      >
+                        {actions.map((action) => (
+                          <button
+                            key={action}
+                            className={`${s.menuItem} ${
+                              action === "delete_trade" ? s.menuDanger : ""
+                            }`}
+                            onClick={() => {
+                              setMenuId(null);
+                              onAction(action, e);
+                            }}
+                          >
+                            {ACTION_LABELS[action] ?? action}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </span>
+                </div>
+                {e.notes && (
+                  <div
+                    key={`${e.id}-notes`}
+                    style={{
+                      padding: "4px 12px 8px 12px",
+                      fontSize: 11,
+                      color: "rgba(148,163,184,0.6)",
+                      fontStyle: "italic",
+                      borderBottom: "1px solid rgba(30,58,95,0.3)",
+                      background: "rgba(255,255,255,0.01)",
+                    }}
+                  >
+                    📝 {e.notes}
+                  </div>
+                )}
+              </>
             );
           })
         )}
@@ -325,21 +356,29 @@ export default function JournalTradeTable({
                   <div>
                     <span>Entry</span>
                     <strong>
-                      {e.entry_price != null ? e.entry_price.toFixed(2) : "—"}
+                      {e.entry_premium != null
+                        ? e.entry_premium.toFixed(2)
+                        : e.entry_price != null && e.entry_price > 0
+                          ? e.entry_price.toFixed(2)
+                          : "—"}
                     </strong>
                   </div>
 
                   <div>
                     <span>Exit</span>
                     <strong>
-                      {e.exit_price != null ? e.exit_price.toFixed(2) : "—"}
+                      {e.exit_premium != null
+                        ? e.exit_premium.toFixed(2)
+                        : e.exit_price != null
+                          ? e.exit_price.toFixed(2)
+                          : "—"}
                     </strong>
                   </div>
 
                   <div>
-                    <span>R-Mult</span>
+                    <span>Gain %</span>
                     <strong className={pnlClass}>
-                      {fmtRMult(e.r_multiple)}
+                      {fmtPremiumPct(e.entry_premium, e.exit_premium)}
                     </strong>
                   </div>
 

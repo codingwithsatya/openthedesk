@@ -803,7 +803,12 @@ export default function ChallengeDashboard({
         }}
         onNavigate={handleDayClick}
         onRefetch={
-          selectedDate ? () => fetchDayDetail(selectedDate) : undefined
+          selectedDate
+            ? () => {
+                fetchDayDetail(selectedDate);
+                onRefresh();
+              }
+            : undefined
         }
       />
     </div>

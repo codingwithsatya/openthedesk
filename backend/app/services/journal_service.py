@@ -99,20 +99,22 @@ _TAG_RE = re.compile(r"#(\w+)")
 def _row_actions(status: str) -> list:
     if (status or "open") == "open":
         return ["edit_trade", "close_trade", "delete_trade"]
-    return ["view_review", "edit_notes", "rerun_review", "duplicate_trade", "delete_trade"]
+    return ["edit_trade", "view_review", "edit_notes", "rerun_review", "duplicate_trade", "delete_trade"]
 
 
 def _enrich_entry(r: dict) -> dict:
     """Attach all computed/derived fields to a journal row dict in-place."""
     r["r_multiple"] = _compute_r_multiple(
-        r.get("entry_premium"), r.get("exit_premium"), r.get("stop_loss_premium")
+        r.get("entry_premium"), r.get(
+            "exit_premium"), r.get("stop_loss_premium")
     )
     r["instrument"] = r.get("ticker", "SPX")
     tags_list = _TAG_RE.findall(r.get("notes") or "")
     r["tags"] = ", ".join(tags_list) if tags_list else (r.get("setup") or "")
     st = r.get("status") or "open"
     pnl_v = r.get("pnl")
-    r["win_loss"] = "open" if st == "open" or pnl_v is None else ("win" if pnl_v > 0 else "loss")
+    r["win_loss"] = "open" if st == "open" or pnl_v is None else (
+        "win" if pnl_v > 0 else "loss")
     r["row_actions"] = _row_actions(st)
     return r
 
@@ -145,19 +147,36 @@ grade_factors: each score 0.0–5.0, one decimal place, based only on available 
 
 def _build_review_prompt(row: dict) -> str:
     internals = row.get("internals") or {}
+    entry_prem = row.get("entry_premium")
+    exit_prem = row.get("exit_premium")
+    entry_price = row.get("entry_price")
+    exit_price = row.get("exit_price")
+
     parts = [
         f"Setup: {row.get('setup', '?')} | Direction: {row.get('direction', '?')}",
-        f"Entry price: {row.get('entry_price')} | Entry premium: ${row.get('entry_premium', '?')}",
-        f"Exit price: {row.get('exit_price', '?')} | Exit premium: ${row.get('exit_premium', '?')}",
+    ]
+
+    # ── FIXED: prefer premiums over price for options trades ──
+    if entry_prem is not None:
+        parts.append(
+            f"Entry premium: ${entry_prem} | Exit premium: ${exit_prem or '?'}")
+    elif entry_price and entry_price > 0:
+        parts.append(
+            f"Entry price: {entry_price} | Exit price: {exit_price or '?'}")
+
+    parts += [
         f"P&L: ${row.get('pnl', '?')} | Contracts: {row.get('contracts', 1)}",
         f"Pine signal grade: {row.get('grade', '?')}",
     ]
+
     trin, add = internals.get("trin"), internals.get("add")
     if trin is not None or add is not None:
         parts.append(f"Internals at entry: TRIN={trin}, ADD={add}")
+
     notes = (row.get("notes") or "")[:300]
     if notes:
         parts.append(f"Signal notes: {notes}")
+
     return "\n".join(parts)
 
 
@@ -172,7 +191,8 @@ def _run_process_review(entry_id: str, user_id: str, row: dict) -> dict:
             model=HAIKU,
             max_tokens=512,
             system=_PROCESS_REVIEW_SYSTEM,
-            messages=[{"role": "user", "content": f"Review this trade:\n{prompt}"}],
+            messages=[
+                {"role": "user", "content": f"Review this trade:\n{prompt}"}],
         ))
         raw = r.content[0].text.strip()
         if raw.startswith("```"):

@@ -23,6 +23,7 @@ interface JournalSidebarProps {
   onDateToChange: (v: string) => void;
   statsView: "day" | "trade";
   onStatsViewChange: (v: "day" | "trade") => void;
+  onLogTrade: () => void;
 }
 
 function SideItem({
@@ -70,6 +71,7 @@ export default function JournalSidebar({
   onDateToChange,
   statsView,
   onStatsViewChange,
+  onLogTrade
 }: JournalSidebarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -213,7 +215,7 @@ export default function JournalSidebar({
         <button
           type="button"
           className={s.logButton}
-          onClick={() => alert("Trade entry form coming soon")}
+          onClick={onLogTrade}
         >
           + Log a trade
         </button>

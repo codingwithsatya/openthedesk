@@ -86,6 +86,32 @@ const CHART_OPTS = {
 
 type FilterKey = "all" | "bull" | "bear" | "winners" | "losers" | "aplus";
 
+interface LogTradeForm {
+  date: string;
+  ticker: string;
+  setup: string;
+  direction: string;
+  entry_premium: string;
+  exit_premium: string;
+  contracts: string;
+  notes: string;
+  grade: string;
+}
+
+const TODAY = new Date().toISOString().split("T")[0];
+
+const EMPTY_LOG_FORM: LogTradeForm = {
+  date: TODAY,
+  ticker: "SPX",
+  setup: "GG",
+  direction: "BULL",
+  entry_premium: "",
+  exit_premium: "",
+  contracts: "1",
+  notes: "",
+  grade: "A",
+};
+
 // ── Page ──────────────────────────────────────────────────────
 export default function JournalPage() {
   const { getToken } = useAuth();
@@ -127,6 +153,11 @@ export default function JournalPage() {
   } | null>(null);
   const scrollBodyRef = useRef<HTMLDivElement | null>(null);
 
+  const [logTradeOpen, setLogTradeOpen] = useState(false);
+  const [logForm, setLogForm] = useState<LogTradeForm>(EMPTY_LOG_FORM);
+  const [logSaving, setLogSaving] = useState(false);
+  const [logError, setLogError] = useState<string | null>(null);
+
   const fetchChallenge = async (token: string | null) => {
     if (!token) return;
     try {
@@ -160,7 +191,12 @@ export default function JournalPage() {
     if (tag) params.set("tag", tag);
     if (dfrom) params.set("date_from", dfrom);
     if (dto) params.set("date_to", dto);
-    if (status) params.set("status", status);
+    if (status) {
+      params.set("status", status);
+    } else {
+      // Default: exclude observation-only entries from the trade table
+      params.set("exclude_status", "observation");
+    }
     return `${API}/journal/entries?${params}`;
   };
 
@@ -237,6 +273,55 @@ export default function JournalPage() {
       setOffset(0); // offset change alone re-triggers the effect
     } else {
       setRefreshKey((k) => k + 1); // force re-run when already on page 1
+    }
+  };
+
+  const handleLogTrade = async () => {
+    const entryP = parseFloat(logForm.entry_premium);
+    const exitP = parseFloat(logForm.exit_premium);
+    const contracts = parseInt(logForm.contracts) || 1;
+
+    if (!entryP || entryP <= 0) {
+      setLogError("Enter entry premium");
+      return;
+    }
+    if (!exitP || exitP <= 0) {
+      setLogError("Enter exit premium");
+      return;
+    }
+
+    setLogSaving(true);
+    setLogError(null);
+    try {
+      const token = await getToken();
+      const res = await fetch(`${API}/journal/entry`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          date: logForm.date,
+          ticker: logForm.ticker || "SPX",
+          setup: logForm.setup,
+          direction: logForm.direction,
+          entry_price: 0,
+          entry_premium: entryP,
+          exit_premium: exitP,
+          contracts,
+          grade: logForm.grade,
+          notes: logForm.notes || null,
+          status: "closed",
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      setLogTradeOpen(false);
+      setLogForm(EMPTY_LOG_FORM);
+      refetch();
+    } catch (e: unknown) {
+      setLogError(e instanceof Error ? e.message : "Failed to save");
+    } finally {
+      setLogSaving(false);
     }
   };
 
@@ -325,12 +410,14 @@ export default function JournalPage() {
   };
 
   // ── Derived ─────────────────────────────────────────────────
-  const filteredByBar: JournalEntry[] = entries.filter((e) => {
-    if (filter === "winners") return (e.pnl ?? 0) > 0;
-    if (filter === "losers") return (e.pnl ?? 0) <= 0;
-    if (filter === "aplus") return e.grade === "A+";
-    return true;
-  });
+  const filteredByBar: JournalEntry[] = entries
+    .filter((e) => e.status !== "observation")
+    .filter((e) => {
+      if (filter === "winners") return (e.pnl ?? 0) > 0;
+      if (filter === "losers") return (e.pnl ?? 0) <= 0;
+      if (filter === "aplus") return e.grade === "A+";
+      return true;
+    });
 
   const displayed: JournalEntry[] = filteredByBar.filter((e) => {
     if (sideFilter === "winners") return (e.pnl ?? 0) > 0;
@@ -431,12 +518,9 @@ export default function JournalPage() {
     const isBull = direction.toUpperCase() === "BULL";
     // Premium-based trades: use premiums for P&L, not SPX price difference
     const computedPnl =
-      entryRow?.entry_premium != null && entryRow?.exit_premium != null
+      entryRow?.entry_premium != null
         ? Math.round(
-            (entryRow.exit_premium - entryRow.entry_premium) *
-              entryRow.contracts *
-              100 *
-              100,
+            (exit - entryRow.entry_premium) * entryRow.contracts * 100 * 100,
           ) / 100
         : entryRow
           ? (isBull
@@ -452,11 +536,12 @@ export default function JournalPage() {
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
-          exit_price: exit,
-          pnl: rounded,
+          exit_premium: entryRow?.entry_premium != null ? exit : undefined,
+          exit_price: entryRow?.entry_premium == null ? exit : undefined,
           grade: editForm.grade,
           process_grade: editForm.grade,
           notes: editForm.notes || undefined,
+          // Let backend compute P&L from premiums via PATCH handler
         }),
       });
       if (!res.ok) throw new Error();
@@ -465,7 +550,10 @@ export default function JournalPage() {
           e.id === entryId
             ? {
                 ...e,
-                exit_price: exit,
+                exit_premium:
+                  entryRow?.entry_premium != null ? exit : e.exit_premium,
+                exit_price:
+                  entryRow?.entry_premium == null ? exit : e.exit_price,
                 pnl: rounded,
                 grade: editForm.grade,
                 process_grade: editForm.grade,
@@ -475,6 +563,7 @@ export default function JournalPage() {
         ),
       );
       setEditingId(null);
+      refetch();
     } catch (err) {
       console.error("Save error:", err);
       alert("Save failed — try again");
@@ -566,6 +655,27 @@ export default function JournalPage() {
     }
   };
 
+  const modalInputStyle: React.CSSProperties = {
+    width: "100%",
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(59,130,246,0.2)",
+    borderRadius: 7,
+    color: "#e2e8f0",
+    fontSize: 13,
+    padding: "8px 10px",
+    fontFamily: "inherit",
+    outline: "none",
+    display: "block",
+  };
+  const modalLabelStyle: React.CSSProperties = {
+    fontSize: 10,
+    color: "#64748b",
+    marginBottom: 4,
+    display: "block",
+    textTransform: "uppercase",
+    letterSpacing: "0.05em",
+  };
+
   return (
     <div className={styles.page}>
       <Header
@@ -617,6 +727,15 @@ export default function JournalPage() {
             }}
             statsView={statsView}
             onStatsViewChange={setStatsView}
+            onLogTrade={() => {
+              // ← NEW
+              setLogForm({
+                ...EMPTY_LOG_FORM,
+                date: new Date().toISOString().split("T")[0],
+              });
+              setLogError(null);
+              setLogTradeOpen(true);
+            }}
           />
 
           {/* ── Main content ────────────────────────────────────── */}
@@ -731,7 +850,7 @@ export default function JournalPage() {
               {expandedId &&
                 (() => {
                   const entry = entries.find((e) => e.id === expandedId);
-                  if (!entry?.process_review) return null;
+                  if (!entry) return null;
 
                   return (
                     <div
@@ -768,16 +887,66 @@ export default function JournalPage() {
                           PROCESS REVIEW — {entry.date} {entry.setup}
                         </div>
 
-                        <p
-                          style={{
-                            color: "#cbd5e1",
-                            fontSize: 13,
-                            lineHeight: 1.6,
-                            margin: 0,
-                          }}
-                        >
-                          {entry.process_review}
-                        </p>
+                        {/* Process review or placeholder */}
+                        {entry.process_review ? (
+                          <p
+                            style={{
+                              color: "#cbd5e1",
+                              fontSize: 13,
+                              lineHeight: 1.6,
+                              margin: 0,
+                            }}
+                          >
+                            {entry.process_review}
+                          </p>
+                        ) : (
+                          <p
+                            style={{
+                              color: "#475569",
+                              fontSize: 13,
+                              lineHeight: 1.6,
+                              margin: 0,
+                              fontStyle: "italic",
+                            }}
+                          >
+                            No process review yet. Use "Re-run review" from the
+                            trade menu to generate one.
+                          </p>
+                        )}
+
+                        {/* Notes section */}
+                        {entry.notes && (
+                          <div
+                            style={{
+                              marginTop: 14,
+                              paddingTop: 14,
+                              borderTop: "1px solid rgba(59,130,246,0.1)",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontSize: 10,
+                                color: "#475569",
+                                fontWeight: 700,
+                                marginBottom: 6,
+                                textTransform: "uppercase",
+                                letterSpacing: "0.05em",
+                              }}
+                            >
+                              Notes
+                            </div>
+                            <p
+                              style={{
+                                color: "#94a3b8",
+                                fontSize: 12.5,
+                                lineHeight: 1.6,
+                                margin: 0,
+                              }}
+                            >
+                              {entry.notes}
+                            </p>
+                          </div>
+                        )}
 
                         <button
                           onClick={() => setExpandedId(null)}
@@ -799,7 +968,314 @@ export default function JournalPage() {
                   );
                 })()}
 
-              {/* Keep your existing closingId and editingId modal blocks here unchanged */}
+              {/* ── Edit Trade Modal ── */}
+              {editingId &&
+                (() => {
+                  const entry = entries.find((e) => e.id === editingId);
+                  if (!entry) return null;
+                  return (
+                    <div
+                      style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 200,
+                        background: "rgba(0,0,0,0.6)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      onClick={() => setEditingId(null)}
+                    >
+                      <div
+                        style={{
+                          background: "#0d1828",
+                          border: "1px solid rgba(59,130,246,0.25)",
+                          borderRadius: 12,
+                          padding: 24,
+                          maxWidth: 440,
+                          width: "90%",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#60a5fa",
+                            fontWeight: 700,
+                            marginBottom: 16,
+                          }}
+                        >
+                          EDIT TRADE — {entry.date} {entry.setup}
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 10,
+                            marginBottom: 12,
+                          }}
+                        >
+                          <div>
+                            <label style={modalLabelStyle}>Exit Premium</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editForm.exit_price}
+                              onChange={(e) =>
+                                setEditForm((p) => ({
+                                  ...p,
+                                  exit_price: e.target.value,
+                                }))
+                              }
+                              placeholder="Exit price"
+                              style={modalInputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={modalLabelStyle}>Grade</label>
+                            <select
+                              value={editForm.grade}
+                              onChange={(e) =>
+                                setEditForm((p) => ({
+                                  ...p,
+                                  grade: e.target.value,
+                                }))
+                              }
+                              style={modalInputStyle}
+                            >
+                              {["A+", "A", "B", "C"].map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        <div style={{ marginBottom: 16 }}>
+                          <label style={modalLabelStyle}>Notes</label>
+                          <textarea
+                            value={editForm.notes}
+                            onChange={(e) =>
+                              setEditForm((p) => ({
+                                ...p,
+                                notes: e.target.value,
+                              }))
+                            }
+                            rows={3}
+                            placeholder="Add notes…"
+                            style={{ ...modalInputStyle, resize: "vertical" }}
+                          />
+                        </div>
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            disabled={editSaving}
+                            style={{
+                              flex: 1,
+                              padding: "9px 0",
+                              borderRadius: 8,
+                              border: "1px solid rgba(59,130,246,0.2)",
+                              background: "transparent",
+                              color: "#94a3b8",
+                              fontSize: 13,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() =>
+                              handleSave(editingId, entry.direction)
+                            }
+                            disabled={editSaving}
+                            style={{
+                              flex: 2,
+                              padding: "9px 0",
+                              borderRadius: 8,
+                              border: "none",
+                              background: "#1d4ed8",
+                              color: "#fff",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: editSaving ? "not-allowed" : "pointer",
+                              opacity: editSaving ? 0.7 : 1,
+                            }}
+                          >
+                            {editSaving ? "Saving…" : "Save Changes"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+              {/* ── Close Trade Modal ── */}
+              {closingId &&
+                (() => {
+                  const entry = entries.find((e) => e.id === closingId);
+                  if (!entry) return null;
+                  return (
+                    <div
+                      style={{
+                        position: "fixed",
+                        inset: 0,
+                        zIndex: 200,
+                        background: "rgba(0,0,0,0.6)",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                      }}
+                      onClick={() => setClosingId(null)}
+                    >
+                      <div
+                        style={{
+                          background: "#0d1828",
+                          border: "1px solid rgba(59,130,246,0.25)",
+                          borderRadius: 12,
+                          padding: 24,
+                          maxWidth: 400,
+                          width: "90%",
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div
+                          style={{
+                            fontSize: 11,
+                            color: "#60a5fa",
+                            fontWeight: 700,
+                            marginBottom: 16,
+                          }}
+                        >
+                          CLOSE TRADE — {entry.date} {entry.setup}
+                        </div>
+
+                        <div
+                          style={{
+                            marginBottom: 8,
+                            fontSize: 12,
+                            color: "#64748b",
+                          }}
+                        >
+                          Entry premium: $
+                          {entry.entry_premium?.toFixed(2) ?? "—"}
+                        </div>
+
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: 10,
+                            marginBottom: 16,
+                          }}
+                        >
+                          <div>
+                            <label style={modalLabelStyle}>Exit Premium</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={closeForm.exit_premium}
+                              onChange={(e) =>
+                                setCloseForm((p) => ({
+                                  ...p,
+                                  exit_premium: e.target.value,
+                                }))
+                              }
+                              placeholder="Exit premium"
+                              autoFocus
+                              style={modalInputStyle}
+                            />
+                          </div>
+                          <div>
+                            <label style={modalLabelStyle}>Grade</label>
+                            <select
+                              value={closeForm.grade}
+                              onChange={(e) =>
+                                setCloseForm((p) => ({
+                                  ...p,
+                                  grade: e.target.value,
+                                }))
+                              }
+                              style={modalInputStyle}
+                            >
+                              {["A+", "A", "B", "C"].map((g) => (
+                                <option key={g} value={g}>
+                                  {g}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+
+                        {closeForm.exit_premium &&
+                          entry.entry_premium &&
+                          (() => {
+                            const ep = entry.entry_premium;
+                            const xp = parseFloat(closeForm.exit_premium);
+                            if (isNaN(xp)) return null;
+                            const pnl = (xp - ep) * entry.contracts * 100;
+                            return (
+                              <div
+                                style={{
+                                  marginBottom: 12,
+                                  padding: "8px 12px",
+                                  background: "rgba(255,255,255,0.03)",
+                                  borderRadius: 8,
+                                  fontSize: 12,
+                                  color: pnl >= 0 ? "#4ade80" : "#f87171",
+                                }}
+                              >
+                                P&L: {pnl >= 0 ? "+" : "−"}$
+                                {Math.abs(pnl).toFixed(0)}
+                              </div>
+                            );
+                          })()}
+
+                        <div style={{ display: "flex", gap: 10 }}>
+                          <button
+                            onClick={() => {
+                              setClosingId(null);
+                              setCloseForm({ exit_premium: "", grade: "A" });
+                            }}
+                            disabled={closeSaving}
+                            style={{
+                              flex: 1,
+                              padding: "9px 0",
+                              borderRadius: 8,
+                              border: "1px solid rgba(59,130,246,0.2)",
+                              background: "transparent",
+                              color: "#94a3b8",
+                              fontSize: 13,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            onClick={() => handleClose(entry)}
+                            disabled={closeSaving}
+                            style={{
+                              flex: 2,
+                              padding: "9px 0",
+                              borderRadius: 8,
+                              border: "none",
+                              background: "#1d4ed8",
+                              color: "#fff",
+                              fontSize: 13,
+                              fontWeight: 600,
+                              cursor: closeSaving ? "not-allowed" : "pointer",
+                              opacity: closeSaving ? 0.7 : 1,
+                            }}
+                          >
+                            {closeSaving ? "Closing…" : "Close Trade"}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
             </div>
 
             {/* Chat entry bar */}
@@ -809,6 +1285,293 @@ export default function JournalPage() {
           </main>
         </div>
       </div>
+
+      {logTradeOpen && (
+        <div
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 300,
+            background: "rgba(0,0,0,0.7)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+          }}
+          onClick={() => setLogTradeOpen(false)}
+        >
+          <div
+            style={{
+              background: "#0d1828",
+              border: "1px solid rgba(59,130,246,0.25)",
+              borderRadius: 14,
+              padding: 28,
+              width: 480,
+              maxWidth: "95vw",
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                color: "#60a5fa",
+                fontWeight: 700,
+                marginBottom: 20,
+                letterSpacing: "0.05em",
+              }}
+            >
+              LOG A TRADE
+            </div>
+
+            {/* Date + Ticker */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div>
+                <label style={modalLabelStyle}>Date</label>
+                <input
+                  type="date"
+                  value={logForm.date}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, date: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                />
+              </div>
+              <div>
+                <label style={modalLabelStyle}>Ticker</label>
+                <input
+                  type="text"
+                  value={logForm.ticker}
+                  onChange={(e) =>
+                    setLogForm((p) => ({
+                      ...p,
+                      ticker: e.target.value.toUpperCase(),
+                    }))
+                  }
+                  placeholder="SPX / SPY / QQQ"
+                  style={modalInputStyle}
+                />
+              </div>
+            </div>
+
+            {/* Setup + Direction */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div>
+                <label style={modalLabelStyle}>Setup</label>
+                <select
+                  value={logForm.setup}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, setup: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                >
+                  {[
+                    "GG",
+                    "GG OPEN",
+                    "GG BEAR",
+                    "FLAG",
+                    "VOMY",
+                    "DIV",
+                    "BILBO",
+                    "ORB RETEST",
+                    "ORB FADE",
+                    "OTHER",
+                  ].map((s) => (
+                    <option key={s} value={s}>
+                      {s}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={modalLabelStyle}>Direction</label>
+                <select
+                  value={logForm.direction}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, direction: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                >
+                  <option value="BULL">BULL (Call)</option>
+                  <option value="BEAR">BEAR (Put)</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Entry / Exit / Contracts */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr 1fr",
+                gap: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div>
+                <label style={modalLabelStyle}>Entry Premium</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="2.50"
+                  value={logForm.entry_premium}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, entry_premium: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                />
+              </div>
+              <div>
+                <label style={modalLabelStyle}>Exit Premium</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  placeholder="4.00"
+                  value={logForm.exit_premium}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, exit_premium: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                />
+              </div>
+              <div>
+                <label style={modalLabelStyle}>Contracts</label>
+                <input
+                  type="number"
+                  min="1"
+                  value={logForm.contracts}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, contracts: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                />
+              </div>
+            </div>
+
+            {/* P&L preview */}
+            {logForm.entry_premium &&
+              logForm.exit_premium &&
+              (() => {
+                const ep = parseFloat(logForm.entry_premium);
+                const xp = parseFloat(logForm.exit_premium);
+                const ct = parseInt(logForm.contracts) || 1;
+                if (isNaN(ep) || isNaN(xp)) return null;
+                const pnl = (xp - ep) * ct * 100;
+                return (
+                  <div
+                    style={{
+                      marginBottom: 12,
+                      padding: "8px 12px",
+                      background: "rgba(255,255,255,0.03)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                      color: pnl >= 0 ? "#4ade80" : "#f87171",
+                    }}
+                  >
+                    P&L: {pnl >= 0 ? "+" : "−"}${Math.abs(pnl).toFixed(0)}
+                    <span style={{ color: "#475569", marginLeft: 10 }}>
+                      ({ct} contract{ct !== 1 ? "s" : ""} · entry{" "}
+                      {ep.toFixed(2)} → exit {xp.toFixed(2)})
+                    </span>
+                  </div>
+                );
+              })()}
+
+            {/* Grade + Notes */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "120px 1fr",
+                gap: 10,
+                marginBottom: 16,
+              }}
+            >
+              <div>
+                <label style={modalLabelStyle}>Grade</label>
+                <select
+                  value={logForm.grade}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, grade: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                >
+                  {["A+", "A", "B", "C"].map((g) => (
+                    <option key={g} value={g}>
+                      {g}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={modalLabelStyle}>Notes (optional)</label>
+                <input
+                  type="text"
+                  placeholder="What happened?"
+                  value={logForm.notes}
+                  onChange={(e) =>
+                    setLogForm((p) => ({ ...p, notes: e.target.value }))
+                  }
+                  style={modalInputStyle}
+                />
+              </div>
+            </div>
+
+            {logError && (
+              <p style={{ fontSize: 11, color: "#f87171", marginBottom: 10 }}>
+                {logError}
+              </p>
+            )}
+
+            <div style={{ display: "flex", gap: 10 }}>
+              <button
+                onClick={() => setLogTradeOpen(false)}
+                disabled={logSaving}
+                style={{
+                  flex: 1,
+                  padding: "10px 0",
+                  borderRadius: 8,
+                  border: "1px solid rgba(59,130,246,0.2)",
+                  background: "transparent",
+                  color: "#94a3b8",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleLogTrade}
+                disabled={logSaving}
+                style={{
+                  flex: 2,
+                  padding: "10px 0",
+                  borderRadius: 8,
+                  border: "none",
+                  background: "#1d4ed8",
+                  color: "#fff",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: logSaving ? "not-allowed" : "pointer",
+                  opacity: logSaving ? 0.7 : 1,
+                }}
+              >
+                {logSaving ? "Saving…" : "Save Trade"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

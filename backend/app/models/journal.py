@@ -17,6 +17,8 @@ class JournalEntryPayload(BaseModel):
     grade: Optional[str] = None
     process_grade: Optional[str] = None
     notes: Optional[str] = None
+    went_well: Optional[str] = None
+    improve: Optional[str] = None
     status: str = "open"
 
 
@@ -29,5 +31,7 @@ class JournalUpdatePayload(BaseModel):
     grade: Optional[str] = None
     process_grade: Optional[str] = None
     notes: Optional[str] = None
+    went_well: Optional[str] = None
+    improve: Optional[str] = None
     status: Optional[str] = None
     tags: Optional[str] = None

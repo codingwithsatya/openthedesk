@@ -5,8 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.core.auth import get_current_user
 from backend.app.core.config import _sb
-from backend.app.models import challenge
-from backend.app.models import challenge
 from backend.app.models.challenge import StartChallengePayload
 from backend.app.services.challenge_service import (
     get_active_challenge,
@@ -85,8 +83,6 @@ async def get_challenge_stats(user_id: str = Depends(get_current_user)):
     equity = _challenge_build_equity(in_window, start_balance)
     streaks = _challenge_build_streaks(calendar)
     grade_breakdown = _challenge_build_grade_breakdown(calendar)
-
-    from datetime import datetime
     today_et = datetime.now(ZoneInfo("America/New_York")).date()
     holidays = _get_holiday_dates_for_range(challenge["start_date"], today_et)
     return {
@@ -125,12 +121,14 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
         tj_res = _sb.table("trade_journal").select("*")\
             .in_("id", source_ids)\
             .eq("user_id", user_id)\
-            .eq("status", "closed")\
+            .in_("status", ["closed", "observation"])\
             .eq("date", date)\
             .order("created_at", desc=False)\
             .execute()
         day_trades = tj_res.data or []
-        day_pnl = round(sum(t.get("pnl") or 0 for t in day_trades), 2)
+        # P&L only from closed trades
+        closed_trades = [t for t in day_trades if t.get("status") == "closed"]
+        day_pnl = round(sum(t.get("pnl") or 0 for t in closed_trades), 2)
         all_trades = _fetch_challenge_trades(challenge["id"], user_id)
         start_balance = challenge.get("start_balance") or 500
         in_window = [t for t in all_trades if str(t.get("date") or "")[
@@ -140,10 +138,10 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
         for point in equity:
             if point["date"] <= date:
                 balance_after = point["balance"]
-        day_wins = [t for t in day_trades if (t.get("pnl") or 0) > 0]
-        day_win_rate = round(len(day_wins) / len(day_trades)
-                             * 100, 1) if day_trades else None
-        r_vals = [r for t in day_trades if (r := _compute_r_multiple(
+        day_wins = [t for t in closed_trades if (t.get("pnl") or 0) > 0]
+        day_win_rate = round(len(day_wins) / len(closed_trades)
+                             * 100, 1) if closed_trades else None
+        r_vals = [r for t in closed_trades if (r := _compute_r_multiple(
             t.get("entry_premium"), t.get(
                 "exit_premium"), t.get("stop_loss_premium")
         )) is not None]
@@ -174,6 +172,9 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
                     "process_review": t.get("process_review"),
                     "grade_factors": t.get("grade_factors"),
                     "notes": t.get("notes"),
+                    "went_well": t.get("went_well"),
+                    "improve": t.get("improve"),
+                    "status": t.get("status"),
                 }
                 for t in day_trades
             ],

@@ -30,6 +30,9 @@ export interface TradeCard {
     mindset_discipline: number;
   } | null;
   notes: string | null;
+  went_well: string | null;
+  improve: string | null;
+  status: string | null;
 }
 
 export interface DayDetailResponse {

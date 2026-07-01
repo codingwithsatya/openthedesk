@@ -27,54 +27,68 @@ router = APIRouter()
 
 @router.post("/journal/entry")
 async def create_journal_entry(payload: JournalEntryPayload, user_id: str = Depends(get_current_user)):
-    pnl = payload.pnl if payload.pnl is not None else (
-        _calc_pnl(payload.direction, payload.entry_price,
-                  payload.exit_price, payload.contracts)
-        if payload.exit_price is not None else None
-    )
+    # ── P&L calculation — price-based first, premium-based fallback ──
+    pnl = payload.pnl if payload.pnl is not None else None
+
+    if pnl is None and payload.exit_price is not None:
+        pnl = _calc_pnl(payload.direction, payload.entry_price,
+                        payload.exit_price, payload.contracts)
+
+    if pnl is None and payload.entry_premium is not None and payload.exit_premium is not None:
+        pnl = round(
+            (payload.exit_premium - payload.entry_premium) *
+            payload.contracts * 100, 2
+        )
+
     internals = get_market_internals()
     if not any([internals.get("trin"), internals.get("add"), internals.get("vold")]):
-        internals = {k: _state.INTERNALS_CACHE.get(k) for k in ["trin", "add", "vold"]}
+        internals = {k: _state.INTERNALS_CACHE.get(
+            k) for k in ["trin", "add", "vold"]}
+
     entry = {
-        "id":               str(uuid.uuid4()),
-        "created_at":       datetime.now(timezone.utc).isoformat(),
-        "date":             payload.date,
-        "ticker":           payload.ticker,
-        "setup":            payload.setup,
-        "direction":        payload.direction,
-        "entry_price":      payload.entry_price,
-        "entry_premium":    payload.entry_premium,
-        "exit_price":       payload.exit_price,
-        "exit_premium":     payload.exit_premium,
-        "contracts":        payload.contracts,
-        "pnl":              round(pnl, 2) if pnl is not None else None,
-        "grade":            payload.grade or "",
-        "process_grade":    payload.process_grade or "",
-        "notes":            payload.notes or "",
-        "status":           payload.status,
-        "internals":        internals,
+        "id":                str(uuid.uuid4()),
+        "created_at":        datetime.now(timezone.utc).isoformat(),
+        "date":              payload.date,
+        "ticker":            payload.ticker,
+        "setup":             payload.setup,
+        "direction":         payload.direction,
+        "entry_price":       payload.entry_price,
+        "entry_premium":     payload.entry_premium,
+        "exit_price":        payload.exit_price,
+        "exit_premium":      payload.exit_premium,
+        "contracts":         payload.contracts,
+        "pnl":               round(pnl, 2) if pnl is not None else None,
+        "grade":             payload.grade or "",
+        "process_grade":     payload.process_grade or "",
+        "notes":             payload.notes or "",
+        "went_well":         payload.went_well or "",
+        "improve":           payload.improve or "",
+        "status":            payload.status,
+        "internals":         internals,
         "stop_loss_premium": payload.stop_loss_premium,
     }
     if _sb:
         try:
             result = _sb.table("trade_journal").insert({
-                "user_id":            user_id,
-                "date":               entry["date"],
-                "ticker":             entry["ticker"],
-                "setup":              entry["setup"],
-                "direction":          entry["direction"],
-                "entry_price":        entry["entry_price"],
-                "entry_premium":      entry["entry_premium"],
-                "exit_price":         entry["exit_price"],
-                "exit_premium":       entry["exit_premium"],
-                "stop_loss_premium":  entry["stop_loss_premium"],
-                "contracts":          entry["contracts"],
-                "pnl":                entry["pnl"],
-                "grade":              entry["grade"],
-                "process_grade":      entry["process_grade"],
-                "notes":              entry["notes"],
-                "status":             entry["status"],
-                "internals":          entry["internals"],
+                "user_id":           user_id,
+                "date":              entry["date"],
+                "ticker":            entry["ticker"],
+                "setup":             entry["setup"],
+                "direction":         entry["direction"],
+                "entry_price":       entry["entry_price"],
+                "entry_premium":     entry["entry_premium"],
+                "exit_price":        entry["exit_price"],
+                "exit_premium":      entry["exit_premium"],
+                "stop_loss_premium": entry["stop_loss_premium"],
+                "contracts":         entry["contracts"],
+                "pnl":               entry["pnl"],
+                "grade":             entry["grade"],
+                "process_grade":     entry["process_grade"],
+                "notes":             entry["notes"],
+                "went_well":         entry.get("went_well"),
+                "improve":           entry.get("improve"),
+                "status":            entry["status"],
+                "internals":         entry["internals"],
             }).execute()
             if result.data and len(result.data) > 0:
                 entry["id"] = result.data[0]["id"]
@@ -94,10 +108,12 @@ async def run_process_review(entry_id: str, user_id: str = Depends(get_current_u
         res = _sb.table("trade_journal").select(
             "*").eq("id", entry_id).eq("user_id", user_id).execute()
         if not res.data:
-            raise HTTPException(status_code=404, detail="Entry not found or not yours")
+            raise HTTPException(
+                status_code=404, detail="Entry not found or not yours")
         row = res.data[0]
         if row.get("status") != "closed":
-            raise HTTPException(status_code=400, detail="Trade must be closed before review")
+            raise HTTPException(
+                status_code=400, detail="Trade must be closed before review")
         review = await asyncio.to_thread(_run_process_review, entry_id, user_id, row)
         return {"status": "reviewed", "entry_id": entry_id, **review}
     except HTTPException:
@@ -115,7 +131,8 @@ async def update_journal_entry(
     if not _sb:
         raise HTTPException(status_code=503, detail="Database not configured")
     try:
-        update_data = {k: v for k, v in payload.model_dump().items() if v is not None}
+        update_data = {k: v for k, v in payload.model_dump().items()
+                       if v is not None}
         update_data.pop("tags", None)
         if not update_data:
             return {"status": "no changes"}
@@ -138,7 +155,8 @@ async def update_journal_entry(
             .eq("user_id", user_id)\
             .execute()
         if not result.data:
-            raise HTTPException(status_code=404, detail="Entry not found or not yours")
+            raise HTTPException(
+                status_code=404, detail="Entry not found or not yours")
         row = result.data[0]
         _enrich_entry(row)
         response: dict = {"status": "updated", "entry": row}
@@ -183,6 +201,8 @@ def get_journal_entries(
                 q = q.lte("date", date_to)
             if status:
                 q = q.eq("status", status)
+            else:
+                q = q.neq("status", "observation")
             if tag:
                 q = q.ilike("notes", f"%#{tag}%")
             if filter:
@@ -243,7 +263,8 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
             pnl_by_setup[s]["wins"] += 1
         else:
             pnl_by_setup[s]["losses"] += 1
-        pnl_by_setup[s]["total_pnl"] = round(pnl_by_setup[s]["total_pnl"] + pnl, 2)
+        pnl_by_setup[s]["total_pnl"] = round(
+            pnl_by_setup[s]["total_pnl"] + pnl, 2)
 
     best_setup = None
     best_wr = -1.0
@@ -277,12 +298,15 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
 
     gross_wins = sum(e["pnl"] for e in wins)
     gross_losses = abs(sum(e["pnl"] for e in losses))
-    profit_factor = round(gross_wins / gross_losses, 2) if gross_losses > 0 else 0.0
+    profit_factor = round(gross_wins / gross_losses,
+                          2) if gross_losses > 0 else 0.0
 
     wr_decimal = len(wins) / len(closed) if closed else 0.0
-    expectancy = round((wr_decimal * avg_winner) + ((1 - wr_decimal) * avg_loser), 2)
+    expectancy = round((wr_decimal * avg_winner) +
+                       ((1 - wr_decimal) * avg_loser), 2)
 
-    best_setup_pnl = pnl_by_setup.get(best_setup, {}).get("total_pnl") if best_setup else None
+    best_setup_pnl = pnl_by_setup.get(best_setup, {}).get(
+        "total_pnl") if best_setup else None
 
     _DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     pnl_by_hour_grid: dict[str, dict] = {}
@@ -299,7 +323,8 @@ def get_journal_stats(user_id: str = Depends(get_current_user)):
                 pnl_by_hour_grid[key]["wins"] += 1
             else:
                 pnl_by_hour_grid[key]["losses"] += 1
-            pnl_by_hour_grid[key]["pnl"] = round(pnl_by_hour_grid[key]["pnl"] + pnl, 2)
+            pnl_by_hour_grid[key]["pnl"] = round(
+                pnl_by_hour_grid[key]["pnl"] + pnl, 2)
         except Exception:
             pass
 
@@ -366,7 +391,8 @@ async def delete_journal_entry(entry_id: str, user_id: str = Depends(get_current
             .eq("user_id", user_id)\
             .execute()
         if not res.data:
-            raise HTTPException(status_code=404, detail="Entry not found or not yours")
+            raise HTTPException(
+                status_code=404, detail="Entry not found or not yours")
         return {"status": "deleted", "id": entry_id}
     except HTTPException:
         raise
@@ -421,7 +447,8 @@ def export_journal(
     ]
 
     output = io.StringIO()
-    writer = csv.DictWriter(output, fieldnames=EXPORT_COLS, extrasaction="ignore")
+    writer = csv.DictWriter(
+        output, fieldnames=EXPORT_COLS, extrasaction="ignore")
     writer.writeheader()
     for r in rows:
         writer.writerow({k: r.get(k, "") for k in EXPORT_COLS})
