@@ -5,6 +5,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from backend.app.core.auth import get_current_user
 from backend.app.core.config import _sb
+from backend.app.models import challenge
+from backend.app.models import challenge
 from backend.app.models.challenge import StartChallengePayload
 from backend.app.services.challenge_service import (
     get_active_challenge,
@@ -17,6 +19,7 @@ from backend.app.services.challenge_service import (
     _challenge_build_lessons,
     _fetch_challenge_trades,
     write_challenge_entry,
+    _get_holiday_dates_for_range
 )
 from backend.app.services.journal_service import _compute_r_multiple
 
@@ -27,7 +30,8 @@ router = APIRouter()
 async def start_challenge(payload: StartChallengePayload, user_id: str = Depends(get_current_user)):
     existing = get_active_challenge(user_id)
     if existing:
-        raise HTTPException(status_code=409, detail="An active challenge already exists.")
+        raise HTTPException(
+            status_code=409, detail="An active challenge already exists.")
     if not _sb:
         raise HTTPException(status_code=503, detail="Database unavailable")
     try:
@@ -46,7 +50,8 @@ async def start_challenge(payload: StartChallengePayload, user_id: str = Depends
             pass
         res = _sb.table("challenges").insert(row).execute()
         if not res.data:
-            raise HTTPException(status_code=500, detail="Insert returned no data")
+            raise HTTPException(
+                status_code=500, detail="Insert returned no data")
         return res.data[0]
     except HTTPException:
         raise
@@ -72,13 +77,18 @@ async def get_challenge_stats(user_id: str = Depends(get_current_user)):
     trades = _fetch_challenge_trades(challenge["id"], user_id)
     start_balance = challenge.get("start_balance") or 500
     start_date_str = str(challenge["start_date"])[:10]
-    in_window = [t for t in trades if str(t.get("date") or "")[:10] >= start_date_str]
+    in_window = [t for t in trades if str(t.get("date") or "")[
+        :10] >= start_date_str]
     stats = _challenge_compute_stats(in_window, start_balance)
     calendar = _challenge_build_calendar(challenge["start_date"], in_window)
     lessons = _challenge_build_lessons(in_window)
     equity = _challenge_build_equity(in_window, start_balance)
     streaks = _challenge_build_streaks(calendar)
     grade_breakdown = _challenge_build_grade_breakdown(calendar)
+
+    from datetime import datetime
+    today_et = datetime.now(ZoneInfo("America/New_York")).date()
+    holidays = _get_holiday_dates_for_range(challenge["start_date"], today_et)
     return {
         "active": True,
         "challenge": challenge,
@@ -89,6 +99,7 @@ async def get_challenge_stats(user_id: str = Depends(get_current_user)):
         "equity": equity,
         "streaks": streaks,
         "grade_breakdown": grade_breakdown,
+        "holidays": holidays,
     }
 
 
@@ -101,11 +112,13 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
         raise HTTPException(status_code=503, detail="Database unavailable")
     start_date_str = str(challenge["start_date"])[:10]
     if date < start_date_str:
-        raise HTTPException(status_code=400, detail="Date is before challenge start date")
+        raise HTTPException(
+            status_code=400, detail="Date is before challenge start date")
     try:
         ce_res = _sb.table("challenge_entries").select("source_entry_id")\
             .eq("challenge_id", challenge["id"]).execute()
-        source_ids = [r["source_entry_id"] for r in (ce_res.data or []) if r.get("source_entry_id")]
+        source_ids = [r["source_entry_id"]
+                      for r in (ce_res.data or []) if r.get("source_entry_id")]
         if not source_ids:
             return {"date": date, "trades": [], "day_pnl": 0.0, "balance_after": None,
                     "win_rate": None, "avg_r_multiple": None}
@@ -120,18 +133,22 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
         day_pnl = round(sum(t.get("pnl") or 0 for t in day_trades), 2)
         all_trades = _fetch_challenge_trades(challenge["id"], user_id)
         start_balance = challenge.get("start_balance") or 500
-        in_window = [t for t in all_trades if str(t.get("date") or "")[:10] >= start_date_str]
+        in_window = [t for t in all_trades if str(t.get("date") or "")[
+            :10] >= start_date_str]
         equity = _challenge_build_equity(in_window, start_balance)
         balance_after = None
         for point in equity:
             if point["date"] <= date:
                 balance_after = point["balance"]
         day_wins = [t for t in day_trades if (t.get("pnl") or 0) > 0]
-        day_win_rate = round(len(day_wins) / len(day_trades) * 100, 1) if day_trades else None
+        day_win_rate = round(len(day_wins) / len(day_trades)
+                             * 100, 1) if day_trades else None
         r_vals = [r for t in day_trades if (r := _compute_r_multiple(
-            t.get("entry_premium"), t.get("exit_premium"), t.get("stop_loss_premium")
+            t.get("entry_premium"), t.get(
+                "exit_premium"), t.get("stop_loss_premium")
         )) is not None]
-        avg_r_multiple = round(sum(r_vals) / len(r_vals), 2) if r_vals else None
+        avg_r_multiple = round(sum(r_vals) / len(r_vals),
+                               2) if r_vals else None
         return {
             "date": date,
             "day_pnl": day_pnl,
@@ -147,7 +164,8 @@ async def get_challenge_day(date: str, user_id: str = Depends(get_current_user))
                     "exit_premium": t.get("exit_premium"),
                     "stop_loss_premium": t.get("stop_loss_premium"),
                     "r_multiple": _compute_r_multiple(
-                        t.get("entry_premium"), t.get("exit_premium"), t.get("stop_loss_premium")
+                        t.get("entry_premium"), t.get(
+                            "exit_premium"), t.get("stop_loss_premium")
                     ),
                     "contracts": t.get("contracts") or 1,
                     "pnl": t.get("pnl"),

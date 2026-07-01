@@ -1,10 +1,63 @@
+from functools import lru_cache
+import httpx
+import os
 from datetime import datetime, timedelta, date as date_type
 from zoneinfo import ZoneInfo
 
 from backend.app.core.config import _sb
 
-_PROCESS_GRADE_SCORES: dict[str, float] = {"A+": 5.0, "A": 4.0, "B": 3.0, "C": 2.0}
+_PROCESS_GRADE_SCORES: dict[str, float] = {
+    "A+": 5.0, "A": 4.0, "B": 3.0, "C": 2.0}
 _GRADE_RANK: dict[str, int] = {"A+": 4, "A": 3, "B": 2, "C": 1}
+
+
+# ── NYSE trading calendar via Tradier ────────────────────────
+
+@lru_cache(maxsize=12)  # cache per month, 12 months
+def _get_tradier_market_days(year: int, month: int) -> set[str]:
+    """
+    Fetch open market days from Tradier for a given month.
+    Returns a set of date strings like {'2026-07-01', '2026-07-02', ...}
+    Excludes holidays and weekends automatically.
+    Cached per month — only hits Tradier once per month per process.
+    """
+    token = os.getenv("TRADIER_TOKEN")
+    if not token:
+        return set()
+    try:
+        resp = httpx.get(
+            "https://api.tradier.com/v1/markets/calendar",
+            params={"month": month, "year": year},
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/json",
+            },
+            timeout=5.0,
+        )
+        data = resp.json()
+        days = data.get("calendar", {}).get("days", {}).get("day", [])
+        if isinstance(days, dict):
+            days = [days]  # single day comes back as dict not list
+        return {
+            d["date"] for d in days
+            if d.get("status") == "open"
+        }
+    except Exception as _e:
+        print(f"[WARN] Tradier calendar fetch failed: {_e}")
+        return set()
+
+
+def _is_trading_day(d: date_type) -> bool:
+    """
+    Returns True if date is a NYSE trading day.
+    Falls back to weekday check if Tradier unavailable.
+    """
+    if d.weekday() >= 5:
+        return False  # always skip weekends first
+    open_days = _get_tradier_market_days(d.year, d.month)
+    if not open_days:
+        return True  # Tradier unavailable — fall back to weekday only
+    return d.isoformat() in open_days
 
 
 def get_active_challenge(user_id: str) -> dict | None:
@@ -24,17 +77,21 @@ def get_active_challenge(user_id: str) -> dict | None:
 
 
 def compute_trading_day_number(start_date) -> int:
-    """Count Mon–Fri days from start_date to today ET inclusive (no holiday adjustment)."""
+    """Count weekdays from start_date to today (ET), inclusive."""
+    if isinstance(start_date, str):
+        start = date_type.fromisoformat(
+            start_date[:10])  # date_type is imported
+    else:
+        start = start_date
+
     today = datetime.now(ZoneInfo("America/New_York")).date()
-    start = date_type.fromisoformat(str(start_date)) if not isinstance(
-        start_date, date_type) else start_date
     count = 0
     current = start
     while current <= today:
         if current.weekday() < 5:
             count += 1
         current += timedelta(days=1)
-    return max(1, count)
+    return max(count, 1)
 
 
 def write_challenge_entry(user_id: str, trade: dict, source_entry_id: str) -> None:
@@ -57,7 +114,8 @@ def write_challenge_entry(user_id: str, trade: dict, source_entry_id: str) -> No
 
 
 def _best_grade_of(trades: list[dict]) -> str | None:
-    grades = [g for t in trades if (g := (t.get("grade") or "")) in _GRADE_RANK]
+    grades = [g for t in trades if (
+        g := (t.get("grade") or "")) in _GRADE_RANK]
     return max(grades, key=lambda g: _GRADE_RANK[g]) if grades else None
 
 
@@ -90,7 +148,8 @@ def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
             grades["C"] += 1
     pg_scores = [_PROCESS_GRADE_SCORES[pg] for t in closed
                  if (pg := t.get("process_grade") or "") in _PROCESS_GRADE_SCORES]
-    avg_process_grade = round(sum(pg_scores) / len(pg_scores), 2) if pg_scores else None
+    avg_process_grade = round(
+        sum(pg_scores) / len(pg_scores), 2) if pg_scores else None
     return {
         "total_trades": len(closed),
         "wins": len(wins),
@@ -106,66 +165,129 @@ def _challenge_compute_stats(trades: list[dict], start_balance: float) -> dict:
     }
 
 
-def _challenge_build_calendar(start_date_str: str, trades: list[dict]) -> list[dict]:
-    today = datetime.now(ZoneInfo("America/New_York")).date()
-    start = date_type.fromisoformat(str(start_date_str))
-    by_date: dict[str, list[dict]] = {}
+# FIXED
+def _challenge_build_calendar(start_date, trades: list) -> list:
+    trades_by_date: dict = {}
     for t in trades:
-        d = t.get("date") or ""
-        if d:
-            by_date.setdefault(str(d)[:10], []).append(t)
-    result = []
-    td_counter = 0
+        d = str(t.get("date", ""))[:10]
+        if d not in trades_by_date:
+            trades_by_date[d] = []
+        trades_by_date[d].append(t)
+
+    if isinstance(start_date, str):
+        start = date_type.fromisoformat(start_date[:10])
+    else:
+        start = start_date
+
+    today = datetime.now(ZoneInfo("America/New_York")).date()
+    calendar = []
+    day_number = 0
     current = start
+
     while current <= today:
-        if current.weekday() < 5:
-            td_counter += 1
-            day_str = current.isoformat()
-            day_trades = by_date.get(day_str, [])
+        if _is_trading_day(current):
+            day_number += 1
+            date_str = current.isoformat()
+            day_trades = trades_by_date.get(date_str, [])
+
             if day_trades:
-                net = round(sum(t.get("pnl", 0) or 0 for t in day_trades), 2)
-                status = "win" if net > 0 else "loss"
+                pnl = round(sum(t.get("pnl") or 0 for t in day_trades), 2)
+                grade = day_trades[0].get("grade", "")
+                result = "win" if pnl > 0 else "loss" if pnl < 0 else "breakeven"
             else:
-                net = 0.0
-                status = "no_trade"
-            result.append({
-                "date": day_str,
-                "td_number": td_counter,
-                "status": status,
-                "day_pnl": net,
+                pnl = 0.0
+                grade = ""
+                result = "no_trade"
+
+            calendar.append({
+                "date": date_str,
+                "day_number": day_number,
+                "pnl": pnl,
+                "day_pnl": pnl,          # ← alias frontend expects
+                "grade": grade,
+                "best_grade": grade,      # ← alias frontend expects
+                "result": result,
+                "status": result,         # ← alias frontend expects
                 "trade_count": len(day_trades),
-                "best_grade": _best_grade_of(day_trades),
             })
+
         current += timedelta(days=1)
-    return result
+
+    return calendar
 
 
-def _challenge_build_streaks(calendar: list[dict]) -> dict:
-    """Win streak stats from calendar (win/loss days only, not no-trade)."""
-    traded = [c for c in calendar if c["status"] in ("win", "loss")]
-    current = 0
-    for c in reversed(traded):
-        if c["status"] == "win":
-            current += 1
+def _challenge_build_streaks(calendar: list) -> dict:
+    current_win = 0
+    current_loss = 0
+    best_win = 0
+    best_loss = 0
+
+    for day in calendar:
+        result = day.get("result", "no_trade")
+        if result == "no_trade":
+            continue
+        if result == "win":
+            current_win += 1
+            current_loss = 0
+        elif result == "loss":
+            current_loss += 1
+            current_win = 0
         else:
-            break
-    best = 0
-    run = 0
-    for c in traded:
-        if c["status"] == "win":
-            run += 1
-            best = max(best, run)
-        else:
-            run = 0
-    return {"current": current, "best": best}
+            current_win = 0
+            current_loss = 0
+        best_win = max(best_win, current_win)
+        best_loss = max(best_loss, current_loss)
+
+    return {
+        # Frontend shape
+        "current": current_win,
+        "best": best_win,
+        # Full detail
+        "current_win_streak": current_win,
+        "current_loss_streak": current_loss,
+        "best_win_streak": best_win,
+        "best_loss_streak": best_loss,
+    }
+
+
+def _get_holiday_dates_for_range(start_date, end_date) -> list[str]:
+    """Weekdays that are market holidays (closed by exchange) in the date range."""
+    if isinstance(start_date, str):
+        start = date_type.fromisoformat(start_date[:10])
+    else:
+        start = start_date
+    if isinstance(end_date, str):
+        end = date_type.fromisoformat(end_date[:10])
+    else:
+        end = end_date
+
+    holidays = []
+    open_days_cache: dict[tuple, set] = {}
+    current = start
+
+    while current <= end:
+        if current.weekday() < 5:
+            key = (current.year, current.month)
+            if key not in open_days_cache:
+                open_days_cache[key] = _get_tradier_market_days(
+                    current.year, current.month)
+            open_days = open_days_cache[key]
+            if open_days and current.isoformat() not in open_days:
+                holidays.append(current.isoformat())
+        current += timedelta(days=1)
+
+    return holidays
 
 
 def _challenge_build_grade_breakdown(calendar: list[dict]) -> dict:
-    """Grade distribution using each traded day's best trade grade."""
-    a_plus = sum(1 for c in calendar if c.get("best_grade") == "A+")
-    a = sum(1 for c in calendar if c.get("best_grade") == "A")
-    b = sum(1 for c in calendar if c.get("best_grade") == "B")
-    c = sum(1 for c in calendar if c.get("best_grade") == "C")
+    a_plus = sum(1 for c in calendar if c.get("grade") ==
+                 "A+" and c.get("result") != "no_trade")
+    a = sum(1 for c in calendar if c.get("grade") ==
+            "A" and c.get("result") != "no_trade")
+    b = sum(1 for c in calendar if c.get("grade") ==
+            "B" and c.get("result") != "no_trade")
+    c = sum(1 for c in calendar if c.get("grade") ==
+            "C" and c.get("result") != "no_trade")
     return {"a_plus": a_plus, "a": a, "b": b, "c": c, "total": a_plus + a + b + c}
 
 
@@ -180,7 +302,8 @@ def _challenge_build_equity(trades: list[dict], start_balance: float) -> list[di
     result = []
     for day_str in sorted(by_date.keys()):
         running = round(running + by_date[day_str], 2)
-        result.append({"date": day_str, "pnl": by_date[day_str], "balance": running})
+        result.append(
+            {"date": day_str, "pnl": by_date[day_str], "balance": running})
     return result
 
 
@@ -192,9 +315,12 @@ def _challenge_build_lessons(trades: list[dict]) -> list[dict]:
         by_setup.setdefault(s, []).append(t)
     lessons = []
     for setup, items in sorted(by_setup.items(), key=lambda x: len(x[1]), reverse=True)[:3]:
-        verdicts = [t.get("process_review") or "" for t in items if t.get("process_review")]
-        summary = " | ".join(v[:120] for v in verdicts[:2]) if verdicts else "No process review yet"
-        lessons.append({"setup": setup, "losses": len(items), "verdict_summary": summary})
+        verdicts = [t.get("process_review")
+                    or "" for t in items if t.get("process_review")]
+        summary = " | ".join(v[:120] for v in verdicts[:2]
+                             ) if verdicts else "No process review yet"
+        lessons.append({"setup": setup, "losses": len(
+            items), "verdict_summary": summary})
     return lessons
 
 

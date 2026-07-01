@@ -8,6 +8,13 @@ const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type CardState = "idle" | "form" | "submitting" | "logged" | "skipped";
 
+const getTodayET = () =>
+  new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
+
+const isFromTodayET = (ts: string) =>
+  new Date(ts).toLocaleDateString("en-US", { timeZone: "America/New_York" }) ===
+  getTodayET();
+
 interface SignalStreamProps {
   alerts: TVAlert[];
   isUnread: (a: TVAlert) => boolean;
@@ -252,6 +259,16 @@ export default function SignalStream({
 
   useEffect(() => {
     try {
+      const todayET = getTodayET();
+      const savedDate = localStorage.getItem("otd_signal_date");
+
+      if (savedDate !== todayET) {
+        localStorage.setItem("otd_signal_date", todayET);
+        localStorage.removeItem("otd_logged_ids");
+        localStorage.removeItem("otd_skipped_ids");
+        return;
+      }
+
       const savedLogged = localStorage.getItem("otd_logged_ids");
       const savedSkipped = localStorage.getItem("otd_skipped_ids");
 
@@ -263,7 +280,8 @@ export default function SignalStream({
     }
   }, []);
 
-  const unreadCount = alerts.filter((a) => isUnread(a)).length;
+  const todayAlerts = alerts.filter((a) => isFromTodayET(a.ts));
+  const unreadCount = todayAlerts.filter((a) => isUnread(a)).length;
 
   const handleLogged = (id: string, pnl: number) => {
     setLoggedIds((prev) => {
@@ -299,14 +317,14 @@ export default function SignalStream({
       </div>
 
       <div className="ss-body">
-        {alerts.length === 0 ? (
+        {todayAlerts.length === 0 ? (
           <div className="ss-empty">
             <div className="ss-empty-icon">📡</div>
             <div className="ss-empty-title">Waiting for signals</div>
             <div className="ss-empty-sub">TradingView alerts appear here.</div>
           </div>
         ) : (
-          alerts.slice(0, 12).map((alert) => {
+          todayAlerts.slice(0, 12).map((alert) => {
             const alertKey = getAlertKey(alert);
 
             return (

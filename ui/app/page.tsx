@@ -8,6 +8,10 @@ import DeskShell from "@/features/desk/components/DeskShell";
 const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 const SESSION_ID = "satya";
 
+// ── NEW: ET date helper ───────────────────────────────────────
+const getTodayET = () =>
+  new Date().toLocaleDateString("en-US", { timeZone: "America/New_York" });
+
 export default function Home() {
   const { getToken } = useAuth();
   const { user } = useUser();
@@ -236,6 +240,12 @@ export default function Home() {
           }),
         });
         const data = await res.json();
+        // ── NEW: stamp brief date ─────────────────────────────
+        try {
+          localStorage.setItem("otd_brief_date", getTodayET());
+        } catch {
+          /* ignore */
+        }
         setMessages((prev) => [
           ...prev,
           {
@@ -329,6 +339,7 @@ export default function Home() {
       try {
         localStorage.removeItem("otd_desk_open");
         localStorage.removeItem("otd_desk_open_time");
+        localStorage.removeItem("otd_brief_date");
       } catch {
         /* ignore */
       }
@@ -351,6 +362,7 @@ export default function Home() {
     try {
       localStorage.removeItem("otd_desk_open");
       localStorage.removeItem("otd_desk_open_time");
+      localStorage.removeItem("otd_brief_date");
     } catch {
       /* ignore */
     }
@@ -397,6 +409,11 @@ export default function Home() {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
+      try {
+        localStorage.setItem("otd_brief_date", getTodayET());
+      } catch {
+        /* ignore */
+      }
       setMessages((prev) => [
         ...prev,
         {
@@ -435,6 +452,13 @@ export default function Home() {
 
   // Parse bias/Mag7 from the last morning brief assistant message
   const briefData = useMemo(() => {
+    // ── NEW: only show banner if brief was run today (ET) ────
+    const storedDate =
+      typeof window !== "undefined"
+        ? localStorage.getItem("otd_brief_date")
+        : null;
+    if (storedDate !== getTodayET()) return null;
+
     const briefMsg = [...messages]
       .reverse()
       .find(
@@ -497,7 +521,9 @@ export default function Home() {
       briefWarning={briefData?.warning ?? ""}
       briefBullLevel={briefData?.bullLevel ?? null}
       briefBearLevel={briefData?.bearLevel ?? null}
-      onBriefExpand={() => bottomRef.current?.scrollIntoView({ behavior: "smooth" })}
+      onBriefExpand={() =>
+        bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+      }
       satyAtr={satyAtr}
       atrApplied={atrApplied}
       onAtrChange={handleAtrChange}

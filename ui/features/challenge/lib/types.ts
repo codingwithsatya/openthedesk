@@ -83,6 +83,12 @@ export interface GradeBreakdown {
   total: number;
 }
 
+export interface Lesson {
+  setup: string;
+  losses: number;
+  verdict_summary: string;
+}
+
 export interface StatsResponse {
   active: boolean;
   challenge?: ChallengeData;
@@ -92,6 +98,8 @@ export interface StatsResponse {
   equity?: EquityPoint[];
   streaks?: Streaks;
   grade_breakdown?: GradeBreakdown;
+  lessons?: Lesson[];
+  holidays?: string[];
 }
 
 export interface PastChallenge extends ChallengeData {

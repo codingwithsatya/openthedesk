@@ -4,7 +4,6 @@ import { useAuth } from "@clerk/nextjs";
 import Header from "@/app/components/Header";
 import AppIconRail from "@/app/components/AppIconRail";
 import ChallengeDayDrawer from "@/features/challenge/components/ChallengeDayDrawer";
-// import ChallengeMountainHero from "@/features/challenge/components/ChallengeMountainHero";
 import {
   gradeClass,
   gradeColor,
@@ -32,8 +31,6 @@ interface Props {
   past: PastChallenge[];
   onRefresh: () => void;
 }
-
-// ── SparkLine ─────────────────────────────────────────────────
 
 function SparkLine({ values, color }: { values: number[]; color: string }) {
   if (values.length < 2) return <div className={s.statMiniSpark} />;
@@ -71,8 +68,6 @@ function SparkLine({ values, color }: { values: number[]; color: string }) {
     </div>
   );
 }
-
-// ── DonutChart ────────────────────────────────────────────────
 
 function DonutChart({
   aplus,
@@ -139,8 +134,6 @@ function DonutChart({
   );
 }
 
-// ── Main Component ────────────────────────────────────────────
-
 export default function ChallengeDashboard({
   data,
   past: _past,
@@ -148,7 +141,6 @@ export default function ChallengeDashboard({
 }: Props) {
   const { getToken } = useAuth();
 
-  // Calendar navigation state
   const [calMonth, setCalMonth] = useState(() => {
     const now = new Date();
     return { year: now.getFullYear(), month: now.getMonth() };
@@ -157,8 +149,6 @@ export default function ChallengeDashboard({
   const [dayDetail, setDayDetail] = useState<DayDetailResponse | null>(null);
   const [dayDetailLoading, setDayDetailLoading] = useState(false);
   const [dayDetailError, setDayDetailError] = useState<string | null>(null);
-
-  // ── Derived values ────────────────────────────────────────────
 
   const ch = data.challenge;
   const stats = data.stats;
@@ -185,13 +175,18 @@ export default function ChallengeDashboard({
     return m;
   }, [calendar]);
 
+  // ── NEW: holiday set from backend ─────────────────────────
+  const holidaySet = useMemo(
+    () => new Set<string>(data.holidays ?? []),
+    [data.holidays],
+  );
+
   const gridCells = useMemo(
     () => buildMonthGrid(calMonth.year, calMonth.month, calDayMap, todayStr),
     [calMonth, calDayMap, todayStr],
   );
 
   const todayCalDay = calDayMap.get(todayStr) ?? null;
-
   const displayCalDay =
     (selectedDate ? calDayMap.get(selectedDate) : null) ?? todayCalDay;
   const displayStr = selectedDate ?? todayStr;
@@ -202,14 +197,13 @@ export default function ChallengeDashboard({
   );
 
   const daysRemaining = 90 - dayNumber;
-
   const equityValues = useMemo(() => equity.map((e) => e.balance), [equity]);
 
   const footerStats = useMemo(() => {
     const traded = calendar.filter((c) => c.status !== "no_trade");
     const winDays = traded.filter((c) => c.status === "win").length;
     const lossDays = traded.filter((c) => c.status === "loss").length;
-    const totalPnl = traded.reduce((sum, c) => sum + c.day_pnl, 0);
+    const totalPnl = traded.reduce((sum, c) => sum + (c.day_pnl ?? 0), 0);
     const avgPnl = traded.length > 0 ? totalPnl / traded.length : 0;
     return { daysTraded: traded.length, winDays, lossDays, totalPnl, avgPnl };
   }, [calendar]);
@@ -235,8 +229,6 @@ export default function ChallengeDashboard({
     RING_CIRC = 2 * Math.PI * RING_R;
   const streakArc =
     streaks.best > 0 ? (streaks.current / streaks.best) * RING_CIRC : 0;
-
-  // ── Day detail fetch ──────────────────────────────────────────
 
   const fetchDayDetail = useCallback(
     async (date: string) => {
@@ -272,8 +264,6 @@ export default function ChallengeDashboard({
     [getToken],
   );
 
-  // ── Day click handler ─────────────────────────────────────────
-
   function handleDayClick(date: string) {
     if (selectedDate === date) {
       setSelectedDate(null);
@@ -297,8 +287,6 @@ export default function ChallengeDashboard({
     );
   }
 
-  // ── Render ────────────────────────────────────────────────────
-
   return (
     <div className={s.page}>
       <Header
@@ -314,7 +302,6 @@ export default function ChallengeDashboard({
 
         <main className={s.main}>
           <div className={s.wrap}>
-            {/* Page title */}
             <div className={s.pageTitle}>
               <svg
                 viewBox="0 0 24 24"
@@ -353,9 +340,7 @@ export default function ChallengeDashboard({
                     </span>
                   </div>
                 </div>
-                <div className={s.heroVisual}>
-                  {/* <ChallengeMountainHero dayNumber={dayNumber} /> */}
-                </div>
+                <div className={s.heroVisual} />
               </div>
               <div className={s.endsCard}>
                 <p className={s.endsLbl}>Challenge ends</p>
@@ -374,7 +359,6 @@ export default function ChallengeDashboard({
 
             {/* ── 5-card stat row ──────────────────────────── */}
             <div className={s.statRow}>
-              {/* Account Balance */}
               <div className={s.statCard}>
                 <p className={s.statK}>Account Balance</p>
                 <p
@@ -389,7 +373,6 @@ export default function ChallengeDashboard({
                 <SparkLine values={equityValues} color="var(--ch-green)" />
               </div>
 
-              {/* Day P&L */}
               <div className={s.statCard}>
                 <p className={s.statK}>Day P&amp;L</p>
                 <div className={s.statVRow}>
@@ -412,7 +395,6 @@ export default function ChallengeDashboard({
                 </p>
               </div>
 
-              {/* Avg Process Grade */}
               <div className={s.statCard}>
                 <p className={s.statK}>Avg Process Grade</p>
                 <p className={`${s.statV} ${s.blue}`}>
@@ -434,7 +416,6 @@ export default function ChallengeDashboard({
                 <SparkLine values={equityValues} color="var(--ch-blue)" />
               </div>
 
-              {/* Day Streak */}
               <div className={s.statCard}>
                 <div className={s.statVRow}>
                   <div>
@@ -480,7 +461,6 @@ export default function ChallengeDashboard({
                 </div>
               </div>
 
-              {/* Total P&L */}
               <div className={s.statCard}>
                 <p className={s.statK}>Total P&amp;L</p>
                 <p className={`${s.statV} ${totalPnl >= 0 ? s.green : s.red}`}>
@@ -539,6 +519,20 @@ export default function ChallengeDashboard({
                         );
                       }
 
+                      // ── NEW: holiday check ────────────────
+                      const isHoliday = holidaySet.has(cell.date);
+
+                      if (isHoliday) {
+                        return (
+                          <div key={idx} className={`${s.calDay} ${s.holiday}`}>
+                            <div className={s.calTopRow}>
+                              <span className={s.calDaynum}>{cell.dayNum}</span>
+                            </div>
+                            <span className={s.holidayLabel}>🏛 Holiday</span>
+                          </div>
+                        );
+                      }
+
                       const cd = cell.calDay;
                       const isSelected = cell.date === selectedDate;
 
@@ -583,7 +577,7 @@ export default function ChallengeDashboard({
                           {cd && cd.trade_count > 0 ? (
                             <>
                               <span className={s.calPnl}>
-                                {fmtPnl(cd.day_pnl)}
+                                {fmtPnl(cd.day_pnl ?? 0)}
                               </span>
                               <span className={s.calTradeCt}>
                                 {cd.trade_count} trade
@@ -602,7 +596,6 @@ export default function ChallengeDashboard({
 
               {/* ── Right rail ─────────────────────────────── */}
               <div className={s.rightRail}>
-                {/* Today's Focus */}
                 <div className={s.focusCard}>
                   <div className={s.focusIcon}>🎯</div>
                   <div>
@@ -612,7 +605,6 @@ export default function ChallengeDashboard({
                   </div>
                 </div>
 
-                {/* Today card */}
                 <div className={s.todayCard}>
                   <div className={s.todayCardHead}>
                     {selectedDate ? "Selected" : "Today"} ·{" "}
@@ -658,7 +650,6 @@ export default function ChallengeDashboard({
                   </div>
                 </div>
 
-                {/* Grade breakdown donut */}
                 <div className={s.gradeCard}>
                   <div className={s.gradeHead}>Grade Breakdown (90 Days)</div>
                   <div className={s.gradeWithDonut}>
@@ -727,7 +718,6 @@ export default function ChallengeDashboard({
                   </div>
                 </div>
 
-                {/* Challenge progress */}
                 <div className={s.progressCard}>
                   <p className={s.progressK}>Challenge Progress</p>
                   <p className={s.progressV}>{challengeProgress}%</p>
